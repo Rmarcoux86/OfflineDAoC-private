@@ -34,7 +34,35 @@ jobs:
 
       - name: Run the fork's tests
         shell: pwsh
-        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "UT_Fishing|UT_Expedition"
+        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
+
+      # Turn every failed test into an annotation, so failures are readable on the run page and through the API.
+      - name: Report failed tests
+        if: always()
+        shell: pwsh
+        run: |
+          $trx = Get-ChildItem test-results -Filter *.trx -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $trx)
+          {
+              Write-Output "::error title=No test results::dotnet test produced no TRX file (build or discovery failed before running tests)."
+              exit 0
+          }
+
+          [xml]$doc = Get-Content $trx.FullName
+          $ns = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
+          $counters = Select-Xml -Xml $doc -XPath '//t:Counters' -Namespace $ns | Select-Object -First 1
+          Write-Output "::notice title=Test totals::total=$($counters.Node.total) passed=$($counters.Node.passed) failed=$($counters.Node.failed)"
+
+          foreach ($r in (Select-Xml -Xml $doc -XPath "//t:UnitTestResult[@outcome='Failed']" -Namespace $ns))
+          {
+              $msg = ($r.Node.Output.ErrorInfo.Message -replace "`r?`n", ' | ')
+              if ($msg.Length -gt 900)
+              {
+                  $msg = $msg.Substring(0, 900)
+              }
+
+              Write-Output "::error title=$($r.Node.testName)::$msg"
+          }
 
       - name: Assemble the update zip
         shell: pwsh
