@@ -220,7 +220,11 @@ public static class FishingSpots
         {
             if (!names.Add(spot.Name))
             {
-                Log.Warn($"Fishing: the marked spot '{spot.Name}' in {FileName} has the name of another spot and is skipped.");
+                // Without logging set up (unit tests) the logger has no queue, and Warn would throw.
+                if (Log.IsWarnEnabled)
+                {
+                    Log.Warn($"Fishing: the marked spot '{spot.Name}' in {FileName} has the name of another spot and is skipped.");
+                }
 
                 continue;
             }
