@@ -8,7 +8,8 @@ internal sealed partial class MainForm
     private static readonly Color StartServerAccent = Color.FromArgb(110, 128, 70);
     private static readonly Color GetUpdateAccent = Color.FromArgb(214, 162, 52);
 
-    private readonly System.Windows.Forms.Timer _forkUpdateTimer = new() { Interval = ForkUpdater.CheckIntervalMilliseconds };
+    // No timer of its own (the launcher keeps to its three timers): the one-second display clock checks this deadline.
+    private DateTime _nextForkUpdateCheckUtc = DateTime.MaxValue;
     private ForkUpdater.ForkUpdateOffer? _forkUpdate;
     private string? _forkUpdateSkippedTag;
     private string _lastServerState = string.Empty;
@@ -33,8 +34,16 @@ internal sealed partial class MainForm
 
     private void StartForkUpdateChecks()
     {
-        _forkUpdateTimer.Tick += async (_, _) => await CheckForForkUpdateAsync();
-        _forkUpdateTimer.Start();
+        _displayClock.Tick += async (_, _) =>
+        {
+            if (DateTime.UtcNow < _nextForkUpdateCheckUtc)
+            {
+                return;
+            }
+
+            await CheckForForkUpdateAsync();
+        };
+
         _ = CheckForForkUpdateAsync();
     }
 
@@ -46,6 +55,7 @@ internal sealed partial class MainForm
         }
 
         _forkUpdateChecking = true;
+        _nextForkUpdateCheckUtc = DateTime.UtcNow.AddMilliseconds(ForkUpdater.CheckIntervalMilliseconds);
 
         try
         {

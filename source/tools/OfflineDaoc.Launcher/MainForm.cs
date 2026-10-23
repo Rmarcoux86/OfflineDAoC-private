@@ -260,7 +260,6 @@ internal sealed partial class MainForm : Form
             _displayClock.Dispose();
             _autoRefresh.Dispose();
             _serverReadinessPoll.Dispose();
-            _forkUpdateTimer.Dispose();
             _helpTip.Dispose();
         }
         base.Dispose(disposing);
