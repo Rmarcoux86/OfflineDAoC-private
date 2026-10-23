@@ -1,6 +1,6 @@
 OFFLINE DAOC 0.3 - SERVER COMMAND REFERENCE
 
-286 command registrations read from the shipped server assemblies.
+287 command registrations read from the shipped server assemblies.
 Normal commands can still have level, realm, cooldown or state requirements.
 GM/admin commands can change or delete game data. Back up before using them.
 Descriptions containing a localization key have no matching shipped English text.
@@ -361,6 +361,15 @@ NORMAL PLAYER COMMANDS
   Turns off the bad word filter.
   /filter
   Handler: DOL.GS.Commands.FilterCommandHandler
+
+/fish
+  Relax and fish. Face open water with a fishing pole and type /fish.
+  '/fish' - Fishes and casts again after each catch until you move or type /fish stop.
+  '/fish active' - Like /fish, but you reel in each bite yourself: type /fish within 4 seconds.
+  '/fish stop' - Reels in your line and stops fishing.
+  '/fish stats' - Shows your fishing skill, casts, catches and best catch.
+  '/fish pole' - Gives you a fishing pole if you don't have one.
+  Handler: DOL.GS.Commands.FishCommandHandler
 
 /flex
   Makes a flexing gesture

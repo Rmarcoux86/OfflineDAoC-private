@@ -30,6 +30,13 @@ On the launcher, click + Lv.1 or + Lv.50 under a faction:
 /stables si
   Jumps to your realm's Shrouded Isles stable routes.
 
+/fish
+  Face open water with a fishing pole and type /fish to cast your line and relax.
+  You keep casting after each catch until you move or type /fish stop.
+  /fish active: you reel in each bite yourself by typing /fish within 4 seconds.
+  /fish stats shows your fishing skill and best catch.
+  /fish pole gives you a fishing pole if you don't have one.
+
 /grind
   Starts automated grinding with a companion bot group, including for AFK use.
 

@@ -7,6 +7,14 @@ The newest version is first. For the full detail of every earlier update, see
 
 0.37 / 0.37b / 0.37c is the latest release.
 
+**Fishing**
+- Fishing: face open water with a fishing pole and type /fish to relax and fish. Each realm's waters have their own
+  fish in four sizes (brown trout and pike in Albion, arctic char and halibut in Midgard, salmon and bream in Hibernia),
+  plus the odd old boot, a waterlogged chest and a few legendary named specimens. Fishing skill grows as you catch and
+  is kept across updates. /fish keeps casting after each catch until you move or type /fish stop; /fish active has
+  you reel in each bite yourself (type /fish within 4 seconds). Also /fish stats, and /fish pole gives you a pole if
+  you have none.
+
 **Bots and raids**
 - Hibernian bots no longer get stuck at the door of their portal keep in Odin's Gate. Once out of the keep's
   inner door, the route they planned led back in to the keep yard and then out again, over and over, until they

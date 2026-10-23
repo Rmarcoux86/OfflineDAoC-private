@@ -26,6 +26,7 @@ modifier, create one bot. Start small and increase population for your PC's capa
 
 | Command | What it does |
 |---|---|
+| `/fish` | Face open water with a fishing pole and cast your line; you keep casting after each catch until you move or type `/fish stop`. `/fish active` makes you reel in each bite yourself (type `/fish` within 4 seconds), `/fish stats` shows your skill and best catch, `/fish pole` gives you a pole if you have none. |
 | `/grind` | Start automated grinding with a companion-bot group, including for AFK use. |
 | `/pull` | Order your companion group and pets to engage your selected enemy. When possible, a tank makes first contact before the rest of the group joins the fight. |
 | `/train <line> <level>` | Train a specialization to the chosen level using your available specialization points. Select a valid trainer for your class first. |
