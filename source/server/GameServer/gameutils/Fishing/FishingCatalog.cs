@@ -38,7 +38,7 @@ namespace DOL.GS.Fishing
     ///
     /// Model ids are objects.csv ids of the stock client (source/tools/observer-model-inspection/objects.csv):
     /// 544 "Small fish", 545 "Large fish", 150 "Crude Leather Boots", 535 "Herbs", 505 "Chest", 442 "Quarterstaff".
-    /// They should still be checked in game against the client's items.csv / objects.csv.
+    /// They should still be checked in game against the client's items.csv / objects.csv. See PoleModel for the pole.
     /// </summary>
     public static class FishingCatalog
     {
@@ -50,6 +50,19 @@ namespace DOL.GS.Fishing
         private const int OldBootModel = 150;
         private const int SeaweedModel = 535;
         private const int ChestModel = 505;
+
+        // The pole's look. The server sends only the objects.csv id (DbItemTemplate.Model, PacketLib1124.WriteItemData);
+        // the client takes BOTH the hand mesh (column 2, an items.csv id) and the bag icon (column 3) from that one row,
+        // and DbItemTemplate has no icon field. So the stock "fishing pole" row (580: NIF 1, icon 530) would give the
+        // right bag icon but no mesh in hand (NIF 1 is "no item mesh"), and it can't be combined with a staff mesh
+        // without a private objects.csv row. The pole is meant to be held while fishing (FishingAggro only spares a player
+        // with it in the active two-handed slot; fishing itself doesn't draw it), so the hand mesh wins: a plain stock
+        // two-handed staff, bag icon 209 "staff".
+        //   442 Quarterstaff         -> items.csv 198 b_st_quarterstaff01   <- used (no shod/focus head by name)
+        //   327 Norse staff          -> items.csv 155 n_2h_staff01
+        //   468 Celtic staff         -> items.csv 124 h_st_staff03
+        //   580 fishing pole         -> bag icon 530 "fishing pole", nothing drawn in hand
+        // FishingStartup copies a changed Model onto the existing database row at the next server start.
         private const int PoleModel = 442;
 
         private const int MaxTemplateWeightTenths = 200;

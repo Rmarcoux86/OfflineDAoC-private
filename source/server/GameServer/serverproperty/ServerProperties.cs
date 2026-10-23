@@ -2406,6 +2406,13 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("salvage", "use_new_salvage", "Enable to use a new system calcul of salvage count based on object_type.", false)]
 		public static bool USE_NEW_SALVAGE;
 
+		/// <summary>
+		/// Offline DAoC fishing: monsters (and enemy guards) do not proximity-aggro a real player who holds the fishing pole
+		/// in hand and is not in combat. Bots are never affected, and an angler who attacks is a normal target.
+		/// </summary>
+		[ServerProperty("craft", "fishing_pole_prevents_aggro", "Monsters do not aggro a player who is wielding the fishing pole and not in combat.", true)]
+		public static bool FISHING_POLE_PREVENTS_AGGRO = true;
+
 		#endregion
 
 		#region ACCOUNT

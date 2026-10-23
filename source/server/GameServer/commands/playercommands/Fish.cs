@@ -1,3 +1,4 @@
+using System.Linq;
 using DOL.Database;
 using DOL.GS.Fishing;
 using DOL.GS.PacketHandler;
@@ -12,7 +13,11 @@ namespace DOL.GS.Commands
         "'/fish active' - Like /fish, but you reel in each bite yourself: type /fish within 4 seconds.",
         "'/fish stop' - Reels in your line and stops fishing.",
         "'/fish stats' - Shows your fishing skill, casts, catches and best catch.",
-        "'/fish pole' - Gives you a fishing pole if you don't have one.")]
+        "'/fish pole' - Gives you a fishing pole if you don't have one.",
+        "'/fish spots' - Lists the fishing spots you can travel to.",
+        "'/fish go <number>' - Travels to a fishing spot in your realm from the /fish spots list.",
+        "'/fish mark <name>' - Saves the shore you stand on, facing open water, as a new fishing spot.",
+        "'/fish unmark <number>' - Removes a fishing spot you marked.")]
     public class FishCommandHandler : AbstractCommandHandler, ICommandHandler
     {
         public void OnCommand(GameClient client, string[] args)
@@ -110,6 +115,30 @@ namespace DOL.GS.Commands
 
                     InventoryLogging.LogInventoryAction("(fishing)", player, eInventoryActionType.Other, pole.Template, pole.Count);
                     player.Out.SendMessage("You receive a fishing pole. Face open water and type /fish to cast.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+                    break;
+                }
+                case "spots":
+                {
+                    FishingSpots.ShowList(player);
+
+                    break;
+                }
+                case "go":
+                {
+                    FishingSpots.TryTravel(player, args.Length >= 3 ? args[2] : string.Empty);
+
+                    break;
+                }
+                case "mark":
+                {
+                    FishingSpots.TryMark(player, string.Join(' ', args.Skip(2)));
+
+                    break;
+                }
+                case "unmark":
+                {
+                    FishingSpots.TryUnmark(player, args.Length >= 3 ? args[2] : string.Empty);
 
                     break;
                 }

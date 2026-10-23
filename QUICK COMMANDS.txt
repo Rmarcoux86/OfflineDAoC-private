@@ -36,6 +36,9 @@ On the launcher, click + Lv.1 or + Lv.50 under a faction:
   /fish active: you reel in each bite yourself by typing /fish within 4 seconds.
   /fish stats shows your fishing skill and best catch.
   /fish pole gives you a fishing pole if you don't have one.
+  /fish spots lists fishing spots; /fish go <number> travels to one in your realm.
+  /fish mark <name> saves the shore you stand on (facing water) as a new spot;
+  /fish unmark <number> removes one you marked.
 
 /grind
   Starts automated grinding with a companion bot group, including for AFK use.

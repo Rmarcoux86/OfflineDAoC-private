@@ -672,6 +672,13 @@ namespace DOL.AI.Brain
 
         public virtual bool CanAggroTarget(GameLiving target)
         {
+            // A player standing with the fishing pole in hand is left alone (FishingAggro). Proximity aggro only: an
+            // angler who attacks is in combat and no longer passes, and nothing already on the aggro list is removed.
+            if (DOL.GS.Fishing.FishingAggro.IsPeacefulAngler(target))
+            {
+                return false;
+            }
+
             if (!GameServer.ServerRules.IsAllowedToAttack(Body, target, true))
                 return false;
 

@@ -20,6 +20,12 @@ namespace DOL.AI.Brain
 				if (!CanAggroTarget(player))
 					continue;
 
+				// Guards override CanAggroTarget without calling StandardMobBrain's, so the angler check is repeated here.
+				if (DOL.GS.Fishing.FishingAggro.IsPeacefulAngler(player))
+				{
+					continue;
+				}
+
 				if (player.IsStealthed || player.Steed != null)
 					continue;
 

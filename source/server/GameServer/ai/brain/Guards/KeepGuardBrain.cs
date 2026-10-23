@@ -37,6 +37,13 @@ namespace DOL.AI.Brain
                 if (!CanAggroTarget(player))
                     continue;
 
+                // Enemy keep guards leave an angler alone too. KeepGuardBrain overrides CanAggroTarget without calling
+                // StandardMobBrain's, so the check is repeated here; an angler who attacks the keep is in combat and fair game.
+                if (DOL.GS.Fishing.FishingAggro.IsPeacefulAngler(player))
+                {
+                    continue;
+                }
+
                 if (Body is not GuardStealther && player.IsStealthed)
                     continue;
 

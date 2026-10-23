@@ -10,6 +10,8 @@ namespace DOL.GS.Fishing;
 /// Runs a player's fishing session: casting, waiting for a bite, reeling in and recasting.
 /// The session lives on player.CraftTimer, so the existing "can't quit/stealth while crafting"
 /// guards apply and moving, attacking or casting a spell interrupts it like salvaging does.
+/// Fishing sits the player down, floats a bobber at the cast point and plays small cast and bite effects
+/// (FishingBobber); ending the session for any reason stands them up again (if fishing sat them) and removes the bobber.
 /// </summary>
 public static class FishingManager
 {
@@ -21,6 +23,8 @@ public static class FishingManager
     private const int RecastPauseMs = 2000;
     private const int GroundTargetMaxRange = 1500;
     private const int NavmeshSearchDepth = 3000;
+    private const int WatchdogMs = 1000;
+    private const int AnchorLeashRange = 128;
     private static readonly int[] CastDistances = [150, 300, 450, 600];
 
     // Detour filter pair: [include flags, exclude flags].
@@ -44,6 +48,18 @@ public static class FishingManager
         public long PhaseEndsAt;
         public long FlavorAt;
         public bool Ended;
+
+        // Where the player sat down and where the line lands (Z = water surface).
+        public Point3D Anchor;
+        public Point3D CastPoint;
+        public GameStaticItem Bobber;
+
+        // True while the player is sitting because fishing sat them down; End stands them up only then.
+        public bool SatPlayer;
+
+        // Attacking, casting, moving and quitting stop player.CraftTimer (the session timer) directly, so OnTick never
+        // runs again for them; this timer notices and ends the session, which removes the bobber.
+        public ECSGameTimer Watchdog;
     }
 
     public static bool IsFishing(GamePlayer player)
@@ -136,7 +152,7 @@ public static class FishingManager
             return false;
         }
 
-        if (!FacesOpenWater(player))
+        if (!TryFindCastPoint(player, out Point3D castPoint))
         {
             player.Out.SendMessage("You need to face open water to cast your line.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
@@ -149,7 +165,9 @@ public static class FishingManager
         {
             Player = player,
             ActiveMode = activeMode,
-            RegionId = player.CurrentRegion.ID
+            RegionId = player.CurrentRegion.ID,
+            Anchor = new Point3D(player.X, player.Y, player.Z),
+            CastPoint = castPoint
         };
 
         session.Timer = new ECSGameTimer(player)
@@ -157,6 +175,12 @@ public static class FishingManager
             Callback = new ECSGameTimer.ECSTimerCallback(OnTick)
         };
         session.Timer.Properties.SetProperty(SessionProperty, session);
+
+        session.Watchdog = new ECSGameTimer(player)
+        {
+            Callback = new ECSGameTimer.ECSTimerCallback(OnWatchdog)
+        };
+        session.Watchdog.Properties.SetProperty(SessionProperty, session);
 
         player.TempProperties.SetProperty(SessionProperty, session);
         player.CraftTimer = session.Timer;
@@ -166,10 +190,19 @@ public static class FishingManager
 
         lock (session.Lock)
         {
+            // Sit only once, at the start: a player who stands up mid-session keeps fishing standing.
+            if (!player.IsSitting)
+            {
+                player.Sit(true);
+                session.SatPlayer = player.IsSitting;
+            }
+
             Cast(session);
         }
 
+        // Timers tick in parallel, so both exist before either starts: End can then always stop both.
         session.Timer.Start(TickMs);
+        session.Watchdog.Start(WatchdogMs);
 
         return true;
     }
@@ -267,7 +300,26 @@ public static class FishingManager
         }
 
         session.Timer.Stop();
-        player.TempProperties.RemoveProperty(SessionProperty);
+        session.Watchdog?.Stop();
+
+        // A newer session may own the property already.
+        if (player.TempProperties.GetProperty<FishingSession>(SessionProperty) == session)
+        {
+            player.TempProperties.RemoveProperty(SessionProperty);
+        }
+
+        FishingBobber.Remove(session.Bobber);
+        session.Bobber = null;
+
+        // Moving already stood them up (GamePlayer.OnPlayerMove); a player who quit or zoned is left alone.
+        bool stillHere = player.ObjectState == GameObject.eObjectState.Active && player.CurrentRegion != null && player.CurrentRegion.ID == session.RegionId;
+
+        if (session.SatPlayer && stillHere && player.IsSitting && player.IsAlive)
+        {
+            player.Sit(false);
+        }
+
+        session.SatPlayer = false;
         FishingProgressStore.Save(FishingProgressStore.Load(player));
 
         if (!string.IsNullOrEmpty(reason))
@@ -318,6 +370,20 @@ public static class FishingManager
                 return 0;
             }
 
+            // A teleport within the region moves the player without a movement update.
+            if (!player.IsWithinRadius(session.Anchor, AnchorLeashRange, true))
+            {
+                End(session, "You stop fishing.");
+
+                return 0;
+            }
+
+            // The player stood up on their own: from now on their posture is theirs, End won't touch it.
+            if (session.SatPlayer && !player.IsSitting)
+            {
+                session.SatPlayer = false;
+            }
+
             long now = GameLoop.GameLoopTime;
 
             switch (session.Phase)
@@ -339,6 +405,8 @@ public static class FishingManager
                     {
                         break;
                     }
+
+                    FishingBobber.PlayBite(session.Bobber);
 
                     if (session.ActiveMode)
                     {
@@ -383,6 +451,35 @@ public static class FishingManager
         }
     }
 
+    private static int OnWatchdog(ECSGameTimer timer)
+    {
+        FishingSession session = timer.Properties.GetProperty<FishingSession>(SessionProperty);
+
+        if (session == null)
+        {
+            return 0;
+        }
+
+        lock (session.Lock)
+        {
+            if (session.Ended)
+            {
+                return 0;
+            }
+
+            GamePlayer player = session.Player;
+
+            if (player.CraftTimer != session.Timer || !session.Timer.IsAlive || player.ObjectState != GameObject.eObjectState.Active)
+            {
+                End(session, null);
+
+                return 0;
+            }
+
+            return WatchdogMs;
+        }
+    }
+
     // Caller holds session.Lock.
     private static void Cast(FishingSession session)
     {
@@ -400,9 +497,22 @@ public static class FishingManager
 
         player.Out.SendTimerWindow("Fishing...", Math.Max(1, biteDelay / 1000));
 
-        foreach (GamePlayer viewer in player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+        // One bobber per session: it stays on the water between casts (so the bite splash is still seen after a
+        // passive-mode catch) and End removes it.
+        if (session.Bobber == null)
         {
-            viewer.Out.SendEmoteAnimation(player, eEmote.Ponder);
+            session.Bobber = FishingBobber.Spawn(player, session.CastPoint);
+        }
+
+        FishingBobber.PlayCast(player, session.Bobber);
+
+        // Sitting is the idle pose while fishing; an emote could pull a seated player up on the client.
+        if (!player.IsSitting)
+        {
+            foreach (GamePlayer viewer in player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+            {
+                viewer.Out.SendEmoteAnimation(player, eEmote.Ponder);
+            }
         }
     }
 
@@ -492,10 +602,14 @@ public static class FishingManager
     }
 
     /// <summary>
-    /// True if the player's ground target or a point 150-600 units ahead of them is water.
+    /// True if the player's ground target or a point 150-600 units ahead of them is water. <paramref name="castPoint"/>
+    /// is that point on the water surface: the zone's water level, or the navmesh swim surface for water the zone's
+    /// level doesn't cover (a lake above it). This is the one water check: /fish mark (FishingSpots) uses it too, with
+    /// <paramref name="useGroundTarget"/> false because a marked spot stores the heading, which must face the water.
     /// </summary>
-    private static bool FacesOpenWater(GamePlayer player)
+    public static bool TryFindCastPoint(GamePlayer player, out Point3D castPoint, bool useGroundTarget = true)
     {
+        castPoint = null;
         Region region = player.CurrentRegion;
 
         if (region == null)
@@ -505,13 +619,15 @@ public static class FishingManager
 
         GroundTarget groundTarget = player.GroundTarget;
 
-        if (groundTarget.IsValid && player.IsWithinRadius(groundTarget, GroundTargetMaxRange, true))
+        if (useGroundTarget && groundTarget.IsValid && player.IsWithinRadius(groundTarget, GroundTargetMaxRange, true))
         {
             Zone targetZone = region.GetZone(groundTarget.X, groundTarget.Y);
 
             // A ground target clicked on the water sits at (or just under) the water surface.
             if (targetZone != null && targetZone.IsUnderwater(groundTarget.X, groundTarget.Y, groundTarget.Z - 16))
             {
+                castPoint = new Point3D(groundTarget.X, groundTarget.Y, targetZone.Waterlevel);
+
                 return true;
             }
         }
@@ -535,9 +651,14 @@ public static class FishingManager
                 Vector3 probe = new(point.X, point.Y, player.Z + 200);
                 Vector3 searchMin = new(-8, -8, -NavmeshSearchDepth);
                 Vector3 searchMax = new(8, 8, 20);
+                Vector3? swim = pathing.GetClosestPointInBounds(zone, probe, searchMin, searchMax, SwimFilters);
 
-                if (pathing.GetClosestPointInBounds(zone, probe, searchMin, searchMax, SwimFilters).HasValue)
+                if (swim.HasValue)
                 {
+                    int swimZ = (int) swim.Value.Z;
+                    int surfaceZ = zone.IsUnderwater(point.X, point.Y, swimZ) ? zone.Waterlevel : swimZ;
+                    castPoint = new Point3D(point.X, point.Y, surfaceZ);
+
                     return true;
                 }
 
@@ -545,6 +666,8 @@ public static class FishingManager
 
                 if (floor.HasValue && zone.IsUnderwater(point.X, point.Y, (int) floor.Value.Z))
                 {
+                    castPoint = new Point3D(point.X, point.Y, zone.Waterlevel);
+
                     return true;
                 }
 
@@ -554,6 +677,8 @@ public static class FishingManager
             // No navmesh: only works when the player stands at about the waterline.
             if (zone.IsUnderwater(point.X, point.Y, player.Z - 64))
             {
+                castPoint = new Point3D(point.X, point.Y, zone.Waterlevel);
+
                 return true;
             }
         }

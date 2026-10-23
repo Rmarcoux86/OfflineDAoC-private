@@ -369,6 +369,10 @@ NORMAL PLAYER COMMANDS
   '/fish stop' - Reels in your line and stops fishing.
   '/fish stats' - Shows your fishing skill, casts, catches and best catch.
   '/fish pole' - Gives you a fishing pole if you don't have one.
+  '/fish spots' - Lists the fishing spots you can travel to.
+  '/fish go <number>' - Travels to a fishing spot in your realm from the /fish spots list.
+  '/fish mark <name>' - Saves the shore you stand on, facing open water, as a new fishing spot.
+  '/fish unmark <number>' - Removes a fishing spot you marked.
   Handler: DOL.GS.Commands.FishCommandHandler
 
 /flex
