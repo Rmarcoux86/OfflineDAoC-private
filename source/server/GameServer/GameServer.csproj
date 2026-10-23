@@ -62,6 +62,7 @@
         <EmbeddedResource Include=".\bots\autonomous\data\dungeon_navigation_points.json" />
         <EmbeddedResource Include=".\bots\autonomous\data\darkness_falls_raid_event_mobs.json" />
         <EmbeddedResource Include=".\bots\autonomous\data\darkness_falls_navigation_proofs.json" />
+        <EmbeddedResource Include=".\gameutils\Expedition\expedition-zones.json" />
         <TranslationFiles Include=".\language\**\*.txt" />
         <APIDocs Include=".\API\docs\*" />
         <Content Include="API\docs\index.css" />

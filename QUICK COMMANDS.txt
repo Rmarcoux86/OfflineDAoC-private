@@ -30,6 +30,17 @@ On the launcher, click + Lv.1 or + Lv.50 under a faction:
 /stables si
   Jumps to your realm's Shrouded Isles stable routes.
 
+/run new [seed]
+  Expedition mode: starts a seeded roguelite run on a level-1 character with no
+  realm points. Turns your Hardcore flag on (death ends the run and deletes the
+  character) and takes you to act 1's camp. Same seed, same expedition.
+/run status
+/run journal
+/run seed
+/run abandon
+  Show the act, level band, zone and objectives; open the journal; show the seed;
+  give up the run (Hardcore flag off).
+
 /grind
   Starts automated grinding with a companion bot group, including for AFK use.
 

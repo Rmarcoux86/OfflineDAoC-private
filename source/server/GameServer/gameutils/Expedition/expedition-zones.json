@@ -1,0 +1,336 @@
+{
+  "schema": 1,
+  "_comment": "Expedition act zones per realm. Zone ids/names/regions come from capnbry_classic_si_goals.json. camp null = computed at generation (median of the zone's lowest-level goals). bossCandidates are catalog mob names in that zone; empty = computed.",
+  "realms": [
+    {
+      "realm": "Albion",
+      "acts": [
+        {
+          "act": 1,
+          "zones": [
+            {
+              "zoneId": 0,
+              "zoneName": "Camelot Hills",
+              "regionId": 1,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": [
+                "bandit lieutenant",
+                "grumoz demon",
+                "convert guard"
+              ]
+            },
+            {
+              "zoneId": 2,
+              "zoneName": "Black Mtns South",
+              "regionId": 1,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": [
+                "devout filidh"
+              ]
+            },
+            {
+              "zoneId": 9,
+              "zoneName": "Avalon Marsh",
+              "regionId": 1,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": [
+                "giant wolf",
+                "bogman trapper",
+                "shambler",
+                "marsh scrag"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 2,
+          "zones": [
+            {
+              "zoneId": 1,
+              "zoneName": "Salisbury Plains",
+              "regionId": 1,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 3,
+              "zoneName": "Black Mtns North",
+              "regionId": 1,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": [
+                "forest chief"
+              ]
+            },
+            {
+              "zoneId": 8,
+              "zoneName": "Campacorentin Forest",
+              "regionId": 1,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 51,
+              "zoneName": "Isle of Glass",
+              "regionId": 51,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        },
+        {
+          "act": 3,
+          "zones": [
+            {
+              "zoneId": 6,
+              "zoneName": "Cornwall",
+              "regionId": 1,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": [
+                "giant rooter"
+              ]
+            },
+            {
+              "zoneId": 52,
+              "zoneName": "Avalon Isle",
+              "regionId": 51,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": [
+                "dread disciple",
+                "drakoran thaumaturge",
+                "sea hound",
+                "caer caddug baille"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 4,
+          "zones": [
+            {
+              "zoneId": 52,
+              "zoneName": "Avalon Isle",
+              "regionId": 51,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": [
+                "caer caddug priest",
+                "caer caddug knight"
+              ]
+            },
+            {
+              "zoneId": 19,
+              "zoneName": "Stonehenge Barrows",
+              "regionId": 20,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": [
+                "pendragon ardent",
+                "pendrake",
+                "spectral essence",
+                "grave goblin"
+              ]
+            },
+            {
+              "zoneId": 249,
+              "zoneName": "Darkness Falls",
+              "regionId": 249,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": [
+                "naburite drinker",
+                "cursed necyomancer"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 5,
+          "zones": [
+            {
+              "zoneId": 19,
+              "zoneName": "Stonehenge Barrows",
+              "regionId": 20,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": [
+                "stone sentinel",
+                "spectral essence"
+              ]
+            },
+            {
+              "zoneId": 249,
+              "zoneName": "Darkness Falls",
+              "regionId": 249,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "realm": "Hibernia",
+      "acts": [
+        {
+          "act": 1,
+          "zones": [
+            {
+              "zoneId": 200,
+              "zoneName": "Lough Derg",
+              "regionId": 200,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": [
+                "dergan fury",
+                "dergan enchanter",
+                "whistler",
+                "anger sprite"
+              ]
+            },
+            {
+              "zoneId": 207,
+              "zoneName": "Connacht",
+              "regionId": 200,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": [
+                "large eirebug",
+                "wild lucradan"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 2,
+          "zones": [
+            {
+              "zoneId": 200,
+              "zoneName": "Lough Derg",
+              "regionId": 200,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 221,
+              "zoneName": "Muire Tomb",
+              "regionId": 221,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": [
+                "tomb dweller"
+              ]
+            },
+            {
+              "zoneId": 201,
+              "zoneName": "Silvermine Mts",
+              "regionId": 200,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": [
+                "walking rock",
+                "silvermine badger"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 3,
+          "zones": [
+            {
+              "zoneId": 201,
+              "zoneName": "Silvermine Mts",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 202,
+              "zoneName": "Shannon Estuary",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": [
+                "eriu waylayer"
+              ]
+            },
+            {
+              "zoneId": 222,
+              "zoneName": "Spraggon Den",
+              "regionId": 222,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": [
+                "earth sprite"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 4,
+          "zones": [
+            {
+              "zoneId": 249,
+              "zoneName": "Darkness Falls",
+              "regionId": 249,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": [
+                "naburite drinker",
+                "cursed necyomancer"
+              ]
+            }
+          ]
+        },
+        {
+          "act": 5,
+          "zones": [
+            {
+              "zoneId": 249,
+              "zoneName": "Darkness Falls",
+              "regionId": 249,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,735 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using DOL.Database;
+using DOL.Events;
+using DOL.GS.PacketHandler;
+using DOL.GS.PlayerTitles;
+using DOL.Logging;
+
+namespace DOL.GS.Expedition;
+
+/// <summary>
+/// Expedition mode's run framework: starts, resumes, saves and ends seeded roguelite runs. A run is a hardcore
+/// character that starts at level 1 in act 1's camp and goes act by act (<see cref="ActGenerator"/>) to the act-5
+/// boss. <see cref="ObjectiveTracker"/> follows the objectives and calls back here when they are done and when the
+/// boss dies. Death ends the run and, through the hardcore flag, deletes the character; the run's row stays.
+/// Only real players have runs (gamebots and companions are GameNPCs and never reach these handlers as players).
+/// </summary>
+public static class ExpeditionManager
+{
+    public const string StatusActive = "active";
+    public const string StatusWon = "won";
+    public const string StatusDead = "dead";
+    public const string StatusAbandoned = "abandoned";
+
+    private const int JournalLogLines = 15;
+    private const int NextActTeleportDelayMilliseconds = 15_000;
+
+    /// <summary>How long after its end a death or victory window is still shown at the account's next login.</summary>
+    private static readonly TimeSpan PendingSummaryWindow = TimeSpan.FromHours(24);
+
+    /// <summary>ActGenerator's "no previous zone" (zone 0 is Camelot Hills, a real act-1 zone).</summary>
+    private const int NoPreviousZone = -1;
+
+    private static readonly Logger Log = LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
+
+    /// <summary>Active runs of characters in the game, by character id.</summary>
+    private static readonly ConcurrentDictionary<string, ExpeditionRun> Runs = new(StringComparer.Ordinal);
+
+    #region Server and player events
+
+    [GameServerStartedEvent]
+    public static void OnServerStarted(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.AddHandler(GamePlayerEvent.GameEntered, new DOLEventHandler(OnGameEntered));
+        GameEventMgr.AddHandler(GamePlayerEvent.Quit, new DOLEventHandler(OnQuit));
+        GameEventMgr.AddHandler(GamePlayerEvent.Linkdeath, new DOLEventHandler(OnLinkdeath));
+        GameEventMgr.AddHandler(GameLivingEvent.Dying, new DOLEventHandler(OnDying));
+        GameEventMgr.AddHandler(GameLivingEvent.EnemyKilled, new DOLEventHandler(OnEnemyKilled));
+    }
+
+    [GameServerStoppedEvent]
+    public static void OnServerStopped(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.RemoveHandler(GamePlayerEvent.GameEntered, new DOLEventHandler(OnGameEntered));
+        GameEventMgr.RemoveHandler(GamePlayerEvent.Quit, new DOLEventHandler(OnQuit));
+        GameEventMgr.RemoveHandler(GamePlayerEvent.Linkdeath, new DOLEventHandler(OnLinkdeath));
+        GameEventMgr.RemoveHandler(GameLivingEvent.Dying, new DOLEventHandler(OnDying));
+        GameEventMgr.RemoveHandler(GameLivingEvent.EnemyKilled, new DOLEventHandler(OnEnemyKilled));
+
+        foreach (ExpeditionRun run in Runs.Values)
+        {
+            Save(run);
+        }
+
+        Runs.Clear();
+    }
+
+    private static void OnGameEntered(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player)
+        {
+            return;
+        }
+
+        ShowPendingSummary(player);
+
+        OfflineExpeditionRecord record;
+
+        try
+        {
+            record = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Could not load the run of {player.Name}.", ex);
+
+            return;
+        }
+
+        if (record == null || record.Status != StatusActive)
+        {
+            return;
+        }
+
+        ExpeditionRun run = FromRecord(record, player);
+
+        if (string.IsNullOrEmpty(run.AccountName))
+        {
+            run.AccountName = player.Client?.Account?.Name ?? string.Empty;
+        }
+
+        // HardCoreLogin deletes a hardcore character that has died (GamePlayer.DeathCount > 0) as it enters the game.
+        // That death was not seen by this run (server stopped mid-death), so the run ends here.
+        if (player.HCFlag && player.DeathCount > 0)
+        {
+            run.Status = StatusDead;
+            run.Deaths++;
+            run.EndedUtc = DateTime.UtcNow;
+            run.AddLog($"Act {run.Act}: {run.CharacterName} was found dead on returning. The expedition is over.");
+            Save(run);
+
+            return;
+        }
+
+        if (run.CurrentAct == null)
+        {
+            player.Out.SendMessage("Your expedition could not be resumed: its act could not be read. The run is kept as it was.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            return;
+        }
+
+        Runs[run.CharacterId] = run;
+        ObjectiveTracker.Attach(player);
+
+        player.Out.SendMessage($"Expedition resumed: act {run.Act} of {ActGenerator.ActCount}, {run.CurrentAct?.ZoneName}. Type /run journal for your objectives.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
+
+    /// <summary>
+    /// A death's end-of-run window is sent just before HardCoreLogin.HandleDeath kicks the player, so it is usually
+    /// never seen. At the account's next login the most recent run (any character) is shown once, if it ended in the
+    /// last 24 hours in death or victory and its window was not seen yet.
+    /// </summary>
+    private static void ShowPendingSummary(GamePlayer player)
+    {
+        string accountName = player.Client?.Account?.Name;
+
+        // A hardcore character with a death on record is kicked and deleted by HardCoreLogin as it enters.
+        if (string.IsNullOrEmpty(accountName) || (player.HCFlag && player.DeathCount > 0))
+        {
+            return;
+        }
+
+        OfflineExpeditionRecord latest;
+
+        try
+        {
+            latest = GameServer.Database.SelectObjects<OfflineExpeditionRecord>(DB.Column("AccountName").IsEqualTo(accountName))
+                .OrderByDescending(r => ParseUtc(r.StartedUtc) ?? DateTime.MinValue)
+                .FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Could not read the runs of account {accountName}.", ex);
+
+            return;
+        }
+
+        if (latest == null || latest.SummaryShown || (latest.Status != StatusDead && latest.Status != StatusWon))
+        {
+            return;
+        }
+
+        DateTime? ended = ParseUtc(latest.EndedUtc);
+
+        if (ended == null || DateTime.UtcNow - ended.Value > PendingSummaryWindow)
+        {
+            return;
+        }
+
+        ExpeditionRun run = FromRecord(latest, null);
+        run.SummaryShown = true;
+        Save(run);
+
+        string caption = latest.Status == StatusWon ? "Expedition won" : "Expedition over";
+        player.Out.SendCustomTextWindow(caption, SummaryLines(run, latest.Status == StatusWon ? "VICTORY" : "RUN OVER"));
+    }
+
+    private static DateTime? ParseUtc(string value)
+    {
+        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime parsed))
+        {
+            return parsed.ToUniversalTime();
+        }
+
+        return null;
+    }
+
+    private static void OnQuit(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player || !Runs.TryRemove(player.ObjectId, out ExpeditionRun run))
+        {
+            return;
+        }
+
+        ObjectiveTracker.Detach(player);
+        Save(run);
+    }
+
+    /// <summary>
+    /// Saves only: a linkdead player stays in the world (and can still die) until the link-death timer quits it,
+    /// which fires <see cref="GamePlayerEvent.Quit"/>; the run is detached and uncached there.
+    /// </summary>
+    private static void OnLinkdeath(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player)
+        {
+            return;
+        }
+
+        ExpeditionRun run = GetRun(player);
+
+        if (run != null)
+        {
+            Save(run);
+        }
+    }
+
+    /// <summary>
+    /// GameLiving.ProcessDeath fires Dying (GameLiving.cs:2073) from inside GamePlayer.ProcessDeath (base call at
+    /// GamePlayer.cs:5931), before the hardcore deletion at the end of it (GamePlayer.cs:6084).
+    /// </summary>
+    private static void OnDying(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player)
+        {
+            return;
+        }
+
+        ExpeditionRun run = GetRun(player);
+
+        if (run == null)
+        {
+            return;
+        }
+
+        string killer = (args as DyingEventArgs)?.Killer?.Name;
+
+        if (!string.IsNullOrEmpty(killer))
+        {
+            run.AddLog($"Act {run.Act}: slain by {killer}.");
+        }
+
+        OnPlayerDied(player);
+    }
+
+    private static void OnEnemyKilled(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player)
+        {
+            return;
+        }
+
+        ExpeditionRun run = GetRun(player);
+        GameLiving target = (args as EnemyKilledEventArgs)?.Target;
+
+        // GameLiving.RemoveFromWorld also raises EnemyKilled on the attackers of a living that merely despawns.
+        if (run == null || target == null || !(target.IsBeingHandledByReaperService || target.Health <= 0))
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref run.LastKillTarget, target) == target)
+        {
+            return;
+        }
+
+        Interlocked.Increment(ref run.Kills);
+    }
+
+    #endregion
+
+    #region Contract
+
+    public static ExpeditionRun GetRun(GamePlayer player)
+    {
+        if (player == null)
+        {
+            return null;
+        }
+
+        return Runs.TryGetValue(player.ObjectId, out ExpeditionRun run) && run.IsActive ? run : null;
+    }
+
+    public static bool TryStartRun(GamePlayer player, int? seed, out string error)
+    {
+        error = null;
+
+        if (player?.Client == null)
+        {
+            error = "Only a player in the world can start an expedition.";
+
+            return false;
+        }
+
+        if (GetRun(player) != null)
+        {
+            error = "You are already on an expedition. Type /run status, or /run abandon to give it up.";
+
+            return false;
+        }
+
+        if (player.Level != 1)
+        {
+            error = "You must be level 1 to start an expedition.";
+
+            return false;
+        }
+
+        if (player.RealmPoints > 0)
+        {
+            error = "An expedition can only start on a character with no realm points.";
+
+            return false;
+        }
+
+        // A hardcore character with a death on record is deleted at its next login (HardCoreLogin).
+        if (player.DeathCount > 0)
+        {
+            error = "An expedition can only start on a character that has never died.";
+
+            return false;
+        }
+
+        if (!player.IsAlive)
+        {
+            error = "You can't start an expedition while dead.";
+
+            return false;
+        }
+
+        int runSeed = seed ?? Random.Shared.Next(1, int.MaxValue);
+        ActPlan plan;
+
+        try
+        {
+            plan = ActGenerator.Generate(1, player.Realm, runSeed, NoPreviousZone);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Act 1 could not be generated for {player.Name} (seed {runSeed}).", ex);
+            plan = null;
+        }
+
+        if (plan == null)
+        {
+            error = "The expedition could not be planned. Try another seed.";
+
+            return false;
+        }
+
+        OfflineExpeditionRecord existing = null;
+
+        try
+        {
+            existing = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Could not read the earlier run of {player.Name}.", ex);
+        }
+
+        var run = new ExpeditionRun
+        {
+            CharacterId = player.ObjectId,
+            CharacterName = player.Name,
+            AccountName = player.Client.Account?.Name ?? string.Empty,
+            Seed = runSeed,
+            Act = 1,
+            Status = StatusActive,
+            CurrentAct = plan,
+            StartedUtc = DateTime.UtcNow,
+            Record = existing
+        };
+        run.AddLog($"Expedition begun by {player.Name} with seed {runSeed}.");
+        run.AddLog($"Act 1: {plan.ZoneName} (levels {plan.MinLevel}-{plan.MaxLevel}).");
+
+        player.Emote(eEmote.StagFrenzy);
+        player.HCFlag = true;
+        player.CurrentTitle = new HardCoreTitle();
+
+        Runs[run.CharacterId] = run;
+        Save(run);
+
+        player.Out.SendMessage($"Your expedition begins! Seed {runSeed}. Your HARDCORE flag is ON: death ends the run and deletes this character.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        if (!player.MoveTo((ushort)plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading))
+        {
+            Log.Warn($"[EXPEDITION] {player.Name} could not be moved to the act 1 camp in region {plan.RegionId} ({plan.CampX}, {plan.CampY}, {plan.CampZ}).");
+            player.Out.SendMessage("You could not be taken to the camp. Type /run journal to see where it is.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
+
+        ObjectiveTracker.Attach(player);
+        player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
+
+        return true;
+    }
+
+    public static void Save(ExpeditionRun run)
+    {
+        if (run == null || string.IsNullOrEmpty(run.CharacterId))
+        {
+            return;
+        }
+
+        try
+        {
+            OfflineExpeditionRecord record = run.Record ?? new OfflineExpeditionRecord { CharacterId = run.CharacterId };
+            List<string> log;
+
+            lock (run.Log)
+            {
+                log = run.Log.ToList();
+            }
+
+            record.CharacterName = run.CharacterName ?? string.Empty;
+            record.AccountName = run.AccountName ?? string.Empty;
+            record.SummaryShown = run.SummaryShown;
+            record.Seed = run.Seed;
+            record.Act = run.Act;
+            record.Status = run.Status ?? StatusActive;
+            record.Kills = run.Kills;
+            record.Deaths = run.Deaths;
+            record.BossesKilled = run.BossesKilled;
+            record.StartedUtc = run.StartedUtc.ToString("o", CultureInfo.InvariantCulture);
+            record.EndedUtc = run.EndedUtc?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty;
+            record.ActJson = run.CurrentAct == null ? string.Empty : JsonSerializer.Serialize(run.CurrentAct, ExpeditionJson.Options);
+            record.LogJson = JsonSerializer.Serialize(log, ExpeditionJson.Options);
+
+            if (record.IsPersisted)
+            {
+                GameServer.Database.SaveObject(record);
+            }
+            else
+            {
+                GameServer.Database.AddObject(record);
+            }
+
+            run.Record = record;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Could not save the run of {run.CharacterName}.", ex);
+        }
+    }
+
+    public static void OnObjectivesComplete(GamePlayer player)
+    {
+        ExpeditionRun run = GetRun(player);
+
+        if (run == null)
+        {
+            return;
+        }
+
+        BossSpec boss = run.CurrentAct?.Boss;
+        string bossName = string.IsNullOrEmpty(boss?.Title) ? boss?.BaseMobName : boss.Title;
+
+        run.AddLog($"Act {run.Act}: every objective is done. {bossName ?? "The act boss"} has come.");
+        Save(run);
+
+        player.Out.SendMessage($"Every objective of act {run.Act} is done. {bossName ?? "The act boss"} has come: defeat it to go on.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
+
+    public static void OnBossKilled(GamePlayer player)
+    {
+        ExpeditionRun run = GetRun(player);
+
+        if (run == null)
+        {
+            return;
+        }
+
+        ActPlan finished = run.CurrentAct;
+
+        if (finished != null)
+        {
+            finished.BossKilled = true;
+        }
+
+        run.BossesKilled++;
+        run.AddLog($"Act {run.Act}: {finished?.Boss?.Title ?? "the act boss"} is slain.");
+
+        if (run.Act >= ActGenerator.ActCount)
+        {
+            run.Status = StatusWon;
+            run.EndedUtc = DateTime.UtcNow;
+            run.SummaryShown = true;
+            run.AddLog($"{run.CharacterName} has won the expedition.");
+
+            // As at level 50 (GamePlayer.cs:4627): the challenge is complete, the character is safe again.
+            player.HCFlag = false;
+            player.HCCompleted = true;
+
+            Runs.TryRemove(run.CharacterId, out _);
+            ObjectiveTracker.Detach(player);
+            Save(run);
+
+            player.Out.SendMessage("You have won the expedition! Your Hardcore flag has been disabled.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            player.Out.SendCustomTextWindow("Expedition won", SummaryLines(run, "VICTORY"));
+
+            return;
+        }
+
+        int nextAct = run.Act + 1;
+        ActPlan next;
+
+        try
+        {
+            next = ActGenerator.Generate(nextAct, player.Realm, run.Seed, finished?.ZoneId ?? NoPreviousZone);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Act {nextAct} could not be generated for {run.CharacterName} (seed {run.Seed}).", ex);
+            next = null;
+        }
+
+        if (next == null)
+        {
+            // The run stays on the finished act, its boss marked slain, so nothing is lost; the error is logged.
+            Save(run);
+            player.Out.SendMessage($"Act {nextAct} could not be planned. Your run is saved; please report seed {run.Seed}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            return;
+        }
+
+        run.Act = nextAct;
+        run.CurrentAct = next;
+        run.AddLog($"Act {nextAct}: {next.ZoneName} (levels {next.MinLevel}-{next.MaxLevel}).");
+        Save(run);
+
+        player.Out.SendMessage($"Act {nextAct - 1} is won! In {NextActTeleportDelayMilliseconds / 1000} seconds you set out for act {nextAct}: {next.ZoneName}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        // A short pause to loot the boss; then the camp. The tracker is re-attached after the move, so whatever it
+        // set up for the finished act (its zone, its mists) is rebuilt for the new one.
+        new ECSGameTimer(player, _ =>
+        {
+            ExpeditionRun current = GetRun(player);
+
+            if (current == null || current.Act != nextAct || !player.IsAlive)
+            {
+                return 0;
+            }
+
+            ObjectiveTracker.Detach(player);
+
+            if (!player.MoveTo((ushort)next.RegionId, next.CampX, next.CampY, next.CampZ, next.CampHeading))
+            {
+                Log.Warn($"[EXPEDITION] {player.Name} could not be moved to the act {nextAct} camp in region {next.RegionId} ({next.CampX}, {next.CampY}, {next.CampZ}).");
+                player.Out.SendMessage("You could not be taken to the next camp. Type /run journal to see where it is.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+
+            ObjectiveTracker.Attach(player);
+            player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList());
+
+            return 0;
+        }, NextActTeleportDelayMilliseconds);
+    }
+
+    /// <summary>
+    /// The run is over. Called from the Dying event, before GamePlayer.ProcessDeath reaches the hardcore deletion,
+    /// so the flag is left on: the character is deleted as the hardcore rules say.
+    /// </summary>
+    public static void OnPlayerDied(GamePlayer player)
+    {
+        ExpeditionRun run = GetRun(player);
+
+        if (run == null)
+        {
+            return;
+        }
+
+        run.Status = StatusDead;
+        run.Deaths++;
+        run.EndedUtc = DateTime.UtcNow;
+        run.AddLog($"Act {run.Act}: {run.CharacterName} has fallen. The expedition is over.");
+
+        Runs.TryRemove(run.CharacterId, out _);
+        Save(run);
+
+        player.Out.SendCustomTextWindow("Expedition over", SummaryLines(run, "RUN OVER"));
+        ObjectiveTracker.Detach(player);
+    }
+
+    public static void Abandon(GamePlayer player)
+    {
+        ExpeditionRun run = GetRun(player);
+
+        if (run == null)
+        {
+            return;
+        }
+
+        run.Status = StatusAbandoned;
+        run.EndedUtc = DateTime.UtcNow;
+        run.SummaryShown = true;
+        run.AddLog($"Act {run.Act}: the expedition was abandoned.");
+
+        player.HCFlag = false;
+
+        if (player.CurrentTitle is HardCoreTitle && !player.HCCompleted)
+        {
+            player.CurrentTitle = PlayerTitleMgr.ClearTitle;
+        }
+
+        Runs.TryRemove(run.CharacterId, out _);
+        ObjectiveTracker.Detach(player);
+        Save(run);
+
+        player.Out.SendMessage("You have abandoned the expedition. Your Hardcore flag is OFF.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendCustomTextWindow("Expedition abandoned", SummaryLines(run, "ABANDONED"));
+    }
+
+    public static IReadOnlyList<string> JournalLines(ExpeditionRun run)
+    {
+        var lines = new List<string>();
+
+        if (run == null)
+        {
+            return lines;
+        }
+
+        ActPlan plan = run.CurrentAct;
+
+        lines.Add($"Seed: {run.Seed}");
+        lines.Add($"Kills: {run.Kills}   Bosses slain: {run.BossesKilled}");
+        lines.Add(string.Empty);
+
+        // DescribePlan's first line is the "Act N of 5: zone (levels a-b)" header.
+        if (plan != null)
+        {
+            lines.AddRange(ActGenerator.DescribePlan(plan));
+        }
+        else
+        {
+            lines.Add($"Act {run.Act} of {ActGenerator.ActCount}: unknown");
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("Recent journal:");
+
+        lock (run.Log)
+        {
+            lines.AddRange(run.Log.Skip(Math.Max(0, run.Log.Count - JournalLogLines)));
+        }
+
+        return lines;
+    }
+
+    #endregion
+
+    /// <summary>The end-of-run window (death, victory and abandon).</summary>
+    private static List<string> SummaryLines(ExpeditionRun run, string headline)
+    {
+        TimeSpan length = (run.EndedUtc ?? DateTime.UtcNow) - run.StartedUtc;
+        var lines = new List<string>
+        {
+            $"*** {headline} ***",
+            string.Empty,
+            $"{run.CharacterName}, seed {run.Seed}",
+            $"Reached act {run.Act} of {ActGenerator.ActCount}" + (run.CurrentAct == null ? string.Empty : $" ({run.CurrentAct.ZoneName})"),
+            $"Kills: {run.Kills}",
+            $"Bosses slain: {run.BossesKilled}",
+            $"Time: {(int)length.TotalHours}h {length.Minutes}m",
+            string.Empty,
+            "Journal:"
+        };
+
+        lock (run.Log)
+        {
+            lines.AddRange(run.Log.Skip(Math.Max(0, run.Log.Count - JournalLogLines)));
+        }
+
+        return lines;
+    }
+
+    private static ExpeditionRun FromRecord(OfflineExpeditionRecord record, GamePlayer player)
+    {
+        var run = new ExpeditionRun
+        {
+            CharacterId = record.CharacterId,
+            CharacterName = record.CharacterName,
+            AccountName = record.AccountName,
+            SummaryShown = record.SummaryShown,
+            Seed = record.Seed,
+            Act = record.Act,
+            Status = record.Status,
+            Kills = record.Kills,
+            Deaths = record.Deaths,
+            BossesKilled = record.BossesKilled,
+            StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
+            EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,
+            Record = record
+        };
+
+        try
+        {
+            if (!string.IsNullOrEmpty(record.LogJson))
+            {
+                run.Log = JsonSerializer.Deserialize<List<string>>(record.LogJson, ExpeditionJson.Options) ?? new List<string>();
+            }
+
+            if (!string.IsNullOrEmpty(record.ActJson))
+            {
+                run.CurrentAct = JsonSerializer.Deserialize<ActPlan>(record.ActJson, ExpeditionJson.Options);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] The saved act of {record.CharacterName} could not be read.", ex);
+        }
+
+        // No player: a finished run read for its summary only, which needs no plan.
+        if (run.CurrentAct == null && player != null)
+        {
+            // Same seed and act give the same plan except for the previous-zone rule, which is not saved separately.
+            try
+            {
+                run.CurrentAct = ActGenerator.Generate(run.Act, player.Realm, run.Seed, NoPreviousZone);
+                run.AddLog($"Act {run.Act}: the saved act could not be read and was planned again.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[EXPEDITION] Act {run.Act} of {record.CharacterName} could not be planned again.", ex);
+            }
+        }
+
+        return run;
+    }
+}

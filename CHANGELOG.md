@@ -7,6 +7,15 @@ The newest version is first. For the full detail of every earlier update, see
 
 0.37 / 0.37b / 0.37c is the latest release.
 
+**Expedition mode**
+- New `/run` command: Expedition mode, a seeded roguelite run from level 1 to a final boss. `/run new [seed]` starts
+  one on a level-1 character with no realm points: the Hardcore flag goes on, and you are taken to act 1's camp.
+  Each of the five acts has objectives and then a boss; killing it takes you on to the next act, and the act-5 boss
+  wins the run (the Hardcore flag comes off, as at level 50). Death ends the run and deletes the character, as
+  Hardcore does; the run's summary is shown at your next login (on any character, within a day). `/run status`,
+  `/run journal`, `/run seed` and `/run abandon` show and manage the run. Runs are saved in the new
+  `offline_expeditions` table, kept after the character is gone, and carried over by the progress import.
+
 **Bots and raids**
 - Hibernian bots no longer get stuck at the door of their portal keep in Odin's Gate. Once out of the keep's
   inner door, the route they planned led back in to the keep yard and then out again, over and over, until they

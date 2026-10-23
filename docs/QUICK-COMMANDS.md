@@ -43,5 +43,15 @@ v0.32b Darkness Falls Beta, Legion, the hardest level-70+ encounters,
 unreachable flying targets, and unverified routes are excluded from ordinary
 autonomous bot goals.
 
+## Expedition mode
+
+| Command | What it does |
+|---|---|
+| `/run new [seed]` | Start a seeded roguelite run on a level-1 character with no realm points. Your Hardcore flag goes **on** (death ends the run and deletes the character) and you are taken to act 1's camp. The same seed gives the same expedition. |
+| `/run status` | One line: act, level band, zone, objectives done and the act boss. |
+| `/run journal` | Open the journal: seed, act, zone, level band, objectives and the latest entries. |
+| `/run seed` | Show this run's seed, to share or replay it. |
+| `/run abandon` | Give up the run after a confirmation; your Hardcore flag goes off. |
+
 For the complete advanced reference, see **ALL SERVER COMMANDS.txt** inside the
 download. That file separates normal-player, GM and administrator registrations.
