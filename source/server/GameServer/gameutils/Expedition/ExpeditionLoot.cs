@@ -96,6 +96,60 @@ public static class ExpeditionLoot
     public static void OnServerStarted(DOLEvent e, object sender, EventArgs args)
     {
         GameEventMgr.AddHandler(GameLivingEvent.EnemyKilled, new DOLEventHandler(OnEnemyKilledOutsideRuns));
+        ApplyRetunedDefaults();
+    }
+
+    // Loot settings whose default changed after release, with the earlier default. The database keeps the value from the
+    // first start, so a new default would never reach an existing game.
+    private static readonly (string Key, string OldDefault)[] RetunedDefaults =
+    [
+        ("expedition_loot_chance", "50"),
+        ("expedition_loot_grey_chance", "15"),
+        ("expedition_loot_pity_step", "10"),
+        ("expedition_loot_pity_guarantee", "4")
+    ];
+
+    /// <summary>
+    /// Moves a loot setting to its new default when the saved value is still the old default, i.e. nobody changed it by
+    /// hand. A value someone set on purpose is kept.
+    /// </summary>
+    private static void ApplyRetunedDefaults()
+    {
+        try
+        {
+            var properties = Properties.AllDomainProperties;
+
+            foreach ((string key, string oldDefault) in RetunedDefaults)
+            {
+                if (!properties.TryGetValue(key, out var entry))
+                {
+                    continue;
+                }
+
+                ServerPropertyAttribute attribute = entry.Item1;
+                DbServerProperty row = entry.Item3;
+                string newDefault = Convert.ToString(attribute.DefaultValue, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (!row.IsPersisted || row.Value != oldDefault || row.DefaultValue != oldDefault || newDefault == oldDefault)
+                {
+                    continue;
+                }
+
+                row.Value = newDefault;
+                row.DefaultValue = newDefault;
+                GameServer.Database.SaveObject(row);
+                entry.Item2.SetValue(null, Convert.ChangeType(newDefault, attribute.DefaultValue.GetType(), System.Globalization.CultureInfo.InvariantCulture));
+
+                if (log.IsInfoEnabled)
+                {
+                    log.Info($"[EXPEDITION] Server property {key} moved from its old default {oldDefault} to {newDefault}.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error("[EXPEDITION] Could not update the loot settings to their new defaults.", ex);
+        }
     }
 
     [GameServerStoppedEvent]
@@ -258,15 +312,14 @@ public static class ExpeditionLoot
         return Math.Clamp(chance, 0, 100);
     }
 
-    /// <summary>True for a kill that is not grey and not below the act band: it can raise and trigger the pity.</summary>
+    /// <summary>
+    /// True for a kill that is not grey to the player: it gets the full chance and can raise and trigger the pity.
+    /// Only the con colour decides, not the act band: at level 1 the band starts at 1 while blue mobs are level 0
+    /// (owner 2026-10-23, "annoying lucradan (level 0)" rolled the grey 15%). The band parameters are kept for callers.
+    /// </summary>
     public static bool CountsForPity(int mobLevel, int playerLevel, int bandMin, int bandMax)
     {
-        if (mobLevel < playerLevel - 5)
-        {
-            return false;
-        }
-
-        return bandMax <= 0 || mobLevel >= bandMin;
+        return mobLevel >= playerLevel - 5;
     }
 
     /// <summary>Rolls one kill: a drop resets the luck; a counted kill without one raises it.</summary>

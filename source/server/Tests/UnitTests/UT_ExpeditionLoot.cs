@@ -108,7 +108,9 @@ public class UT_ExpeditionLoot
     {
         Assert.That(ExpeditionLoot.KillDropChance(4, 10, 0, 0, 3, Defaults), Is.EqualTo(15));
         Assert.That(ExpeditionLoot.KillDropChance(12, 10, 8, 14, 0, Defaults), Is.EqualTo(65));
-        Assert.That(ExpeditionLoot.KillDropChance(7, 10, 8, 12, 0, Defaults), Is.EqualTo(15), "below the act band");
+        Assert.That(ExpeditionLoot.KillDropChance(7, 10, 8, 12, 0, Defaults), Is.EqualTo(50), "below the act band but not grey");
+        Assert.That(ExpeditionLoot.KillDropChance(0, 1, 1, 10, 0, Defaults), Is.EqualTo(50), "a level-0 blue mob for a level-1 player in act 1");
+        Assert.That(ExpeditionLoot.CountsForPity(0, 1, 1, 10), Is.True);
     }
 
     [Test]

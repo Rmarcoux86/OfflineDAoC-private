@@ -17,15 +17,16 @@ The newest version is first. For the full detail of every earlier update, see
   `offline_expeditions` table, kept after the character is gone, and carried over by the progress import.
 - Expedition loot: monsters you kill on a run now drop much more loot, in five rarities: Common, [Magic], [Rare],
   [Epic] and Unique items with their own names (such as "Mistwarden's Blade of the Lough"). Rarer items have better
-  bonuses and quality and a level or two more; Epic and Unique items get an extra bonus. A kill in the act's level band
-  drops something half the time, more for tougher monsters and more after each kill without a drop, and you never go
-  four such kills without one; grey monsters rarely drop. Your first objective kill of a run always drops a Magic or
+  bonuses and quality and a level or two more; Epic and Unique items get an extra bonus. Any kill that isn't grey to you
+  drops something about two times in three, more for tougher monsters and more after each kill without a drop, and you
+  never go three such kills without one; grey monsters drop about one time in three. Your first objective kill of a run always drops a Magic or
   better item. Each act boss drops three Rare-or-better items; from act 3 the last is Epic or better, and the act-5
   boss always drops a Unique. `/run status`, the journal and the end-of-run window count what you found. Server
-  settings (category `expedition`): `expedition_loot_chance` (50), `expedition_loot_grey_chance` (15),
-  `expedition_loot_high_con_bonus` (15), `expedition_loot_pity_step` (10), `expedition_loot_pity_guarantee` (4),
+  settings (category `expedition`): `expedition_loot_chance` (65), `expedition_loot_grey_chance` (35),
+  `expedition_loot_high_con_bonus` (15), `expedition_loot_pity_step` (15), `expedition_loot_pity_guarantee` (3),
   `expedition_boss_drops` (3) and `expedition_loot_outside_runs` (off: when on, every player gets this loot
-  everywhere).
+  everywhere). A game that still has the earlier defaults (50, 15, 10, 4) is moved to these on the next start; values
+  changed by hand are kept. `/run debug` explains every kill and loot roll in the system window.
 **Fishing**
 - Fishing: face open water with a fishing pole and type /fish to relax and fish. Each realm's waters have their own
   fish in four sizes (brown trout and pike in Albion, arctic char and halibut in Midgard, salmon and bream in Hibernia),
