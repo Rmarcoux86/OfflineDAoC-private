@@ -43,7 +43,7 @@ public class UT_Fishing
         }
 
         Assert.That(ids, Does.Contain(FishingCatalog.PoleTemplateId));
-        Assert.That(ids, Does.Contain("fish_alb_brown_trout_2"));
+        Assert.That(ids, Does.Contain("offline_fish_alb_brown_trout_2"));
     }
 
     [Test]

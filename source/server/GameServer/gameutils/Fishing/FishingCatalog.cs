@@ -42,7 +42,7 @@ namespace DOL.GS.Fishing
     /// </summary>
     public static class FishingCatalog
     {
-        public const string PoleTemplateId = "fishing_pole";
+        public const string PoleTemplateId = "offline_fishing_pole";
         public const string PackageId = "OfflineFishing";
 
         private const int SmallFishModel = 544;
@@ -82,7 +82,7 @@ namespace DOL.GS.Fishing
 
             public string TemplateId(int tier)
             {
-                return "fish_" + Realm + "_" + Key + "_" + (tier + 1);
+                return "offline_fish_" + Realm + "_" + Key + "_" + (tier + 1);
             }
         }
 
@@ -155,9 +155,9 @@ namespace DOL.GS.Fishing
 
         private static readonly Junk[] JunkItems =
         {
-            new Junk { TemplateId = "fish_junk_old_boot", Name = "old boot", Frequency = 45, Model = OldBootModel, WeightTenths = 15, PriceCopper = 3 },
-            new Junk { TemplateId = "fish_junk_tangled_seaweed", Name = "tangled seaweed", Frequency = 45, Model = SeaweedModel, WeightTenths = 5, PriceCopper = 2 },
-            new Junk { TemplateId = "fish_junk_waterlogged_chest", Name = "waterlogged chest", Frequency = 10, Model = ChestModel, WeightTenths = 60, PriceCopper = 250 },
+            new Junk { TemplateId = "offline_fish_junk_old_boot", Name = "old boot", Frequency = 45, Model = OldBootModel, WeightTenths = 15, PriceCopper = 3 },
+            new Junk { TemplateId = "offline_fish_junk_tangled_seaweed", Name = "tangled seaweed", Frequency = 45, Model = SeaweedModel, WeightTenths = 5, PriceCopper = 2 },
+            new Junk { TemplateId = "offline_fish_junk_waterlogged_chest", Name = "waterlogged chest", Frequency = 10, Model = ChestModel, WeightTenths = 60, PriceCopper = 250 },
         };
 
         private static readonly string[] WaitingLines =

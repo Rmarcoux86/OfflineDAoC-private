@@ -21,8 +21,17 @@ public static class FishingStartup
 
         foreach (DbItemTemplate template in FishingCatalog.AllTemplates())
         {
-            if (GameServer.Database.FindObjectByKey<DbItemTemplate>(template.Id_nb) != null)
+            DbItemTemplate existing = GameServer.Database.FindObjectByKey<DbItemTemplate>(template.Id_nb);
+
+            if (existing != null)
             {
+                // A template with our id but from another source (a stock quest item, say) would be handed out
+                // in place of ours, so say so in the log rather than silently using it.
+                if (existing.PackageID != FishingCatalog.PackageId)
+                {
+                    Log.Warn($"Fishing: item template '{template.Id_nb}' already exists from package '{existing.PackageID}' and is used as-is.");
+                }
+
                 continue;
             }
 
