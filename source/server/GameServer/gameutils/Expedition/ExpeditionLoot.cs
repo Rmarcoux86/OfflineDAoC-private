@@ -620,7 +620,25 @@ public static class ExpeditionLoot
     {
         LootProfile profile = ProfileFor(rarity);
         byte level = (byte) Math.Clamp(player.Level + profile.LevelBonus, 1, 51);
+        int wantedLines = BonusLinesFor(rarity);
         GeneratedUniqueItem item = new(player.Realm, (eCharacterClass) player.CharacterClass.ID, level, profile.MinUtility);
+
+        // The stock generator rolls a magical bonus only with a chance of 60% + level * 2, so at low levels a third of
+        // its items are plain (owner 2026-10-23: a "[Rare] leather sleeves" with 0 utility). A rarity that promises
+        // bonuses re-rolls until it has them, then a stat line is written as the last resort.
+        for (int attempt = 0; attempt < 8 && CountBonusLines(item) < wantedLines; attempt++)
+        {
+            item = new GeneratedUniqueItem(player.Realm, (eCharacterClass) player.CharacterClass.ID, level, profile.MinUtility);
+        }
+
+        while (CountBonusLines(item) < wantedLines)
+        {
+            if (!AddStatLine(item))
+            {
+                break;
+            }
+        }
+
         item.AllowAdd = true;
         item.IsTradable = true;
 
@@ -698,6 +716,86 @@ public static class ExpeditionLoot
 
         int max = (int) Math.Ceiling(level / 3.0);
         SetBonus(item, line, eProperty.Constitution, Util.Random((int) Math.Ceiling(max / 2.0), max));
+    }
+
+    /// <summary>How many bonus lines a rarity promises: Magic at least one, Rare and above at least two.</summary>
+    public static int BonusLinesFor(eLootRarity rarity)
+    {
+        return rarity switch
+        {
+            eLootRarity.Common => 0,
+            eLootRarity.Magic => 1,
+            _ => 2
+        };
+    }
+
+    public static int CountBonusLines(DbItemTemplate item)
+    {
+        int count = 0;
+
+        for (int i = 1; i <= 10; i++)
+        {
+            (int type, int value) = GetBonus(item, i);
+
+            if (type != 0 && value != 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Writes one stat line the item lacks (Strength, Constitution, Dexterity or Quickness, in that order), sized like
+    /// the generator's own stat rolls at this level (about level/3, at least 1). False when every line is taken.
+    /// </summary>
+    private static bool AddStatLine(DbItemTemplate item)
+    {
+        int line = 0;
+
+        for (int i = 10; i >= 1; i--)
+        {
+            (int type, int value) = GetBonus(item, i);
+
+            if (type == 0 && value == 0)
+            {
+                line = i;
+            }
+        }
+
+        if (line == 0)
+        {
+            return false;
+        }
+
+        foreach (eProperty stat in new[] { eProperty.Strength, eProperty.Constitution, eProperty.Dexterity, eProperty.Quickness })
+        {
+            bool taken = false;
+
+            for (int i = 1; i <= 10; i++)
+            {
+                if (GetBonus(item, i).type == (int) stat)
+                {
+                    taken = true;
+
+                    break;
+                }
+            }
+
+            if (taken)
+            {
+                continue;
+            }
+
+            int level = Math.Max(1, item.Level);
+            int amount = Math.Max(1, (int) Math.Ceiling(level / 3.0));
+            SetBonus(item, line, stat, Util.Random(Math.Max(1, amount / 2), amount));
+
+            return true;
+        }
+
+        return false;
     }
 
     private static (int type, int value) GetBonus(DbItemTemplate item, int line)

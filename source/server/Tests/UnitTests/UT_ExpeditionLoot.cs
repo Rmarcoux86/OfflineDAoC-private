@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using DOL.GS.Expedition;
+using DOL.Database;
+using DOL.GS;
 using NUnit.Framework;
 
 namespace DOL.GS.Tests;
@@ -197,5 +199,23 @@ public class UT_ExpeditionLoot
         }
 
         Assert.That(ExpeditionLoot.ProfileFor(eLootRarity.Unique).UniqueName, Is.True);
+    }
+
+    [Test]
+    public void BonusLines_RisePerRarity_AndAreCountedFromTheItem()
+    {
+        Assert.That(ExpeditionLoot.BonusLinesFor(eLootRarity.Common), Is.EqualTo(0));
+        Assert.That(ExpeditionLoot.BonusLinesFor(eLootRarity.Magic), Is.EqualTo(1));
+        Assert.That(ExpeditionLoot.BonusLinesFor(eLootRarity.Rare), Is.EqualTo(2));
+        Assert.That(ExpeditionLoot.BonusLinesFor(eLootRarity.Unique), Is.EqualTo(2));
+
+        DbItemTemplate item = new();
+        Assert.That(ExpeditionLoot.CountBonusLines(item), Is.EqualTo(0));
+
+        item.Bonus3Type = (int) eProperty.Strength;
+        item.Bonus3 = 4;
+        item.Bonus7Type = (int) eProperty.MaxHealth;
+        item.Bonus7 = 12;
+        Assert.That(ExpeditionLoot.CountBonusLines(item), Is.EqualTo(2));
     }
 }
