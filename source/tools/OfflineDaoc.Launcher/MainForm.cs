@@ -198,10 +198,10 @@ internal sealed partial class MainForm : Form
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 31));
         stoneFrame.Controls.Add(rootLayout);
 
-        _startButton = ActionButton("START SERVER", Color.FromArgb(110, 128, 70));
+        _startButton = ActionButton("START SERVER", StartServerAccent);
         _stopButton = ActionButton("STOP SERVER", Color.FromArgb(151, 67, 57));
         _playButton = ActionButton("ENTER REALM", Color.FromArgb(65, 94, 145));
-        _startButton.Click += (_, _) => StartServer();
+        _startButton.Click += (_, _) => StartServerOrGetUpdate();
         _stopButton.Click += async (_, _) => await StopServerAsync();
         _playButton.Click += (_, _) => LaunchClient();
 
@@ -243,6 +243,7 @@ internal sealed partial class MainForm : Form
             ScheduleNextAutoRefresh();
             UpdateAutoRefreshCountdown();
             _autoRefresh.Start();
+            StartForkUpdateChecks();
         };
         FormClosing += (_, _) =>
         {
@@ -259,6 +260,7 @@ internal sealed partial class MainForm : Form
             _displayClock.Dispose();
             _autoRefresh.Dispose();
             _serverReadinessPoll.Dispose();
+            _forkUpdateTimer.Dispose();
             _helpTip.Dispose();
         }
         base.Dispose(disposing);
@@ -1301,7 +1303,9 @@ internal sealed partial class MainForm : Form
             _helpTip.SetToolTip(_performanceValue, snapshot.BotAiDelay is { } aiPeak
                 ? $"{PerformanceHelp}{Environment.NewLine}Last minute: average {aiPeak.AverageMs:0.0} ms, slowest {aiPeak.PeakMs:N0} ms over {aiPeak.Samples:N0} ticks."
                 : $"{PerformanceHelp}{Environment.NewLine}Shown about a minute after the server starts.");
-            _startButton.Enabled = !_resettingKeepsRelics && !_savingXpRates && !_stoppingServer && snapshot.ServerState == "Stopped" && File.Exists(_serverExecutable);
+            _startButton.Enabled = !_resettingKeepsRelics && !_savingXpRates && !_stoppingServer && !_forkUpdateBusy && snapshot.ServerState == "Stopped" && File.Exists(_serverExecutable);
+            _lastServerState = snapshot.ServerState;
+            ApplyStartButtonMode();
             _resetKeepsRelics.Enabled = !_resettingKeepsRelics && !_savingXpRates && snapshot.ServerState == "Stopped" && BotGoalsServerStopped();
             _stopButton.Enabled = !_stoppingServer && snapshot.ServerState is "Running" or "Starting";
             _playButton.Enabled = !_stoppingServer && snapshot.ServerState == "Running" && File.Exists(_clientConnector);

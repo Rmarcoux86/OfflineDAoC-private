@@ -1,19 +1,36 @@
 OFFLINE DAOC - FORK UPDATE: FISHING AND EXPEDITION MODE
 =======================================================
 
-This zip updates an existing Offline DAoC 0.37 game with two new features. It replaces one server
-file (GameServer.dll). Your account, characters, bots, items and world are not changed.
+This zip updates an existing Offline DAoC 0.37 game with two new features. It replaces the server
+file (GameServer.dll) and the launcher (OfflineDAoC.exe and its files). Your account, characters,
+bots, items and world are not changed.
 
 INSTALL
   1. If you don't have the game yet, install Offline DAoC 0.37 first (see the README on the repo).
-  2. Close the game and click STOP SERVER in the launcher.
+  2. Close the game, click STOP SERVER in the launcher and close the launcher.
   3. Double-click "INSTALL FORK UPDATE.cmd". If Windows warns, choose More info -> Run anyway.
      It finds or asks for your playable-v0.37 folder, backs up the stock files to fork-backups\,
      and installs the update.
   4. Start the game as usual (START OFFLINE DAOC.cmd -> START SERVER -> ENTER REALM).
 
+UPDATES
+  You only install by hand once. From then on the launcher checks for a newer fork update when it
+  opens and every 30 minutes. When one is out and the server is stopped, START SERVER turns gold
+  and reads GET UPDATE (hover it to see the versions). Click it: the launcher downloads the update,
+  closes, installs it in a black window and opens again. If the download fails, the launcher says
+  why and START SERVER works as usual. You can always install a newer zip by hand instead.
+
+  Your installed version is in runtime\fork-version.txt (for example fork-v2).
+  Developers: put the single word dev in runtime\fork-version.txt and the launcher never offers
+  updates (installing a zip by hand replaces it with that zip's version).
+  The launcher looks for updates on GitHub at Rmarcoux86/OfflineDAoC-private. To use another
+  repository, put owner/repo on the first line of runtime\fork-update-source.txt.
+  Problems with the check are logged to runtime\logs\fork-update.log.
+
 UNDO
-  Run "RESTORE STOCK SERVER.cmd". It puts the backed-up stock server back.
+  Close the launcher, then run "RESTORE STOCK SERVER.cmd". It puts the stock server and launcher
+  back from fork-backups\ (the files from before your first fork install) and removes
+  runtime\fork-version.txt.
 
 FISHING
   /fish pole         gives you a fishing pole; equip it in the two-handed slot.

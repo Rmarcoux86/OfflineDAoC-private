@@ -31,8 +31,8 @@ This is Ryan's fork of Offline DAoC. On top of the stock 0.37 game it adds two t
 - **Expedition mode** — a seeded roguelite campaign from level 1 to a final boss, with permadeath and
   Diablo-style loot. `/run new`.
 
-You don't need Git, a compiler or any developer tools to play it. The fork is one server file that you drop onto a
-normal 0.37 install with a double-click. Three steps:
+You don't need Git, a compiler or any developer tools to play it. The fork is a small update (the server and the
+launcher) that you drop onto a normal 0.37 install with a double-click. Three steps:
 
 ### Step 1 — Install the game (one time, ~20 GB)
 
@@ -55,13 +55,22 @@ normal 0.37 install with a double-click. Three steps:
 
 1. Open this repository's **[Releases](../../releases)** page and download the newest `fork-update-….zip`.
 2. Extract it anywhere (for example next to the game folder).
-3. Make sure the game is closed and the launcher says the server is stopped.
+3. Close the game, click **STOP SERVER** and close the launcher window.
 4. Double-click **`INSTALL FORK UPDATE.cmd`**. If Windows warns, click **More info → Run anyway**. It finds your
-   `playable-v0.37` folder (or asks you for it), backs up the stock server files into `fork-backups\`, and
-   installs the update.
+   `playable-v0.37` folder (or asks you for it), backs up the stock server and launcher files into
+   `fork-backups\`, and installs the update.
 
-To update later: download the newer zip and run the same script again. To go back to the stock game: run
-**`RESTORE STOCK SERVER.cmd`**. Your account, characters, bots and saves are never touched either way.
+You only do this once. To go back to the stock game: run **`RESTORE STOCK SERVER.cmd`**. Your account,
+characters, bots and saves are never touched either way.
+
+#### Updates
+
+After the first install the launcher checks this repository for a newer fork update when it opens (and every 30
+minutes while it's open). When one is out and the server is stopped, the **START SERVER** button turns gold and
+reads **GET UPDATE** (hover it to see the versions). Click it: the launcher downloads the update, closes, installs
+it (a black window shows the progress) and opens again. If the download fails, the launcher tells you why and START
+SERVER works as before; if the install window reports a problem, it waits for you to read it, and your game still
+starts as usual. You can also install any update by hand as in Step 2.
 
 ### Step 3 — Play
 
@@ -110,8 +119,10 @@ Building from source needs the .NET 10 SDK and Git: `git checkout dev`, copy
 into the playable folder's `runtime/server`, `runtime/server/lib` and `runtime/server/win-x64`
 ([docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)). Publishing a player release is automatic: push a tag such as
 `fork-v2` (or use **Actions → Fork release → Run workflow**) and the workflow in
-`.github/workflows/fork-release.yml` builds the server, runs the fishing and expedition tests, and attaches
-`fork-update-<tag>.zip` to a GitHub release. Server tuning lives in the `serverproperty` table, category
+`.github/workflows/fork-release.yml` builds the server and the launcher, runs the fishing, expedition and launcher
+tests, and attaches `fork-update-<tag>.zip` to a GitHub release; players' launchers offer it as GET UPDATE. To stop
+your own development install from offering updates, put the single word `dev` in `runtime\fork-version.txt`.
+Server tuning lives in the `serverproperty` table, category
 `expedition` (`expedition_loot_chance`, `expedition_pity_guarantee`, `expedition_boss_drops`,
 `expedition_loot_outside_runs`, …) and `fishing_pole_prevents_aggro`.
 

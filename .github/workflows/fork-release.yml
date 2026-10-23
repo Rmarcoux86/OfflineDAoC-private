@@ -36,32 +36,44 @@ jobs:
         shell: pwsh
         run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
 
+      # The launcher ships in the update too (launcher\ in the zip), so players get its changes and the GET UPDATE button.
+      - name: Build launcher
+        shell: pwsh
+        run: dotnet build source/tools/OfflineDaoc.Launcher/OfflineDaoc.Launcher.csproj -c Release
+
+      - name: Run the launcher's tests
+        shell: pwsh
+        run: dotnet test source/tools/OfflineDaoc.Launcher.Tests/OfflineDaoc.Launcher.Tests.csproj -c Release --logger "trx;LogFileName=launcher-tests.trx" --results-directory test-results
+
       # Turn every failed test into an annotation, so failures are readable on the run page and through the API.
       - name: Report failed tests
         if: always()
         shell: pwsh
         run: |
-          $trx = Get-ChildItem test-results -Filter *.trx -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $trx)
+          $trxFiles = @(Get-ChildItem test-results -Filter *.trx -Recurse -ErrorAction SilentlyContinue)
+          if ($trxFiles.Count -eq 0)
           {
               Write-Output "::error title=No test results::dotnet test produced no TRX file (build or discovery failed before running tests)."
               exit 0
           }
 
-          [xml]$doc = Get-Content $trx.FullName
           $ns = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
-          $counters = Select-Xml -Xml $doc -XPath '//t:Counters' -Namespace $ns | Select-Object -First 1
-          Write-Output "::notice title=Test totals::total=$($counters.Node.total) passed=$($counters.Node.passed) failed=$($counters.Node.failed)"
-
-          foreach ($r in (Select-Xml -Xml $doc -XPath "//t:UnitTestResult[@outcome='Failed']" -Namespace $ns))
+          foreach ($trx in $trxFiles)
           {
-              $msg = ($r.Node.Output.ErrorInfo.Message -replace "`r?`n", ' | ')
-              if ($msg.Length -gt 900)
-              {
-                  $msg = $msg.Substring(0, 900)
-              }
+              [xml]$doc = Get-Content $trx.FullName
+              $counters = Select-Xml -Xml $doc -XPath '//t:Counters' -Namespace $ns | Select-Object -First 1
+              Write-Output "::notice title=Test totals ($($trx.BaseName))::total=$($counters.Node.total) passed=$($counters.Node.passed) failed=$($counters.Node.failed)"
 
-              Write-Output "::error title=$($r.Node.testName)::$msg"
+              foreach ($r in (Select-Xml -Xml $doc -XPath "//t:UnitTestResult[@outcome='Failed']" -Namespace $ns))
+              {
+                  $msg = ($r.Node.Output.ErrorInfo.Message -replace "`r?`n", ' | ')
+                  if ($msg.Length -gt 900)
+                  {
+                      $msg = $msg.Substring(0, 900)
+                  }
+
+                  Write-Output "::error title=$($r.Node.testName)::$msg"
+              }
           }
 
       - name: Assemble the update zip
@@ -73,6 +85,18 @@ jobs:
           Copy-Item source/server/Release/lib/GameServer.dll, source/server/Release/lib/GameServer.pdb $out
           Copy-Item "fork-release/INSTALL FORK UPDATE.cmd", "fork-release/RESTORE STOCK SERVER.cmd", "fork-release/README-FORK.txt" $out
           Copy-Item "QUICK COMMANDS.txt", "ALL SERVER COMMANDS.txt" $out
+
+          # The launcher build: only its own five files. System.Data.SQLite and its native interop are already in every
+          # 0.37 runtime folder (and new-client\runtime) from the same package version.
+          $launcherBuild = "source/tools/OfflineDaoc.Launcher/bin/Release/net10.0-windows"
+          New-Item -ItemType Directory "$out/launcher" | Out-Null
+          foreach ($file in "OfflineDAoC.exe", "OfflineDAoC.dll", "OfflineDAoC.pdb", "OfflineDAoC.deps.json", "OfflineDAoC.runtimeconfig.json")
+          {
+              Copy-Item (Join-Path $launcherBuild $file) "$out/launcher" -ErrorAction Stop
+          }
+
+          # The installer copies this to runtime\fork-version.txt; the launcher compares it with the latest release's tag.
+          Set-Content -Path "$out/fork-version.txt" -Value $name -Encoding ascii
           Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
           "ZIP=$out.zip" | Out-File -Append $env:GITHUB_ENV
           "NAME=$name" | Out-File -Append $env:GITHUB_ENV
@@ -90,5 +114,7 @@ jobs:
             2. Download the zip below, extract it anywhere, close the game and stop the server.
             3. Double-click `INSTALL FORK UPDATE.cmd` and point it at your `playable-v0.37` folder.
             4. Start the game. `/fish pole` to fish, `/run new` on a fresh level-1 character for Expedition mode.
+
+            Already have an earlier fork update? The launcher shows **GET UPDATE** instead of START SERVER; click it and it installs this one and restarts.
 
             `RESTORE STOCK SERVER.cmd` puts the original server back. Your saves are never changed.

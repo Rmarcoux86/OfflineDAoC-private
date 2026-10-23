@@ -91,9 +91,18 @@ internal sealed class RuneButton : Button
     public bool ShowOrnaments { get; set; } = true;
     private bool _hovered;
     private bool _pressed;
+    private Color _accent = DaocTheme.Gold;
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public Color Accent { get; init; } = DaocTheme.Gold;
+    public Color Accent
+    {
+        get => _accent;
+        set
+        {
+            _accent = value;
+            Invalidate();
+        }
+    }
 
     public RuneButton()
     {
