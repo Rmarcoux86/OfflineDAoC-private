@@ -1,4 +1,5 @@
 ﻿using DOL.Database;
+using DOL.GS.Expedition;
 using DOL.GS.PacketHandler;
 using DOL.Language;
 
@@ -167,6 +168,13 @@ namespace DOL.GS.Commands
             // A trainer of the appropriate class must be around (or global trainer, with TrainedClass = eCharacterClass.Unknown).
             if (client.Player.TargetObject is GameTrainer trainer && (trainer.CanTrain(client.Player) || trainer.CanTrainChampionLevels(client.Player)))
                 return true;
+
+            // Expedition mode: a run has no trainers in its camps, so /train works anywhere while a run is active.
+            // The trainer above is only used for this check; nothing after it needs a trainer object.
+            if (ExpeditionManager.GetRun(client.Player) != null)
+            {
+                return true;
+            }
 
             client.Out.SendMessage("You must select a valid trainer for your class.", eChatType.CT_Important, eChatLoc.CL_ChatWindow);
             return false;

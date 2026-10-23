@@ -82,6 +82,13 @@ EXPEDITION MODE
                      are never touched).
   /junk auto off|common|magic  sell such drops on the spot (saved per character).
   /junk status       show the setting. Server setting: expedition_auto_junk.
+  Your class         at level 5 you are promoted to the class you picked at run start (asked
+                     again at login if you never answered); /train works anywhere during a run.
+  The sky            a run darkens your sky: rain, dark clouds and heavy fog over the whole
+                     region, for you only; it clears when the run ends. Server settings:
+                     expedition_weather_intensity (100, 0 = off, max 120),
+                     expedition_weather_fog (16000, 16000-65535),
+                     expedition_weather_speed (0 = still).
   After a death, the run's summary is shown at your next login.
 
 More commands: QUICK COMMANDS.txt and ALL SERVER COMMANDS.txt in this zip.

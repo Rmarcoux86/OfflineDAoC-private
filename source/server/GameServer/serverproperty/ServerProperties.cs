@@ -2583,6 +2583,18 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_auto_junk", "Expedition loot: allow /junk auto to sell unwanted Common or Magic drops on the spot (merchant price).", true)]
 		public static bool EXPEDITION_AUTO_JUNK = true;
 
+		/// <summary>Expedition sky: rain and fog intensity of the storm the run player sees over the whole region (0 turns it off, 120 at most).</summary>
+		[ServerProperty("expedition", "expedition_weather_intensity", "Expedition sky: rain and fog intensity of the run player's own storm over the whole region (0 = off, max 120).", 100)]
+		public static int EXPEDITION_WEATHER_INTENSITY = 100;
+
+		/// <summary>Expedition sky: fog diffusion of that storm (16000 is the lowest value the region weather uses; the random region storms use 16000-32000).</summary>
+		[ServerProperty("expedition", "expedition_weather_fog", "Expedition sky: fog diffusion of the run player's storm (16000 to 65535; region storms use 16000-32000).", 16000)]
+		public static int EXPEDITION_WEATHER_FOG = 16000;
+
+		/// <summary>Expedition sky: speed (units a second, eastward) of that storm; 0 keeps it still. It is widened and re-sent so it always covers the region.</summary>
+		[ServerProperty("expedition", "expedition_weather_speed", "Expedition sky: speed in units a second of the run player's storm (0 = a still storm).", 0)]
+		public static int EXPEDITION_WEATHER_SPEED = 0;
+
 		#endregion
 
 		#region CONTROLS_AUTOMATION

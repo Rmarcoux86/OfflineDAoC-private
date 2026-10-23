@@ -133,6 +133,7 @@ public static class ExpeditionManager
 
         player.Out.SendMessage($"Expedition resumed: act {run.Act} of {ActGenerator.ActCount}, {run.CurrentAct?.ZoneName}. Type /run journal for your objectives.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
         ExpeditionBoons.RemindOffer(player, run);
+        ExpeditionPromotion.OnRunResumed(player);
     }
 
     /// <summary>
@@ -416,6 +417,7 @@ public static class ExpeditionManager
 
         ObjectiveTracker.Attach(player);
         player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
+        ExpeditionPromotion.OnRunStarted(player);
 
         return true;
     }
@@ -525,6 +527,7 @@ public static class ExpeditionManager
 
             Runs.TryRemove(run.CharacterId, out _);
             ObjectiveTracker.Detach(player);
+            ExpeditionWeather.Clear(player);
             ExpeditionBoons.RemoveAll(player);
             Save(run);
 
@@ -626,6 +629,7 @@ public static class ExpeditionManager
 
         player.Out.SendCustomTextWindow("Expedition over", SummaryLines(run, "RUN OVER"));
         ObjectiveTracker.Detach(player);
+        ExpeditionWeather.Clear(player);
         ExpeditionBoons.RemoveAll(player);
     }
 
@@ -652,6 +656,7 @@ public static class ExpeditionManager
 
         Runs.TryRemove(run.CharacterId, out _);
         ObjectiveTracker.Detach(player);
+        ExpeditionWeather.Clear(player);
         ExpeditionBoons.RemoveAll(player);
         Save(run);
 
