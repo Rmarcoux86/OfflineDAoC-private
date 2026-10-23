@@ -258,6 +258,33 @@ public class OfflineExpeditionRecord : DataObject
             m_logJson = value;
         }
     }
+
+    private string m_boonsJson;
+    private string m_pendingBoonOfferJson;
+
+    /// <summary>The boons taken on this run, as a JSON string array of boon ids (TEXT column).</summary>
+    [DataElement(AllowDbNull = true)]
+    public string BoonsJson
+    {
+        get { return m_boonsJson; }
+        set
+        {
+            Dirty = true;
+            m_boonsJson = value;
+        }
+    }
+
+    /// <summary>The boon offer waiting for a choice, as a JSON string array of boon ids; empty when none (TEXT column).</summary>
+    [DataElement(AllowDbNull = true)]
+    public string PendingBoonOfferJson
+    {
+        get { return m_pendingBoonOfferJson; }
+        set
+        {
+            Dirty = true;
+            m_pendingBoonOfferJson = value;
+        }
+    }
 }
 
 /// <summary>
@@ -286,6 +313,12 @@ public sealed class ExpeditionRun
     public DateTime StartedUtc;
     public DateTime? EndedUtc;
     public List<string> Log = new();
+
+    /// <summary>Ids of the boons taken on this run, in the order taken (see ExpeditionBoons).</summary>
+    public List<string> Boons = new();
+
+    /// <summary>Ids of the boons offered at the last act break and not chosen yet; empty when no choice is pending.</summary>
+    public List<string> PendingBoonOffer = new();
 
     /// <summary>The loaded or added row, so later saves update it instead of adding a second one.</summary>
     internal OfflineExpeditionRecord Record;

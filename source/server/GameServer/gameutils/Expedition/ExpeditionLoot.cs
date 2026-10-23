@@ -221,6 +221,14 @@ public static class ExpeditionLoot
         long now = GameLoop.GameLoopTime;
         bool dropped;
 
+        // An elite pack member always drops, Rare or better (ExpeditionElites); boons may raise the floor further.
+        if (ExpeditionElites.IsElite(target as GameNPC))
+        {
+            minimum = minimum.HasValue && minimum.Value > eLootRarity.Rare ? minimum : eLootRarity.Rare;
+        }
+
+        ExpeditionBoons.AdjustLootFloor(player, run, ref minimum);
+
         lock (luck)
         {
             // GamePlayer.EnemyKilled and GameLiving.ProcessDeath can both report one kill; a respawn of the same mob later is a new kill.
@@ -245,6 +253,7 @@ public static class ExpeditionLoot
                 int bandMax = plan?.MaxLevel ?? 0;
                 LootTuning tuning = LootTuning.FromProperties();
                 int chance = KillDropChance(target.Level, player.Level, bandMin, bandMax, luck.DryKills, tuning);
+                chance = Math.Clamp(ExpeditionBoons.AdjustLootChance(player, run, chance), 0, 100);
                 bool counts = CountsForPity(target.Level, player.Level, bandMin, bandMax);
                 int dryBefore = luck.DryKills;
 

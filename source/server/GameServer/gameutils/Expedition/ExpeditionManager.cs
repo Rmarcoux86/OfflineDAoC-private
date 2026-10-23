@@ -450,6 +450,8 @@ public static class ExpeditionManager
             record.EndedUtc = run.EndedUtc?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty;
             record.ActJson = run.CurrentAct == null ? string.Empty : JsonSerializer.Serialize(run.CurrentAct, ExpeditionJson.Options);
             record.LogJson = JsonSerializer.Serialize(log, ExpeditionJson.Options);
+            record.BoonsJson = JsonSerializer.Serialize(run.Boons ?? new List<string>(), ExpeditionJson.Options);
+            record.PendingBoonOfferJson = JsonSerializer.Serialize(run.PendingBoonOffer ?? new List<string>(), ExpeditionJson.Options);
 
             if (record.IsPersisted)
             {
@@ -649,12 +651,14 @@ public static class ExpeditionManager
         lines.Add($"Seed: {run.Seed}");
         lines.Add($"Kills: {run.Kills}   Bosses slain: {run.BossesKilled}");
         lines.Add(run.LootSummary);
+        lines.AddRange(ExpeditionBoons.DescribeBoons(run));
         lines.Add(string.Empty);
 
         // DescribePlan's first line is the "Act N of 5: zone (levels a-b)" header.
         if (plan != null)
         {
             lines.AddRange(ActGenerator.DescribePlan(plan));
+            lines.AddRange(ExpeditionElites.DescribeElites(plan));
         }
         else
         {
@@ -725,6 +729,16 @@ public static class ExpeditionManager
             if (!string.IsNullOrEmpty(record.LogJson))
             {
                 run.Log = JsonSerializer.Deserialize<List<string>>(record.LogJson, ExpeditionJson.Options) ?? new List<string>();
+            }
+
+            if (!string.IsNullOrEmpty(record.BoonsJson))
+            {
+                run.Boons = JsonSerializer.Deserialize<List<string>>(record.BoonsJson, ExpeditionJson.Options) ?? new List<string>();
+            }
+
+            if (!string.IsNullOrEmpty(record.PendingBoonOfferJson))
+            {
+                run.PendingBoonOffer = JsonSerializer.Deserialize<List<string>>(record.PendingBoonOfferJson, ExpeditionJson.Options) ?? new List<string>();
             }
 
             if (!string.IsNullOrEmpty(record.ActJson))
