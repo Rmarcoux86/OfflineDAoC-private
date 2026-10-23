@@ -10,18 +10,32 @@ namespace DOL.GS.Expedition;
 
 /// <summary>
 /// Builds expedition acts from the embedded expedition-zones.json (which zones
-/// each realm may use per act) and the CapnBry goal catalog (where the mobs are).
+/// each realm may use per act) and a camp source (where the monsters are): by
+/// default the live world's Mob table, with the CapnBry goal catalog for zones
+/// the world gives nothing (<see cref="WorldThenCatalogCampSource"/>).
 ///
-/// Generation is deterministic: one System.Random seeded with
-/// unchecked(seed * 31 + act) drives every choice, in a fixed order, over lists
-/// kept in catalog order. Catalog coordinates are zone-local; they are made
-/// global with the zone offset lookup (WorldMgr by default, injectable for tests).
+/// A listed zone is used only when it has at least <see cref="MinimumBandCamps"/>
+/// camps in the act's level band; when none has, the realm's zone (from any act)
+/// with the most camps in the band is used instead.
+///
+/// Generation is deterministic for a given seed and camp data: one System.Random
+/// seeded with unchecked(seed * 31 + act) drives every choice, in a fixed order,
+/// over lists kept in the source's order (catalog order, or the world source's
+/// sorted order). Camp coordinates are zone-local; they are made global with the
+/// zone offset lookup (WorldMgr by default, injectable for tests).
 /// </summary>
 public static class ActGenerator
 {
     public const int ActCount = 5;
 
+    /// <summary>A listed zone needs this many camps in the act's band to be chosen.</summary>
+    public const int MinimumBandCamps = 3;
+
     private const string ResourceSuffix = "expedition-zones.json";
+
+    // A computed boss is a mob at most this many levels above the band's top (keeps epic encounters out).
+    private const int BossLevelCeiling = 10;
+
     private const int ClearCampRadius = 1500;
     private const int KillNamedRadius = 1500;
     private const int ReachPointRadius = 400;
@@ -155,6 +169,54 @@ public static class ActGenerator
         return [highest];
     }
 
+    /// <summary>
+    /// The zones an act can actually use with this camp source: the listed candidates with at
+    /// least <see cref="MinimumBandCamps"/> camps in the band; if none qualifies, the realm's
+    /// zone (from any act) with the most camps in the band; if no zone has any, the listed
+    /// candidates the source has camps for (the act then uses the camps closest to the band).
+    /// </summary>
+    public static IReadOnlyList<ZoneCandidate> GetEligibleCandidates(int act, eRealm realm, IExpeditionCampSource campSource)
+    {
+        ArgumentNullException.ThrowIfNull(campSource);
+        (int minLevel, int maxLevel) = GetLevelBand(act);
+        IReadOnlyList<ZoneCandidate> listed = GetCandidates(act, realm);
+        List<ZoneCandidate> eligible = listed
+            .Where(z => CountBandCamps(campSource, z, minLevel, maxLevel) >= MinimumBandCamps)
+            .ToList();
+
+        if (eligible.Count > 0)
+        {
+            return eligible;
+        }
+
+        // None qualifies: the realm's zone with the most camps in the band (earlier acts and list order win ties).
+        RealmEntry[] realms = LoadedTable.Value.Realms;
+        RealmEntry entry = realms.FirstOrDefault(r => IsRealm(r, realm)) ?? realms[0];
+        ZoneCandidate best = null;
+        int bestCount = 0;
+
+        foreach (ZoneCandidate zone in entry.Acts.OrderBy(a => a.Act).SelectMany(a => a.Zones))
+        {
+            int count = CountBandCamps(campSource, zone, minLevel, maxLevel);
+
+            if (count > bestCount)
+            {
+                best = zone;
+                bestCount = count;
+            }
+        }
+
+        if (best != null)
+        {
+            return [best];
+        }
+
+        // Nothing in band anywhere: the old behaviour, over the listed zones that have camps at all.
+        List<ZoneCandidate> populated = listed.Where(z => campSource.GetZoneCamps(z.RegionId, z.ZoneId).Count > 0).ToList();
+
+        return populated.Count > 0 ? populated : listed;
+    }
+
     /// <summary>The live world's zone offset. Requires a loaded world.</summary>
     public static (int ox, int oy) WorldZoneOffset(int zoneId)
     {
@@ -171,14 +233,21 @@ public static class ActGenerator
     /// <param name="previousZoneId">The previous act's zone, which is avoided; negative means none (zone 0 is Camelot Hills).</param>
     public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId)
     {
-        return Generate(act, realm, seed, previousZoneId, WorldZoneOffset);
+        return Generate(act, realm, seed, previousZoneId, WorldZoneOffset, WorldThenCatalogCampSource.Instance);
     }
 
+    /// <summary>The default camp source (world, then catalog) with an injected zone offset lookup.</summary>
     public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, Func<int, (int ox, int oy)> zoneOffset)
     {
+        return Generate(act, realm, seed, previousZoneId, zoneOffset, WorldThenCatalogCampSource.Instance);
+    }
+
+    public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, Func<int, (int ox, int oy)> zoneOffset, IExpeditionCampSource campSource)
+    {
         ArgumentNullException.ThrowIfNull(zoneOffset);
+        ArgumentNullException.ThrowIfNull(campSource);
         (int minLevel, int maxLevel) = GetLevelBand(act);
-        IReadOnlyList<ZoneCandidate> candidates = GetCandidates(act, realm);
+        IReadOnlyList<ZoneCandidate> candidates = GetEligibleCandidates(act, realm, campSource);
         Random rng = new(unchecked(seed * 31 + act));
 
         // Zone: anything but the previous act's zone (negative: none), unless that is the only choice.
@@ -190,13 +259,11 @@ public static class ActGenerator
         }
 
         ZoneCandidate zone = choices[rng.Next(choices.Count)];
-        List<AutonomousCapnBryGoalCatalog.Entry> zoneGoals = AutonomousCapnBryGoalCatalog.Entries
-            .Where(e => e.ZoneId == zone.ZoneId && e.RegionId == zone.RegionId)
-            .ToList();
+        List<AutonomousCapnBryGoalCatalog.Entry> zoneGoals = campSource.GetZoneCamps(zone.RegionId, zone.ZoneId).ToList();
 
         if (zoneGoals.Count == 0)
         {
-            throw new InvalidOperationException($"The goal catalog has no entries for expedition zone {zone.ZoneId} ({zone.ZoneName}).");
+            throw new InvalidOperationException($"The camp source has no camps for expedition zone {zone.ZoneId} ({zone.ZoneName}).");
         }
 
         (int ox, int oy) = zoneOffset(zone.ZoneId);
@@ -341,37 +408,43 @@ public static class ActGenerator
             });
         }
 
-        // Boss: a json candidate present in the zone, else a rarely-seen mob at or a
-        // little above the band's top, else the most common of the band's top mobs.
+        // Boss: a json candidate present in the zone (picked by the seed). Otherwise a named mob
+        // (one with at most 2 spawns in the zone) of the band or above, highest level first;
+        // else the most common of the band's top mobs.
         HashSet<string> zoneNames = new(zoneGoals.Select(e => e.Name), StringComparer.Ordinal);
         List<string> bossNames = (zone.BossCandidates ?? []).Where(zoneNames.Contains).Distinct().ToList();
+        string bossName;
 
-        if (bossNames.Count == 0)
+        if (bossNames.Count > 0)
         {
-            bossNames = zoneGoals
-                .Where(e => e.Levels.Max() >= maxLevel && e.Levels.Max() <= maxLevel + 8 && e.Sightings <= 2)
-                .Select(e => e.Name)
-                .Distinct()
-                .ToList();
+            bossName = bossNames[rng.Next(bossNames.Count)];
         }
-
-        if (bossNames.Count == 0)
+        else
         {
-            int topLevel = inBand.Max(e => e.Levels.Max());
-            bossNames =
-            [
-                inBand
+            Dictionary<string, int> spawnsByName = zoneGoals
+                .GroupBy(e => e.Name, StringComparer.Ordinal)
+                .ToDictionary(g => g.Key, g => g.Sum(e => Math.Max(1, e.Sightings)), StringComparer.Ordinal);
+            bossName = zoneGoals
+                .Where(e => e.Levels.Max() >= minLevel && e.Levels.Max() <= maxLevel + BossLevelCeiling && spawnsByName[e.Name] <= 2)
+                .OrderByDescending(e => e.Levels.Max())
+                .ThenBy(e => e.Name, StringComparer.Ordinal)
+                .Select(e => e.Name)
+                .FirstOrDefault();
+
+            if (bossName == null)
+            {
+                int topLevel = inBand.Max(e => e.Levels.Max());
+                bossName = inBand
                     .Where(e => e.Levels.Max() >= topLevel - 3)
-                    .GroupBy(e => e.Name)
-                    .OrderByDescending(g => g.Count())
+                    .GroupBy(e => e.Name, StringComparer.Ordinal)
+                    .OrderByDescending(g => g.Sum(e => Math.Max(1, e.Sightings)))
                     .ThenByDescending(g => g.Max(e => e.Levels.Max()))
                     .ThenBy(g => g.Key, StringComparer.Ordinal)
                     .First()
-                    .Key
-            ];
+                    .Key;
+            }
         }
 
-        string bossName = bossNames[rng.Next(bossNames.Count)];
         AutonomousCapnBryGoalCatalog.Entry bossGoal = zoneGoals
             .Where(e => e.Name == bossName)
             .OrderByDescending(e => e.Levels.Max())
@@ -437,6 +510,13 @@ public static class ActGenerator
     private static bool IsRealm(RealmEntry entry, eRealm realm)
     {
         return Enum.TryParse(entry.Realm, true, out eRealm parsed) && parsed == realm;
+    }
+
+    /// <summary>The zone's camps whose levels overlap the band.</summary>
+    public static int CountBandCamps(IExpeditionCampSource campSource, ZoneCandidate zone, int minLevel, int maxLevel)
+    {
+        return campSource.GetZoneCamps(zone.RegionId, zone.ZoneId)
+            .Count(e => e.Levels is { Length: > 0 } && e.Levels.Min() <= maxLevel && e.Levels.Max() >= minLevel);
     }
 
     private static int Median(IEnumerable<int> values)

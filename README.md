@@ -81,8 +81,8 @@ Start the game as usual: **START OFFLINE DAOC.cmd** → **START SERVER** → **E
 A run is one character, one seed, five acts of zones and bosses from level 1 to 50. Dying ends the run **and
 deletes the character** (it uses the game's Hardcore flag), so always use a brand-new character.
 
-1. Create a **new level-1 character** (Hibernia and Albion have full zone pools; Midgard uses Albion's for now)
-   and enter the world.
+1. Create a **new level-1 character** in any realm (Albion, Midgard and Hibernia each have their own zones for
+   all five acts, and the acts use the monsters your world actually has) and enter the world.
 2. Type **`/run new`** and accept the confirmation. You are teleported to the act-1 camp and the **journal** opens
    with the act's zone, level band, 2–3 objectives, and the boss.
 3. **Do the objectives:** clear a camp (kill a number of a mob near a point), kill a named mob, or reach a spot.

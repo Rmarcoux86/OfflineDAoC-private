@@ -45,7 +45,8 @@ FISHING
 EXPEDITION MODE
   A seeded roguelite run: one character, five acts of zones and bosses from level 1 to 50.
   Dying ends the run AND DELETES THE CHARACTER (it uses the game's Hardcore flag), so use a
-  brand-new character. Hibernia and Albion have full zone pools; Midgard uses Albion's for now.
+  brand-new character. Albion, Midgard and Hibernia each have their own zones for all five
+  acts, and the acts use the monsters your world actually has.
 
   /run new           on a fresh level-1 character. Confirm, and you are taken to the act-1 camp.
                      The journal shows the zone, level band, 2-3 objectives and the boss.

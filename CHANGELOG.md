@@ -27,6 +27,11 @@ The newest version is first. For the full detail of every earlier update, see
   `expedition_boss_drops` (3) and `expedition_loot_outside_runs` (off: when on, every player gets this loot
   everywhere). A game that still has the earlier defaults (50, 15, 10, 4) is moved to these on the next start; values
   changed by hand are kept. `/run debug` explains every kill and loot roll in the system window.
+- Expedition zones for every realm: Midgard now has its own zones for all five acts (it used Albion's), and Albion
+  and Hibernia gain their outer and Shrouded Isles zones (Dartmoor, Lyonesse, Caldey, Bog of Cullen, Cliffs of
+  Moher, World's End and more) for the later acts. Acts now find their camps, named mobs and bosses in the world's
+  own monster spawns instead of an old bestiary snapshot (which stays as the fallback), and a zone is only used
+  when it has at least three monster camps in the act's level band. Old frontier zones are never used.
 **Fishing**
 - Fishing: face open water with a fishing pole and type /fish to relax and fish. Each realm's waters have their own
   fish in four sizes (brown trout and pike in Albion, arctic char and halibut in Midgard, salmon and bream in Hibernia),

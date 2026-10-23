@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "_comment": "Expedition act zones per realm. Zone ids/names/regions come from capnbry_classic_si_goals.json. camp null = computed at generation (median of the zone's lowest-level goals). bossCandidates are catalog mob names in that zone; empty = computed.",
+  "_comment": "Expedition act zones per realm, made by source/tools/expedition/make_expedition_zones.py. Zone ids, names and regions are from Zones.xml; old frontier zones are excluded. At generation a zone needs >= 3 monster camps in the act's band (world Mob table, else the CapnBry catalog). camp null = computed (median of the zone's lowest-level camps). bossCandidates are catalog mob names checked for that zone; empty = computed (a rare named mob at or above the band, else the band's most common top mob).",
   "realms": [
     {
       "realm": "Albion",
@@ -23,7 +23,7 @@
             },
             {
               "zoneId": 2,
-              "zoneName": "Black Mtns South",
+              "zoneName": "Black Mtns. South",
               "regionId": 1,
               "minLevel": 1,
               "maxLevel": 10,
@@ -45,6 +45,15 @@
                 "shambler",
                 "marsh scrag"
               ]
+            },
+            {
+              "zoneId": 51,
+              "zoneName": "Isle of Glass",
+              "regionId": 51,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -62,7 +71,7 @@
             },
             {
               "zoneId": 3,
-              "zoneName": "Black Mtns North",
+              "zoneName": "Black Mtns. North",
               "regionId": 1,
               "minLevel": 10,
               "maxLevel": 20,
@@ -84,6 +93,15 @@
               "zoneId": 51,
               "zoneName": "Isle of Glass",
               "regionId": 51,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 7,
+              "zoneName": "Llyn Barfog",
+              "regionId": 1,
               "minLevel": 10,
               "maxLevel": 20,
               "camp": null,
@@ -118,6 +136,33 @@
                 "sea hound",
                 "caer caddug baille"
               ]
+            },
+            {
+              "zoneId": 7,
+              "zoneName": "Llyn Barfog",
+              "regionId": 1,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 10,
+              "zoneName": "Lyonesse",
+              "regionId": 1,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 53,
+              "zoneName": "Dales of Devwy",
+              "regionId": 51,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -161,6 +206,51 @@
                 "naburite drinker",
                 "cursed necyomancer"
               ]
+            },
+            {
+              "zoneId": 10,
+              "zoneName": "Lyonesse",
+              "regionId": 1,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 4,
+              "zoneName": "Dartmoor",
+              "regionId": 1,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 53,
+              "zoneName": "Dales of Devwy",
+              "regionId": 51,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 54,
+              "zoneName": "Caldey",
+              "regionId": 51,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 55,
+              "zoneName": "Gwyddneau",
+              "regionId": 51,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -183,6 +273,306 @@
               "zoneId": 249,
               "zoneName": "Darkness Falls",
               "regionId": 249,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 4,
+              "zoneName": "Dartmoor",
+              "regionId": 1,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 54,
+              "zoneName": "Caldey",
+              "regionId": 51,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 56,
+              "zoneName": "Aldland",
+              "regionId": 51,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 57,
+              "zoneName": "Inishail Island",
+              "regionId": 51,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "realm": "Midgard",
+      "acts": [
+        {
+          "act": 1,
+          "zones": [
+            {
+              "zoneId": 100,
+              "zoneName": "Vale of Mularn",
+              "regionId": 100,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 101,
+              "zoneName": "East Svealand",
+              "regionId": 100,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 103,
+              "zoneName": "Gotar",
+              "regionId": 100,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 151,
+              "zoneName": "Aegir's Landing",
+              "regionId": 151,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        },
+        {
+          "act": 2,
+          "zones": [
+            {
+              "zoneId": 102,
+              "zoneName": "West Svealand",
+              "regionId": 100,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 105,
+              "zoneName": "Myrkwood Forest",
+              "regionId": 100,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 151,
+              "zoneName": "Aegir's Landing",
+              "regionId": 151,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 129,
+              "zoneName": "Nisse's Lair",
+              "regionId": 129,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        },
+        {
+          "act": 3,
+          "zones": [
+            {
+              "zoneId": 104,
+              "zoneName": "Muspelheim",
+              "regionId": 100,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 106,
+              "zoneName": "Skona Ravine",
+              "regionId": 100,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 155,
+              "zoneName": "Munin Sound",
+              "regionId": 151,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 152,
+              "zoneName": "Gripklosa Mountains",
+              "regionId": 151,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 128,
+              "zoneName": "Cursed Tomb",
+              "regionId": 128,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        },
+        {
+          "act": 4,
+          "zones": [
+            {
+              "zoneId": 107,
+              "zoneName": "Vanern Swamp",
+              "regionId": 100,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 116,
+              "zoneName": "Malmohus",
+              "regionId": 100,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 153,
+              "zoneName": "Delling Crater",
+              "regionId": 151,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 152,
+              "zoneName": "Gripklosa Mountains",
+              "regionId": 151,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 125,
+              "zoneName": "Spindelhalla",
+              "regionId": 125,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 127,
+              "zoneName": "Varulvhamn",
+              "regionId": 127,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            }
+          ]
+        },
+        {
+          "act": 5,
+          "zones": [
+            {
+              "zoneId": 108,
+              "zoneName": "Raumarik",
+              "regionId": 100,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 116,
+              "zoneName": "Malmohus",
+              "regionId": 100,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 154,
+              "zoneName": "Faraheim",
+              "regionId": 151,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 156,
+              "zoneName": "Iarnwood",
+              "regionId": 151,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 158,
+              "zoneName": "Modernagrav",
+              "regionId": 151,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 150,
+              "zoneName": "Trollheim",
+              "regionId": 150,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 161,
+              "zoneName": "Iarnvidiur's Lair",
+              "regionId": 161,
               "minLevel": 44,
               "maxLevel": 50,
               "camp": null,
@@ -223,6 +613,15 @@
                 "large eirebug",
                 "wild lucradan"
               ]
+            },
+            {
+              "zoneId": 181,
+              "zoneName": "Domnann",
+              "regionId": 181,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -251,7 +650,7 @@
             },
             {
               "zoneId": 201,
-              "zoneName": "Silvermine Mts",
+              "zoneName": "Silvermine Mts.",
               "regionId": 200,
               "minLevel": 10,
               "maxLevel": 20,
@@ -260,6 +659,24 @@
                 "walking rock",
                 "silvermine badger"
               ]
+            },
+            {
+              "zoneId": 204,
+              "zoneName": "Lough Gur",
+              "regionId": 200,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 181,
+              "zoneName": "Domnann",
+              "regionId": 181,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -268,7 +685,7 @@
           "zones": [
             {
               "zoneId": 201,
-              "zoneName": "Silvermine Mts",
+              "zoneName": "Silvermine Mts.",
               "regionId": 200,
               "minLevel": 20,
               "maxLevel": 32,
@@ -296,6 +713,60 @@
               "bossCandidates": [
                 "earth sprite"
               ]
+            },
+            {
+              "zoneId": 204,
+              "zoneName": "Lough Gur",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 208,
+              "zoneName": "Cursed Forest",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 206,
+              "zoneName": "Valley of Bri Leith",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 216,
+              "zoneName": "Sheeroe Hills",
+              "regionId": 200,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 182,
+              "zoneName": "Caillte Garran",
+              "regionId": 181,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 183,
+              "zoneName": "Vale of Balor",
+              "regionId": 181,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -313,6 +784,60 @@
                 "naburite drinker",
                 "cursed necyomancer"
               ]
+            },
+            {
+              "zoneId": 203,
+              "zoneName": "Cliffs of Moher",
+              "regionId": 200,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 205,
+              "zoneName": "Bog of Cullen",
+              "regionId": 200,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 206,
+              "zoneName": "Valley of Bri Leith",
+              "regionId": 200,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 216,
+              "zoneName": "Sheeroe Hills",
+              "regionId": 200,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 184,
+              "zoneName": "Cothrom Gorge",
+              "regionId": 181,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 186,
+              "zoneName": "Vigilant Rock",
+              "regionId": 181,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -323,6 +848,42 @@
               "zoneId": 249,
               "zoneName": "Darkness Falls",
               "regionId": 249,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 203,
+              "zoneName": "Cliffs of Moher",
+              "regionId": 200,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 205,
+              "zoneName": "Bog of Cullen",
+              "regionId": 200,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 185,
+              "zoneName": "World's End",
+              "regionId": 181,
+              "minLevel": 44,
+              "maxLevel": 50,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 187,
+              "zoneName": "Allta Fearann",
+              "regionId": 181,
               "minLevel": 44,
               "maxLevel": 50,
               "camp": null,

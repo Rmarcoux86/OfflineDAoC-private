@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Xml.Linq;
 using DOL.GS.Expedition;
 using NUnit.Framework;
 
@@ -11,10 +14,30 @@ public class UT_ExpeditionActGenerator
 {
     private const int ZoneExtent = 65536;
 
+    private static readonly eRealm[] PlayerRealms = [eRealm.Albion, eRealm.Midgard, eRealm.Hibernia];
+
+    // Midgard's open regions (classic 100, Shrouded Isles 151) and its dungeons.
+    private static readonly int[] MidgardRegions = [100, 151, 125, 126, 127, 128, 129, 150, 160, 161];
+
+    // The old frontier zones (AutonomousWorldBotController.IsFrontierZone) and the New Frontiers region.
+    private static readonly (int Region, int Zone)[] FrontierZones =
+    [
+        (1, 11), (1, 12), (1, 14), (1, 15),
+        (100, 111), (100, 112), (100, 113), (100, 115),
+        (200, 210), (200, 211), (200, 212), (200, 214)
+    ];
+
+    private static readonly int[] FrontierRegions = [163, 246, 248, 276, 277];
+
     // A distinct fake offset per zone, so no test needs a loaded world.
     private static (int ox, int oy) FakeOffset(int zoneId) => (100000 + zoneId * 70000, 200000 + zoneId * 70000);
 
     private static string Serialize(ActPlan plan) => JsonSerializer.Serialize(plan, ExpeditionJson.Options);
+
+    private static ActPlan FromCatalog(int act, eRealm realm, int seed, int previousZoneId)
+    {
+        return ActGenerator.Generate(act, realm, seed, previousZoneId, FakeOffset, CatalogCampSource.Instance);
+    }
 
     private static bool InsideZone(int zoneId, int x, int y)
     {
@@ -23,20 +46,94 @@ public class UT_ExpeditionActGenerator
         return x >= ox && x < ox + ZoneExtent && y >= oy && y < oy + ZoneExtent;
     }
 
+    // Zones.xml (id -> region, name), found by walking up from the test output to the source tree.
+    private static Dictionary<int, (int Region, string Name)> LoadZonesXml()
+    {
+        string relative = Path.Combine("GameServer", "scripts", "dbupdater", "insert", "Zones.xml");
+
+        foreach (string start in new[] { TestContext.CurrentContext.TestDirectory, AppContext.BaseDirectory })
+        {
+            for (DirectoryInfo directory = new(start); directory != null; directory = directory.Parent)
+            {
+                foreach (string candidate in new[] { Path.Combine(directory.FullName, relative), Path.Combine(directory.FullName, "source", "server", relative) })
+                {
+                    if (!File.Exists(candidate))
+                    {
+                        continue;
+                    }
+
+                    return XDocument.Load(candidate).Root
+                        .Elements("Zones")
+                        .ToDictionary(z => (int)z.Element("ZoneID"), z => ((int)z.Element("RegionID"), (string)z.Element("Name")));
+                }
+            }
+        }
+
+        Assert.Fail("Zones.xml was not found above " + TestContext.CurrentContext.TestDirectory);
+
+        return null;
+    }
+
+    private sealed class FakeCampSource : IExpeditionCampSource
+    {
+        private readonly Dictionary<(int Region, int Zone), List<AutonomousCapnBryGoalCatalog.Entry>> _camps = new();
+
+        public FakeCampSource Add(int regionId, int zoneId, string name, int level, int localX, int localY, int sightings = 3)
+        {
+            if (!_camps.TryGetValue((regionId, zoneId), out List<AutonomousCapnBryGoalCatalog.Entry> list))
+            {
+                list = new List<AutonomousCapnBryGoalCatalog.Entry>();
+                _camps[(regionId, zoneId)] = list;
+            }
+
+            list.Add(new AutonomousCapnBryGoalCatalog.Entry
+            {
+                Id = $"fake:{zoneId}:{list.Count}",
+                Name = name,
+                ZoneId = (ushort)zoneId,
+                RegionId = (ushort)regionId,
+                LocalX = localX,
+                LocalY = localY,
+                Z = 100,
+                Levels = [level],
+                Sightings = sightings
+            });
+
+            return this;
+        }
+
+        public IReadOnlyList<AutonomousCapnBryGoalCatalog.Entry> GetZoneCamps(int regionId, int zoneId)
+        {
+            return _camps.TryGetValue((regionId, zoneId), out List<AutonomousCapnBryGoalCatalog.Entry> list) ? list : [];
+        }
+    }
+
     [Test]
-    public void SameSeed_ProducesIdenticalPlan([Values(eRealm.Albion, eRealm.Hibernia)] eRealm realm)
+    public void SameSeed_ProducesIdenticalPlan([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
         for (int act = 1; act <= ActGenerator.ActCount; act++)
         {
-            string first = Serialize(ActGenerator.Generate(act, realm, 12345, -1, FakeOffset));
-            string second = Serialize(ActGenerator.Generate(act, realm, 12345, -1, FakeOffset));
+            string first = Serialize(FromCatalog(act, realm, 12345, -1));
+            string second = Serialize(FromCatalog(act, realm, 12345, -1));
 
             Assert.That(second, Is.EqualTo(first), $"act {act}");
         }
     }
 
     [Test]
-    public void DifferentSeeds_ProduceDifferentPlans([Values(eRealm.Albion, eRealm.Hibernia)] eRealm realm)
+    public void DefaultSource_WithoutAWorld_UsesTheCatalog([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
+    {
+        for (int act = 1; act <= ActGenerator.ActCount; act++)
+        {
+            string catalog = Serialize(FromCatalog(act, realm, 777, -1));
+            string defaulted = Serialize(ActGenerator.Generate(act, realm, 777, -1, FakeOffset));
+
+            Assert.That(defaulted, Is.EqualTo(catalog), $"act {act}");
+        }
+    }
+
+    [Test]
+    public void DifferentSeeds_ProduceDifferentPlans([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
         for (int act = 1; act <= ActGenerator.ActCount; act++)
         {
@@ -44,7 +141,7 @@ public class UT_ExpeditionActGenerator
 
             for (int seed = 0; seed < 20; seed++)
             {
-                distinct.Add(Serialize(ActGenerator.Generate(act, realm, seed, -1, FakeOffset)));
+                distinct.Add(Serialize(FromCatalog(act, realm, seed, -1)));
             }
 
             Assert.That(distinct.Count, Is.GreaterThan(1), $"act {act}");
@@ -52,7 +149,7 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
-    public void EveryAct_GeneratesAValidPlan([Values(eRealm.Albion, eRealm.Hibernia)] eRealm realm)
+    public void EveryAct_GeneratesAValidPlan([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
         for (int act = 1; act <= ActGenerator.ActCount; act++)
         {
@@ -60,7 +157,9 @@ public class UT_ExpeditionActGenerator
 
             for (int seed = 0; seed < 25; seed++)
             {
-                ActPlan plan = ActGenerator.Generate(act, realm, seed, -1, FakeOffset);
+                ActPlan plan = null;
+
+                Assert.DoesNotThrow(() => plan = FromCatalog(act, realm, seed, -1), $"{realm} act {act} seed {seed}");
                 string context = $"{realm} act {act} seed {seed} zone {plan.ZoneName}";
 
                 Assert.Multiple(() =>
@@ -119,11 +218,25 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
-    public void PreviousZone_IsExcludedWhenAlternativesExist([Values(eRealm.Albion, eRealm.Hibernia)] eRealm realm)
+    public void MidgardPlans_StayInMidgard()
     {
         for (int act = 1; act <= ActGenerator.ActCount; act++)
         {
-            IReadOnlyList<ActGenerator.ZoneCandidate> candidates = ActGenerator.GetCandidates(act, realm);
+            for (int seed = 0; seed < 40; seed++)
+            {
+                ActPlan plan = FromCatalog(act, eRealm.Midgard, seed, -1);
+
+                Assert.That(MidgardRegions, Does.Contain(plan.RegionId), $"act {act} seed {seed} zone {plan.ZoneName}");
+            }
+        }
+    }
+
+    [Test]
+    public void PreviousZone_IsExcludedWhenAlternativesExist([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
+    {
+        for (int act = 1; act <= ActGenerator.ActCount; act++)
+        {
+            IReadOnlyList<ActGenerator.ZoneCandidate> candidates = ActGenerator.GetEligibleCandidates(act, realm, CatalogCampSource.Instance);
 
             if (candidates.Select(c => c.ZoneId).Distinct().Count() < 2)
             {
@@ -134,7 +247,7 @@ public class UT_ExpeditionActGenerator
             {
                 for (int seed = 0; seed < 30; seed++)
                 {
-                    ActPlan plan = ActGenerator.Generate(act, realm, seed, previous.ZoneId, FakeOffset);
+                    ActPlan plan = FromCatalog(act, realm, seed, previous.ZoneId);
 
                     Assert.That(plan.ZoneId, Is.Not.EqualTo(previous.ZoneId), $"{realm} act {act} seed {seed}");
                 }
@@ -143,8 +256,10 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
-    public void ZoneTable_MatchesTheGoalCatalog([Values(eRealm.Albion, eRealm.Hibernia)] eRealm realm)
+    public void ZoneTable_MatchesZonesXml([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
+        Dictionary<int, (int Region, string Name)> zonesXml = LoadZonesXml();
+
         for (int act = 1; act <= ActGenerator.ActCount; act++)
         {
             (int min, int max) = ActGenerator.GetLevelBand(act);
@@ -153,20 +268,111 @@ public class UT_ExpeditionActGenerator
 
             foreach (ActGenerator.ZoneCandidate zone in ActGenerator.GetCandidates(act, realm))
             {
-                List<AutonomousCapnBryGoalCatalog.Entry> goals = AutonomousCapnBryGoalCatalog.Entries
-                    .Where(e => e.ZoneId == zone.ZoneId && e.RegionId == zone.RegionId)
-                    .ToList();
-                string context = $"{realm} act {act} {zone.ZoneName}";
+                string context = $"{realm} act {act} zone {zone.ZoneId} {zone.ZoneName}";
+                List<AutonomousCapnBryGoalCatalog.Entry> goals = CatalogCampSource.Instance.GetZoneCamps(zone.RegionId, zone.ZoneId).ToList();
 
+                Assert.That(zonesXml.ContainsKey(zone.ZoneId), Is.True, context + " is not in Zones.xml");
                 Assert.Multiple(() =>
                 {
-                    Assert.That(goals, Is.Not.Empty, context);
-                    Assert.That(goals.All(e => e.Zone == zone.ZoneName), Is.True, context + " name");
+                    Assert.That(zonesXml[zone.ZoneId].Region, Is.EqualTo(zone.RegionId), context + " region");
+                    Assert.That(zonesXml[zone.ZoneId].Name, Is.EqualTo(zone.ZoneName), context + " name");
+                    Assert.That(FrontierZones.Contains((zone.RegionId, zone.ZoneId)), Is.False, context + " is a frontier zone");
+                    Assert.That(FrontierRegions, Does.Not.Contain(zone.RegionId), context + " is in a frontier region");
                     Assert.That((zone.MinLevel, zone.MaxLevel), Is.EqualTo((min, max)), context);
                     Assert.That(zone.BossCandidates.Where(name => goals.All(e => e.Name != name)), Is.Empty, context + " boss names");
                 });
             }
         }
+    }
+
+    [Test]
+    public void CatalogSource_EveryActHasAListedZoneWithEnoughCamps([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
+    {
+        for (int act = 1; act <= ActGenerator.ActCount; act++)
+        {
+            (int min, int max) = ActGenerator.GetLevelBand(act);
+            IReadOnlyList<ActGenerator.ZoneCandidate> listed = ActGenerator.GetCandidates(act, realm);
+            IReadOnlyList<ActGenerator.ZoneCandidate> eligible = ActGenerator.GetEligibleCandidates(act, realm, CatalogCampSource.Instance);
+
+            Assert.That(eligible, Is.Not.Empty, $"{realm} act {act}");
+            Assert.That(eligible, Is.SubsetOf(listed), $"{realm} act {act} needed the fallback");
+
+            foreach (ActGenerator.ZoneCandidate zone in eligible)
+            {
+                Assert.That(ActGenerator.CountBandCamps(CatalogCampSource.Instance, zone, min, max), Is.GreaterThanOrEqualTo(ActGenerator.MinimumBandCamps),
+                    $"{realm} act {act} {zone.ZoneName}");
+            }
+        }
+    }
+
+    [Test]
+    public void ThinListedZones_FallBackToTheRealmZoneWithMostBandCamps()
+    {
+        // Midgard act 1 lists Vale of Mularn (100); give it only 2 band camps, and give Faraheim
+        // (154, an act-5 zone) 4 level-5 camps and Raumarik (108) 3: Faraheim wins.
+        FakeCampSource source = new FakeCampSource()
+            .Add(100, 100, "wolf", 5, 1000, 1000)
+            .Add(100, 100, "bear", 6, 2000, 2000)
+            .Add(100, 100, "troll", 40, 3000, 3000)
+            .Add(151, 154, "imp", 4, 10000, 10000)
+            .Add(151, 154, "imp", 5, 20000, 10000)
+            .Add(151, 154, "gnat", 6, 10000, 20000)
+            .Add(151, 154, "gnat", 7, 20000, 20000)
+            .Add(100, 108, "rat", 3, 5000, 5000)
+            .Add(100, 108, "rat", 3, 6000, 5000)
+            .Add(100, 108, "rat", 3, 7000, 5000);
+
+        IReadOnlyList<ActGenerator.ZoneCandidate> eligible = ActGenerator.GetEligibleCandidates(1, eRealm.Midgard, source);
+        ActPlan plan = ActGenerator.Generate(1, eRealm.Midgard, 3, -1, FakeOffset, source);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(eligible.Select(z => z.ZoneId), Is.EqualTo(new[] { 154 }));
+            Assert.That(plan.ZoneId, Is.EqualTo(154));
+            Assert.That(plan.RegionId, Is.EqualTo(151));
+            Assert.That(plan.Boss.Level, Is.EqualTo(12));
+        });
+    }
+
+    [Test]
+    public void ComputedBoss_PrefersTheHighestNamedMobOfTheBandOrAbove()
+    {
+        // Vale of Mularn has no json boss names. "Grak" (1 spawn, level 13) beats "Snorri" (2
+        // spawns, level 11); "Old Wyrm" (1 spawn, level 40) is too far above the band.
+        FakeCampSource source = new FakeCampSource()
+            .Add(100, 100, "wolf", 5, 1000, 1000, 6)
+            .Add(100, 100, "wolf", 6, 9000, 1000, 6)
+            .Add(100, 100, "boar", 8, 1000, 9000, 5)
+            .Add(100, 100, "Snorri", 11, 20000, 20000, 2)
+            .Add(100, 100, "Grak", 13, 30000, 30000, 1)
+            .Add(100, 100, "Old Wyrm", 40, 40000, 40000, 1);
+
+        for (int seed = 0; seed < 10; seed++)
+        {
+            ActPlan plan = ActGenerator.Generate(1, eRealm.Midgard, seed, -1, FakeOffset, source);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(plan.ZoneId, Is.EqualTo(100), $"seed {seed}");
+                Assert.That(plan.Boss.BaseMobName, Is.EqualTo("Grak"), $"seed {seed}");
+                Assert.That(plan.Boss.Level, Is.EqualTo(12), $"seed {seed}");
+                Assert.That((plan.Boss.X, plan.Boss.Y), Is.EqualTo((FakeOffset(100).ox + 30000, FakeOffset(100).oy + 30000)), $"seed {seed}");
+            });
+        }
+    }
+
+    [Test]
+    public void ComputedBoss_WithoutANamedMob_IsTheMostCommonTopMob()
+    {
+        FakeCampSource source = new FakeCampSource()
+            .Add(100, 100, "wolf", 3, 1000, 1000, 6)
+            .Add(100, 100, "boar", 9, 9000, 1000, 4)
+            .Add(100, 100, "boar", 9, 1000, 9000, 4)
+            .Add(100, 100, "bandit", 10, 20000, 20000, 3);
+
+        ActPlan plan = ActGenerator.Generate(1, eRealm.Midgard, 1, -1, FakeOffset, source);
+
+        Assert.That(plan.Boss.BaseMobName, Is.EqualTo("boar"));
     }
 
     [Test]
@@ -176,7 +382,8 @@ public class UT_ExpeditionActGenerator
         {
             ActPlan plan = null;
 
-            Assert.DoesNotThrow(() => plan = ActGenerator.Generate(act, eRealm.Midgard, 7, -1, FakeOffset));
+            Assert.That(ActGenerator.HasOwnCandidates(act, eRealm.None), Is.False);
+            Assert.DoesNotThrow(() => plan = FromCatalog(act, eRealm.None, 7, -1));
             Assert.That(plan.Objectives, Is.Not.Empty);
             Assert.That(plan.Boss.Level, Is.EqualTo(ActGenerator.GetLevelBand(act).Max + 2));
         }
@@ -185,7 +392,7 @@ public class UT_ExpeditionActGenerator
     [Test]
     public void JsonRoundTrip_PreservesEveryField()
     {
-        ActPlan plan = ActGenerator.Generate(3, eRealm.Hibernia, 99, -1, FakeOffset);
+        ActPlan plan = FromCatalog(3, eRealm.Hibernia, 99, -1);
         plan.Objectives[0].Progress = 3;
         plan.Objectives[1].Progress = plan.Objectives[1].Count;
         plan.BossSpawned = true;
@@ -215,7 +422,7 @@ public class UT_ExpeditionActGenerator
     [Test]
     public void DescribePlan_ListsZoneObjectivesAndBoss()
     {
-        ActPlan plan = ActGenerator.Generate(1, eRealm.Albion, 5, -1, FakeOffset);
+        ActPlan plan = FromCatalog(1, eRealm.Albion, 5, -1);
         ActObjective clear = plan.Objectives[0];
         clear.Progress = clear.Count;
 
