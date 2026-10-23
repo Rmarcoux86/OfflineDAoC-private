@@ -25,113 +25,73 @@ play-tested by the project owner. It is not an official DAoC product and is not 
 
 ## This fork: fishing and Expedition mode
 
-This is Ryan's fork of Offline DAoC. On top of the 0.37 game it adds two things, both server-side so they work in
-the original client and the new client:
+This is Ryan's fork of Offline DAoC. On top of the stock 0.37 game it adds two things:
 
 - **Fishing** — sit at any shoreline with a pole and relax. `/fish`.
-- **Expedition mode** — a seeded, roguelite campaign from level 1 to a final boss, with permadeath and
+- **Expedition mode** — a seeded roguelite campaign from level 1 to a final boss, with permadeath and
   Diablo-style loot. `/run new`.
 
-Everything below walks through getting the game, building this fork's server, and playing both features.
+You don't need Git, a compiler or any developer tools to play it. The fork is one server file that you drop onto a
+normal 0.37 install with a double-click. Three steps:
 
 ### Step 1 — Install the game (one time, ~20 GB)
 
-The playable game is the stock 0.37 download; this fork only replaces one server file on top of it.
-
-1. **Check your PC:** 64-bit Windows 10 or 11, a CPU with AVX2, 16 GB RAM recommended, ~20 GB free disk.
-2. **Turn on .NET Framework 3.5** (the original client needs it): Start → type *Turn Windows features on or off* →
-   tick **.NET Framework 3.5** → OK.
+1. **Check your PC:** 64-bit Windows 10 or 11, a CPU with AVX2, 16 GB RAM recommended, about 20 GB free.
+2. **Turn on .NET Framework 3.5** (the game client needs it): press Start, type *Turn Windows features on or off*,
+   tick **.NET Framework 3.5**, click OK.
 3. **Download the installer:** open the
    [v0.37 release page](https://github.com/shadowofze/OfflineDAoC/releases/tag/v0.37) and download
    `Download-OfflineDAoC-v0.37.zip`.
-4. **Extract it** into a folder with a short path and no spaces, for example `C:\Dev\OfflineDAoC-Game`
+4. **Extract it** into a folder with a short path and no spaces, for example `C:\Games\OfflineDAoC`
    (right-click the zip → **Extract All…**).
 5. **Run `GET-OFFLINE-DAOC-v0.37.cmd`** from the extracted folder. If Windows warns, click
    **More info → Run anyway**. When it asks, type **2** (new install) and press Enter. It downloads the game in
    checked parts into a `playable-v0.37` folder next to it. If it stops, run it again; it continues.
-6. **Play it once stock:** open `playable-v0.37` and double-click **START OFFLINE DAOC.cmd** →
-   **START SERVER** → wait for **RUNNING** → **ENTER REALM**. Your local account is created automatically.
-   Make a character and enter the world, then quit and click **STOP SERVER**. This proves the base game works
-   before anything is changed.
+6. **Play it once:** open `playable-v0.37` and double-click **START OFFLINE DAOC.cmd** → **START SERVER** → wait for
+   **RUNNING** → **ENTER REALM**. Your local account is created automatically. Make a character, enter the world,
+   then quit and click **STOP SERVER**.
 
-Your **playable folder** from here on is `...\Download-OfflineDAoC-v0.37\playable-v0.37`.
+### Step 2 — Add this fork (two minutes)
 
-### Step 2 — Build this fork's server (one time setup, then a few minutes per update)
+1. Open this repository's **[Releases](../../releases)** page and download the newest `fork-update-….zip`.
+2. Extract it anywhere (for example next to the game folder).
+3. Make sure the game is closed and the launcher says the server is stopped.
+4. Double-click **`INSTALL FORK UPDATE.cmd`**. If Windows warns, click **More info → Run anyway**. It finds your
+   `playable-v0.37` folder (or asks you for it), backs up the stock server files into `fork-backups\`, and
+   installs the update.
 
-1. **Install the tools:**
-   - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (the *SDK*, x64). Check with
-     `dotnet --list-sdks` in a terminal; it should list a `10.x` entry.
-   - [Git for Windows](https://git-scm.com/download/win).
-2. **Get the source** (use plain *Windows PowerShell* or *Terminal*, not PowerShell ISE):
-   ```
-   cd C:\Dev
-   git clone https://github.com/Rmarcoux86/OfflineDAoC-private.git OfflineDAoC
-   cd OfflineDAoC
-   git checkout dev
-   copy source\server\CoreServer\config\serverconfig.example.xml source\server\CoreServer\config\serverconfig.xml
-   ```
-   `dev` is the branch with every feature merged. The `copy` line is a one-time step; the build only needs the
-   file to exist.
-3. **Build:**
-   ```
-   dotnet build "source\server\Dawn of Light.sln" -c Release
-   ```
-   The first build restores packages and takes a few minutes. Git prints its progress in red in PowerShell; that
-   is normal. Only `error` or `fatal` lines mean something failed.
-4. **Optional — run the tests** for the new features:
-   ```
-   dotnet test source\server\Tests\Tests.csproj -c Release --filter "UT_Fishing|UT_Expedition"
-   ```
+To update later: download the newer zip and run the same script again. To go back to the stock game: run
+**`RESTORE STOCK SERVER.cmd`**. Your account, characters, bots and saves are never touched either way.
 
-### Step 3 — Put the built server into the game
+### Step 3 — Play
 
-The build produces one file that matters, `GameServer.dll`, which has to replace the stock copy in three places.
+Start the game as usual: **START OFFLINE DAOC.cmd** → **START SERVER** → **ENTER REALM**.
 
-1. Close the game, click **STOP SERVER** in the launcher, and close the launcher.
-2. In PowerShell, with your own two paths filled in:
-   ```
-   $src="C:\Dev\OfflineDAoC\source\server\Release\lib"
-   $dst="C:\Dev\OfflineDAoC-Game\Download-OfflineDAoC-v0.37\playable-v0.37\runtime\server"
-   foreach($d in $dst,"$dst\lib","$dst\win-x64"){ Copy-Item "$src\GameServer.dll","$src\GameServer.pdb" $d -Force }
-   ```
-   No output means it worked. (By hand: copy `GameServer.dll` and `GameServer.pdb` from `source\server\Release\lib`
-   into `runtime\server`, `runtime\server\lib` and `runtime\server\win-x64` inside the playable folder.)
-3. Start the launcher → **START SERVER** → **ENTER REALM**. The first start adds the fishing items and the
-   expedition table to your world database; your characters and bots are untouched.
+#### Expedition mode
 
-**Every later update is just:** `git pull`, step 2.3, step 3. You never redownload the game. If you want to protect
-your saves while testing, copy the whole `playable-v0.37` folder first and deploy into the copy (only one server can
-run at a time).
-
-### Expedition mode — how to play
-
-A run is one character, one seed, five acts of zones and bosses from level 1 to 50. Death ends the run **and
-deletes the character** (it uses the game's Hardcore flag), so always use a fresh character.
+A run is one character, one seed, five acts of zones and bosses from level 1 to 50. Dying ends the run **and
+deletes the character** (it uses the game's Hardcore flag), so always use a brand-new character.
 
 1. Create a **new level-1 character** (Hibernia and Albion have full zone pools; Midgard uses Albion's for now)
    and enter the world.
-2. Type **`/run new`** and accept the confirmation. You are teleported to the act-1 camp and the **journal** opens:
-   the act's zone, level band, 2–3 objectives, and the boss.
-3. **Do the objectives** — clear a camp (kill N of a mob near a point), kill a named mob, or reach a spot. Kills by
-   you, your pet and your companion bots all count. Progress shows in chat; `/run journal` reopens the list,
-   `/run status` is the one-liner.
-4. **Loot drops on most kills** during a run: Common, `[Magic]`, `[Rare]`, `[Epic]` and named **Unique** items,
-   generated for your class and level. Grey mobs drop less; you never go more than a few kills without something.
-5. **When every objective is done, the act boss appears** at its lair (announced in chat). It is a named mob of
-   the zone at a higher level with much more health. Kill it: it drops three Rare-or-better items. Fifteen seconds
-   later you are moved to the next act's camp.
+2. Type **`/run new`** and accept the confirmation. You are teleported to the act-1 camp and the **journal** opens
+   with the act's zone, level band, 2–3 objectives, and the boss.
+3. **Do the objectives:** clear a camp (kill a number of a mob near a point), kill a named mob, or reach a spot.
+   Kills by you, your pet and your companion bots all count. Progress shows in chat; `/run journal` reopens the
+   list and `/run status` gives a one-liner.
+4. **Loot drops on most kills:** items made for your class and level — Common, `[Magic]`, `[Rare]`, `[Epic]` and
+   named **Unique** ones. Grey mobs drop less, and you never go more than a few kills without something.
+5. **When every objective is done, the act boss appears** at its lair (announced in chat): a named mob of the zone
+   at a higher level with far more health. Kill it for three Rare-or-better items; 15 seconds later you are moved
+   to the next act's camp.
 6. **Stay in the act's zone.** Leaving it gives a warning, then pulls you back to camp after 10 seconds.
 7. **Act 5's boss wins the run.** The Hardcore flag comes off and the character keeps everything.
-8. If you die, the run is over and the character is deleted; a summary of the run is shown at your next login.
+8. If you die, the run is over and the character is deleted. A summary of the run is shown at your next login.
 
-Other commands: `/run seed` shows the seed (`/run new 12345` replays an exact run); `/run abandon` ends a run
-without dying (the character survives, Hardcore flag off). `/run` alone prints the usage.
+`/run seed` shows the seed (`/run new 12345` replays an exact run); `/run abandon` ends a run without dying and the
+character survives.
 
-Tuning lives in the server's `serverproperty` table, category `expedition` (`expedition_loot_chance`,
-`expedition_pity_guarantee`, `expedition_boss_drops`, …); `expedition_loot_outside_runs` turns the same loot on for
-every character everywhere.
-
-### Fishing — how to play
+#### Fishing
 
 1. `/fish pole` gives you a fishing pole; equip it in the two-handed slot.
 2. Stand on a shore facing the water and type `/fish`. You sit down, a bobber lands on the water, and you keep
@@ -139,10 +99,23 @@ every character everywhere.
 3. `/fish active` makes you reel in each bite yourself (type `/fish` within 4 seconds). `/fish stats` shows your
    skill and best catch.
 4. `/fish spots` lists shorelines; `/fish go <number>` travels to one in your realm. `/fish mark <name>` saves the
-   shore you stand on as a new spot, `/fish unmark <number>` removes it.
+   shore you stand on as a new spot; `/fish unmark <number>` removes it.
 5. While you hold the pole and are not fighting, monsters and guards leave you alone.
 
-Everything else below is the upstream project's README.
+### For the fork's developer
+
+Building from source needs the .NET 10 SDK and Git: `git checkout dev`, copy
+`source/server/CoreServer/config/serverconfig.example.xml` to `serverconfig.xml`, then
+`dotnet build "source/server/Dawn of Light.sln" -c Release` and copy `source/server/Release/lib/GameServer.dll`
+into the playable folder's `runtime/server`, `runtime/server/lib` and `runtime/server/win-x64`
+([docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)). Publishing a player release is automatic: push a tag such as
+`fork-v2` (or use **Actions → Fork release → Run workflow**) and the workflow in
+`.github/workflows/fork-release.yml` builds the server, runs the fishing and expedition tests, and attaches
+`fork-update-<tag>.zip` to a GitHub release. Server tuning lives in the `serverproperty` table, category
+`expedition` (`expedition_loot_chance`, `expedition_pity_guarantee`, `expedition_boss_drops`,
+`expedition_loot_outside_runs`, …) and `fishing_pole_prevents_aggro`.
+
+Everything below is the upstream project's README.
 
 ## Current release: 0.37
 

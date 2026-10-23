@@ -1,0 +1,66 @@
+# Builds this fork's server and publishes a small "fork update" zip that players drop onto a stock 0.37 game.
+# Runs when a tag like fork-v1 is pushed, or by hand from the Actions tab (Run workflow).
+name: Fork release
+
+on:
+  push:
+    tags: ["fork-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release name, e.g. fork-v1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Prepare server config
+        shell: pwsh
+        run: Copy-Item source/server/CoreServer/config/serverconfig.example.xml source/server/CoreServer/config/serverconfig.xml
+
+      - name: Build server
+        shell: pwsh
+        run: dotnet build "source/server/Dawn of Light.sln" -c Release
+
+      - name: Run the fork's tests
+        shell: pwsh
+        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "UT_Fishing|UT_Expedition"
+
+      - name: Assemble the update zip
+        shell: pwsh
+        run: |
+          $name = if ('${{ github.event.inputs.version }}') { '${{ github.event.inputs.version }}' } else { '${{ github.ref_name }}' }
+          $out = "fork-update-$name"
+          New-Item -ItemType Directory $out | Out-Null
+          Copy-Item source/server/Release/lib/GameServer.dll, source/server/Release/lib/GameServer.pdb $out
+          Copy-Item "fork-release/INSTALL FORK UPDATE.cmd", "fork-release/RESTORE STOCK SERVER.cmd", "fork-release/README-FORK.txt" $out
+          Copy-Item "QUICK COMMANDS.txt", "ALL SERVER COMMANDS.txt" $out
+          Compress-Archive -Path "$out/*" -DestinationPath "$out.zip"
+          "ZIP=$out.zip" | Out-File -Append $env:GITHUB_ENV
+          "NAME=$name" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.NAME }}
+          name: ${{ env.NAME }}
+          files: ${{ env.ZIP }}
+          body: |
+            Fork update for Offline DAoC 0.37: fishing and Expedition mode.
+
+            1. Install the stock game from the v0.37 release of shadowofze/OfflineDAoC if you don't have it.
+            2. Download the zip below, extract it anywhere, close the game and stop the server.
+            3. Double-click `INSTALL FORK UPDATE.cmd` and point it at your `playable-v0.37` folder.
+            4. Start the game. `/fish pole` to fish, `/run new` on a fresh level-1 character for Expedition mode.
+
+            `RESTORE STOCK SERVER.cmd` puts the original server back. Your saves are never changed.
