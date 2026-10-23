@@ -52,14 +52,36 @@ EXPEDITION MODE
                      The journal shows the zone, level band, 2-3 objectives and the boss.
   Objectives         clear a camp (kill N of a mob near a point), kill a named mob, reach a spot.
                      Kills by you, your pet and your companion bots count.
-  Loot               most kills drop an item made for your class and level: Common, [Magic],
-                     [Rare], [Epic] or a named Unique. You never go more than a few kills dry.
+  Loot               most kills drop an item made for your class and level: [Common], [Magic],
+                     [Rare], [Epic] or a Unique. You never go more than a few kills dry.
+  Uniques            18 hand-made uniques with fixed names, lore and strong fixed bonuses, six
+                     each for levels 1-19, 20-39 and 40+. A run hands out each unique once before
+                     any repeats; armor and weapon uniques take your class's best armor or a
+                     weapon you use.
+  Elite packs        each act marks one or two camps (never an objective's or the boss's) as an
+                     elite pack with a seeded affix: Swift, Venomous, Armoured, Stalwart,
+                     Frenzied or Spectral. Elites are level +2, larger, double health (Stalwart
+                     triple) and always drop Rare or better. The journal lists each pack and
+                     where it lairs; you sense a pack when you approach.
   The boss           appears when every objective is done. Kill it for three Rare-or-better
                      items; 15 seconds later you move to the next act. Act 5's boss wins the run.
+  Boons              each act boss you defeat offers three boons (from the run seed, never one
+                     you already have, always a loot boon while any is left). Boons last the run
+                     and are re-applied at login. Fortune (every drop one rarity better), Greed
+                     (+25% drop chance, you take 15% more damage), Prospector (+10% drop chance),
+                     Ironhide (+10% max health, 10% less physical damage), Warding (15% less
+                     spell damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters
+                     nearby are announced).
+  /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.
   /run journal       reopen the objective list.     /run status   one-line summary.
   /run seed          show the seed (/run new <seed> replays the same run).
   /run abandon       end a run without dying; the character survives.
+  /junk common|magic|rare  destroy Expedition items of that rarity and lower in your backpack
+                     for the merchant price (asks first; Epic, Unique and non-Expedition items
+                     are never touched).
+  /junk auto off|common|magic  sell such drops on the spot (saved per character).
+  /junk status       show the setting. Server setting: expedition_auto_junk.
   After a death, the run's summary is shown at your next login.
 
 More commands: QUICK COMMANDS.txt and ALL SERVER COMMANDS.txt in this zip.

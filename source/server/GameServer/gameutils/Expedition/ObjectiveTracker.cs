@@ -22,6 +22,10 @@ namespace DOL.GS.Expedition;
 /// raises EnemyKilled on itself, so a global handler also looks at NPC killers. Both paths end in
 /// <see cref="HandleKill"/>, which ignores a target it already counted in the last few seconds.
 /// </para>
+/// <para>
+/// Elite packs: the tick wakes the act's elite camps the player comes near (<see cref="ExpeditionElites.CheckCamps"/>)
+/// and Detach restores them (<see cref="ExpeditionElites.RestoreAll(GamePlayer)"/>).
+/// </para>
 /// Run counters: <see cref="ExpeditionManager"/> already counts <c>run.Kills</c> (its own EnemyKilled handler) and
 /// <c>run.BossesKilled</c> (in OnBossKilled), so this tracker does not touch them.
 /// </summary>
@@ -57,6 +61,9 @@ public static class ObjectiveTracker
         public ExpeditionBoss Boss;
         public bool BossPending;
         public long BossRespawnAt;
+
+        /// <summary>Indexes into <c>Plan.Elites</c> of the elite camps this attach has woken (tick only).</summary>
+        public readonly HashSet<int> WokenEliteCamps = new();
     }
 
     #region Contract
@@ -155,6 +162,9 @@ public static class ObjectiveTracker
 
         GameEventMgr.RemoveHandler(state.Player, GameLivingEvent.EnemyKilled, OnPlayerEnemyKilled);
         state.Timer?.Stop();
+
+        // Elite packs woken for this player turn back into the world's ordinary monsters.
+        ExpeditionElites.RestoreAll(state.Player);
 
         // The boss leaves with the player; Attach spawns it fresh (BossSpawned is saved, BossKilled is not set).
         if (boss != null)
@@ -522,6 +532,12 @@ public static class ObjectiveTracker
         if (player.IsAlive)
         {
             CheckReachPoints(state, run, plan, player);
+
+            // A reach point can finish the act; a detached state must not wake packs nobody would restore.
+            if (!state.Detached)
+            {
+                ExpeditionElites.CheckCamps(player, plan, state.WokenEliteCamps);
+            }
         }
 
         CheckMists(state, plan, player, now);

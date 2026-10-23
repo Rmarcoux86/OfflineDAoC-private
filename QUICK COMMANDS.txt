@@ -40,6 +40,16 @@ On the launcher, click + Lv.1 or + Lv.50 under a faction:
 /run abandon
   Show the act, level band, zone and objectives; open the journal; show the seed;
   give up the run (Hardcore flag off).
+/run boons
+  Show the boon offered after an act boss and the boons you have.
+/run boon <1-3>
+  Take one boon of the offer; it lasts the whole run.
+/junk common|magic|rare
+  Destroy Expedition items of that rarity and lower in your backpack for the
+  merchant price (asks first; never Epic, Unique or non-Expedition items).
+/junk auto off|common|magic
+/junk status
+  Sell such drops on the spot (saved per character); show the setting.
 
 /fish
   Face open water with a fishing pole and type /fish to cast your line and relax.

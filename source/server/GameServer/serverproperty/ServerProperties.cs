@@ -2579,6 +2579,10 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_loot_outside_runs", "Give every real player the Expedition per-kill loot outside expedition runs too.", false)]
 		public static bool EXPEDITION_LOOT_OUTSIDE_RUNS = false;
 
+		/// <summary>Expedition loot: allow /junk auto, which sells Common (or Common and Magic) drops on the spot instead of bagging them.</summary>
+		[ServerProperty("expedition", "expedition_auto_junk", "Expedition loot: allow /junk auto to sell unwanted Common or Magic drops on the spot (merchant price).", true)]
+		public static bool EXPEDITION_AUTO_JUNK = true;
+
 		#endregion
 
 		#region CONTROLS_AUTOMATION

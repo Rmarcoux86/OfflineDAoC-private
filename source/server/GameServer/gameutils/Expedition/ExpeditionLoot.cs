@@ -21,7 +21,7 @@ public enum eLootRarity
     Unique = 4
 }
 
-/// <summary>How one rarity drives the random-object generator (<see cref="GeneratedUniqueItem"/>).</summary>
+/// <summary>How one rarity drives the random-object generator (<see cref="GeneratedUniqueItem"/>). UniqueName: the item comes from the fixed unique catalog (<see cref="ExpeditionUniques"/>).</summary>
 public readonly record struct LootProfile(int MinUtility, int MinQuality, int LevelBonus, bool ExtraBonus, bool UniqueName);
 
 /// <summary>The per-kill drop tuning, read from the server properties at each kill (see <see cref="FromProperties"/>).</summary>
@@ -76,19 +76,11 @@ public static class ExpeditionLoot
     private static readonly Logger log = LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
     private static readonly ConcurrentDictionary<string, LootLuck> Luck = new(StringComparer.Ordinal);
 
-    private static readonly string[] UniquePrefixes =
-    {
-        "Mistwarden's", "Stormcaller's", "Ashborn's", "Gravewalker's", "Thornking's", "Duskweaver's", "Ironhowl's",
-        "Frostmantle's", "Emberheart's", "Wyrmbane's", "Oathkeeper's", "Moonhollow's", "Sunderer's", "Cairnwatcher's",
-        "Briarwitch's", "Seawrath's", "Ravenmoor's", "Glimmerfell's"
-    };
+    /// <summary>The TempProperties key and the character custom-param key of the /junk auto setting.</summary>
+    public const string AutoJunkKey = "Expedition.AutoJunk";
 
-    private static readonly string[] UniqueSuffixes =
-    {
-        "Lough", "Drowned Hills", "Barrow Kings", "Last Ember", "Silent Fen", "Broken Oath", "Pale Tide",
-        "Hollow Crown", "Northern Gale", "Sunken Isle", "Wild Hunt", "Sleeping Giant", "Ashen Dawn", "Restless Dead",
-        "Mists", "Starless Deep"
-    };
+    /// <summary>The end of every Expedition item's description: " | Expedition {rarity}" (see <see cref="Generate"/>).</summary>
+    private const string RaritySuffix = " | Expedition ";
 
     #region Server hook (outside runs)
 
@@ -221,13 +213,11 @@ public static class ExpeditionLoot
         long now = GameLoop.GameLoopTime;
         bool dropped;
 
-        // An elite pack member always drops, Rare or better (ExpeditionElites); boons may raise the floor further.
+        // An elite pack member always drops, Rare or better (ExpeditionElites). Fortune shifts the roll, not this floor (DropFor).
         if (ExpeditionElites.IsElite(target as GameNPC))
         {
             minimum = minimum.HasValue && minimum.Value > eLootRarity.Rare ? minimum : eLootRarity.Rare;
         }
-
-        ExpeditionBoons.AdjustLootFloor(player, run, ref minimum);
 
         lock (luck)
         {
@@ -416,13 +406,14 @@ public static class ExpeditionLoot
 
     #endregion
 
-    #region Names
+    #region Names and rarity tags
 
-    /// <summary>"[Magic] ", "[Rare] " or "[Epic] " before the name; Common and Unique names are left as they are. Never over <see cref="MaxNameLength"/>.</summary>
+    /// <summary>"[Common] ", "[Magic] ", "[Rare] " or "[Epic] " before the name; a unique keeps its own name. Never over <see cref="MaxNameLength"/>.</summary>
     public static string DecorateName(eLootRarity rarity, string name)
     {
         string prefix = rarity switch
         {
+            eLootRarity.Common => "[Common] ",
             eLootRarity.Magic => "[Magic] ",
             eLootRarity.Rare => "[Rare] ",
             eLootRarity.Epic => "[Epic] ",
@@ -432,35 +423,6 @@ public static class ExpeditionLoot
         string full = prefix + (name ?? string.Empty).Trim();
 
         return full.Length > MaxNameLength ? full[..MaxNameLength].TrimEnd() : full;
-    }
-
-    /// <summary>
-    /// A unique's name: "Prefix's Noun of the Suffix" from the word banks, or now and then "Prefix's Noun of Zone".
-    /// Never empty, never a repeated word, never over <see cref="MaxNameLength"/>.
-    /// </summary>
-    public static string GenerateUniqueName(Random rng, string noun, string zoneName)
-    {
-        noun = string.IsNullOrWhiteSpace(noun) ? "Relic" : noun.Trim();
-        string head = $"{UniquePrefixes[rng.Next(UniquePrefixes.Length)]} {noun}";
-
-        if (!string.IsNullOrWhiteSpace(zoneName) && rng.Next(4) == 0)
-        {
-            string zoned = $"{head} of {zoneName.Trim()}";
-
-            if (zoned.Length <= MaxNameLength && !HasRepeatedWord(zoned))
-            {
-                return zoned;
-            }
-        }
-
-        string name = $"{head} of the {UniqueSuffixes[rng.Next(UniqueSuffixes.Length)]}";
-
-        if (name.Length <= MaxNameLength && !HasRepeatedWord(name))
-        {
-            return name;
-        }
-
-        return head.Length > MaxNameLength ? head[..MaxNameLength].TrimEnd() : head;
     }
 
     public static bool HasRepeatedWord(string text)
@@ -478,59 +440,169 @@ public static class ExpeditionLoot
         return false;
     }
 
-    /// <summary>The noun a unique is named after, from the generated item's object type and slot.</summary>
-    public static string TypeNoun(eObjectType type, eInventorySlot slot)
+    /// <summary>The rarity of an Expedition item, read from the " | Expedition {rarity}" end of its description. False for any other item.</summary>
+    public static bool TryGetRarity(DbInventoryItem item, out eLootRarity rarity)
     {
-        if (type == eObjectType.Magical)
+        rarity = eLootRarity.Common;
+
+        if (item == null || item.Template == null)
         {
-            return slot switch
-            {
-                eInventorySlot.Cloak => "Cloak",
-                eInventorySlot.Neck => "Amulet",
-                eInventorySlot.Waist => "Belt",
-                eInventorySlot.LeftBracer or eInventorySlot.RightBracer => "Bracer",
-                eInventorySlot.LeftRing or eInventorySlot.RightRing => "Ring",
-                eInventorySlot.Jewelry => "Gem",
-                _ => "Charm"
-            };
+            return false;
         }
 
-        if (type >= eObjectType._FirstArmor && type <= eObjectType._LastArmor)
+        return TryParseRarity(item.Description, out rarity);
+    }
+
+    /// <summary>The pure part of <see cref="TryGetRarity"/>: the rarity named after the last " | Expedition " of a description.</summary>
+    public static bool TryParseRarity(string description, out eLootRarity rarity)
+    {
+        rarity = eLootRarity.Common;
+
+        if (string.IsNullOrEmpty(description))
         {
-            return slot switch
-            {
-                eInventorySlot.HeadArmor => "Helm",
-                eInventorySlot.HandsArmor => "Gauntlets",
-                eInventorySlot.FeetArmor => "Boots",
-                eInventorySlot.TorsoArmor => type == eObjectType.Cloth ? "Robe" : "Hauberk",
-                eInventorySlot.LegsArmor => "Leggings",
-                eInventorySlot.ArmsArmor => "Sleeves",
-                _ => "Armor"
-            };
+            return false;
         }
 
-        return type switch
+        int at = description.LastIndexOf(RaritySuffix, StringComparison.Ordinal);
+
+        if (at < 0)
         {
-            eObjectType.Shield => "Shield",
-            eObjectType.Instrument => "Lyre",
-            eObjectType.Staff or eObjectType.MaulerStaff => "Staff",
-            eObjectType.Longbow or eObjectType.CompositeBow or eObjectType.RecurvedBow or eObjectType.Fired => "Bow",
-            eObjectType.Crossbow => "Crossbow",
-            eObjectType.Axe or eObjectType.LeftAxe => "Axe",
-            eObjectType.Hammer => "Hammer",
-            eObjectType.CrushingWeapon => "Mace",
-            eObjectType.Blunt => "Club",
-            eObjectType.Sword or eObjectType.SlashingWeapon or eObjectType.Blades => "Blade",
-            eObjectType.ThrustWeapon or eObjectType.Piercing => "Dagger",
-            eObjectType.TwoHandedWeapon or eObjectType.LargeWeapons => "Greatsword",
-            eObjectType.PolearmWeapon => "Halberd",
-            eObjectType.Spear or eObjectType.CelticSpear => "Spear",
-            eObjectType.Scythe => "Scythe",
-            eObjectType.Flexible => "Whip",
-            eObjectType.HandToHand or eObjectType.FistWraps => "Claws",
-            eObjectType.Thrown => "Javelin",
-            _ => "Relic"
+            return false;
+        }
+
+        string name = description[(at + RaritySuffix.Length)..].Trim();
+
+        foreach (eLootRarity value in Enum.GetValues<eLootRarity>())
+        {
+            if (string.Equals(value.ToString(), name, StringComparison.Ordinal))
+            {
+                rarity = value;
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    #endregion
+
+    #region Junk
+
+    /// <summary>What a merchant pays for an item (GameMerchant.OnPlayerAppraise): price * count / pack size * sell ratio %, at least the price of a 1-copper item.</summary>
+    public static long SellValue(long price, int count, int packSize, int sellRatio)
+    {
+        int itemCount = Math.Max(1, count);
+        int pack = Math.Max(1, packSize);
+        long value = price * itemCount / pack * sellRatio / 100;
+
+        if (price == 1 && value == 0)
+        {
+            value = price * itemCount / pack;
+        }
+
+        return Math.Max(0, value);
+    }
+
+    /// <summary>/junk &lt;rarity&gt;: an item of that rarity or below is junk. Only Common, Magic and Rare can be junked; Epic and Unique never.</summary>
+    public static bool IsJunk(eLootRarity itemRarity, eLootRarity threshold)
+    {
+        return threshold <= eLootRarity.Rare && itemRarity <= threshold;
+    }
+
+    /// <summary>/junk auto: a drop at or below the setting (Common or Magic only) is sold instead of bagged. No setting: never.</summary>
+    public static bool ShouldAutoJunk(eLootRarity rarity, eLootRarity? setting)
+    {
+        return setting.HasValue && setting.Value <= eLootRarity.Magic && rarity <= setting.Value;
+    }
+
+    /// <summary>The stored /junk auto value ("common", "magic"; anything else is off).</summary>
+    public static eLootRarity? ParseAutoJunk(string value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "common" => eLootRarity.Common,
+            "magic" => eLootRarity.Magic,
+            _ => null
         };
+    }
+
+    /// <summary>
+    /// The player's /junk auto setting. It is saved per character as a DOLCharactersXCustomParam row (as BountyQuest
+    /// saves its history) and cached in TempProperties, so the database is read once per login.
+    /// </summary>
+    public static eLootRarity? GetAutoJunk(GamePlayer player)
+    {
+        if (player == null || string.IsNullOrEmpty(player.ObjectId))
+        {
+            return null;
+        }
+
+        string cached = player.TempProperties.GetProperty<string>(AutoJunkKey);
+
+        if (cached != null)
+        {
+            return ParseAutoJunk(cached);
+        }
+
+        string value = "off";
+
+        try
+        {
+            DbCoreCharacterXCustomParam record = DOLDB<DbCoreCharacterXCustomParam>.SelectObject(
+                DB.Column("DOLCharactersObjectId").IsEqualTo(player.ObjectId).And(DB.Column("KeyName").IsEqualTo(AutoJunkKey)));
+
+            if (!string.IsNullOrWhiteSpace(record?.Value))
+            {
+                value = record.Value;
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Warn($"[EXPEDITION] Could not read the /junk auto setting of {player.Name}.", ex);
+        }
+
+        player.TempProperties.SetProperty(AutoJunkKey, value);
+
+        return ParseAutoJunk(value);
+    }
+
+    /// <summary>Saves the player's /junk auto setting (null: off). The in-memory value applies even if the save fails.</summary>
+    public static void SetAutoJunk(GamePlayer player, eLootRarity? setting)
+    {
+        if (player == null || string.IsNullOrEmpty(player.ObjectId))
+        {
+            return;
+        }
+
+        string value = setting switch
+        {
+            eLootRarity.Common => "common",
+            eLootRarity.Magic => "magic",
+            _ => "off"
+        };
+
+        player.TempProperties.SetProperty(AutoJunkKey, value);
+
+        try
+        {
+            DbCoreCharacterXCustomParam record = DOLDB<DbCoreCharacterXCustomParam>.SelectObject(
+                DB.Column("DOLCharactersObjectId").IsEqualTo(player.ObjectId).And(DB.Column("KeyName").IsEqualTo(AutoJunkKey)));
+
+            if (record == null)
+            {
+                GameServer.Database.AddObject(new DbCoreCharacterXCustomParam(player.ObjectId, AutoJunkKey, value));
+            }
+            else
+            {
+                record.Value = value;
+                GameServer.Database.SaveObject(record);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error($"[EXPEDITION] Could not save the /junk auto setting of {player.Name}.", ex);
+        }
     }
 
     #endregion
@@ -546,11 +618,13 @@ public static class ExpeditionLoot
         }
 
         int count = Math.Max(1, Properties.EXPEDITION_BOSS_DROPS);
-        int act = ExpeditionManager.GetRun(player)?.Act ?? 1;
+        ExpeditionRun run = ExpeditionManager.GetRun(player);
+        int act = run?.Act ?? 1;
 
         for (int i = 0; i < count; i++)
         {
             eLootRarity rarity = RollRarity(Random.Shared, true, BossFloor(i, count, act));
+            rarity = ExpeditionBoons.ShiftRolledRarity(run, rarity);
 
             Deliver(player, boss, rarity);
         }
@@ -563,6 +637,7 @@ public static class ExpeditionLoot
     public static void DropFor(GamePlayer player, GameNPC killed, eLootRarity? forced)
     {
         eLootRarity rarity = RollRarity(Random.Shared, false, forced ?? eLootRarity.Common);
+        rarity = ExpeditionBoons.ShiftRolledRarity(ExpeditionManager.GetRun(player), rarity);
 
         Deliver(player, killed, rarity);
     }
@@ -577,7 +652,36 @@ public static class ExpeditionLoot
         try
         {
             ExpeditionRun run = ExpeditionManager.GetRun(player);
-            GeneratedUniqueItem item = Generate(player, rarity, run?.CurrentAct?.ZoneName);
+            UniqueDefinition unique = null;
+            GeneratedUniqueItem item;
+
+            if (rarity == eLootRarity.Unique)
+            {
+                unique = ExpeditionUniques.PickFor(player, run);
+                item = ExpeditionUniques.Build(player, unique);
+            }
+            else
+            {
+                item = Generate(player, rarity);
+            }
+
+            if (run != null)
+            {
+                Interlocked.Increment(ref run.LootByRarity[(int) rarity]);
+            }
+
+            // /junk auto: the drop never reaches the bag; the player gets what a merchant would pay for it.
+            if (Properties.EXPEDITION_AUTO_JUNK && ShouldAutoJunk(rarity, GetAutoJunk(player)))
+            {
+                long value = SellValue(item.Price, 1, 1, Properties.ITEM_SELL_RATIO);
+
+                player.AddMoney(value);
+                InventoryLogging.LogInventoryAction("(expedition auto-junk)", player, eInventoryActionType.Merchant, value);
+                player.Out.SendMessage($"Sold a {item.Name} for {Money.GetString(value)}.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
+
+                return;
+            }
+
             DbInventoryItem invItem = GameInventoryItem.Create(item);
             invItem.IsROG = true;
 
@@ -593,17 +697,12 @@ public static class ExpeditionLoot
                 player.CreateItemOnTheGround(invItem);
             }
 
-            if (run != null)
+            if (run != null && rarity >= eLootRarity.Rare)
             {
-                Interlocked.Increment(ref run.LootByRarity[(int) rarity]);
-
-                if (rarity >= eLootRarity.Rare)
-                {
-                    run.AddLog($"Act {run.Act}: found {invItem.Name} ({rarity}).");
-                }
+                run.AddLog($"Act {run.Act}: found {invItem.Name} ({rarity}).");
             }
 
-            Announce(player, invItem.Name, rarity, inBackpack);
+            Announce(player, invItem.Name, rarity, inBackpack, unique?.Lore);
         }
         catch (Exception ex)
         {
@@ -612,11 +711,12 @@ public static class ExpeditionLoot
     }
 
     /// <summary>
-    /// The ROG item for a rarity, built as AtlasROGManager.GenerateROG does (AtlasROGManager.cs:25): a
+    /// The ROG item for Common to Epic, built as AtlasROGManager.GenerateROG does (AtlasROGManager.cs:25): a
     /// GeneratedUniqueItem for the player's realm and class, AllowAdd so its ItemUnique row is added with the
     /// inventory item (the DbInventoryItem.IUWrapper relation), then raised to the rarity's quality, bonus and name.
+    /// Uniques come from the fixed catalog instead (<see cref="ExpeditionUniques.Build"/>).
     /// </summary>
-    private static GeneratedUniqueItem Generate(GamePlayer player, eLootRarity rarity, string zoneName)
+    private static GeneratedUniqueItem Generate(GamePlayer player, eLootRarity rarity)
     {
         LootProfile profile = ProfileFor(rarity);
         byte level = (byte) Math.Clamp(player.Level + profile.LevelBonus, 1, 51);
@@ -654,17 +754,9 @@ public static class ExpeditionLoot
             AddExtraBonus(item);
         }
 
-        // Salvage looks for "Atlas ROG" in the description (Salvage.cs:708), so the rarity is appended to it.
-        item.Description = $"{item.Description} | Expedition {rarity}";
-
-        if (profile.UniqueName)
-        {
-            item.Name = GenerateUniqueName(Random.Shared, TypeNoun((eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type), zoneName);
-        }
-        else
-        {
-            item.Name = DecorateName(rarity, item.Name);
-        }
+        // Salvage looks for "Atlas ROG" in the description (Salvage.cs:708), so the rarity is appended to it; /junk reads it back (TryGetRarity).
+        item.Description = $"{item.Description}{RaritySuffix}{rarity}";
+        item.Name = DecorateName(rarity, item.Name);
 
         return item;
     }
@@ -798,7 +890,7 @@ public static class ExpeditionLoot
         return false;
     }
 
-    private static (int type, int value) GetBonus(DbItemTemplate item, int line)
+    internal static (int type, int value) GetBonus(DbItemTemplate item, int line)
     {
         return line switch
         {
@@ -816,7 +908,7 @@ public static class ExpeditionLoot
         };
     }
 
-    private static void SetBonus(DbItemTemplate item, int line, eProperty property, int value)
+    internal static void SetBonus(DbItemTemplate item, int line, eProperty property, int value)
     {
         switch (line)
         {
@@ -833,7 +925,8 @@ public static class ExpeditionLoot
         }
     }
 
-    private static void Announce(GamePlayer player, string name, eLootRarity rarity, bool inBackpack)
+    /// <summary>The drop's chat line; a unique also gets the screen-centre line, its lore and the glow.</summary>
+    private static void Announce(GamePlayer player, string name, eLootRarity rarity, bool inBackpack, string lore = null)
     {
         string where = inBackpack ? string.Empty : " Your backpack is full: it lies on the ground.";
 
@@ -856,10 +949,21 @@ public static class ExpeditionLoot
         if (rarity == eLootRarity.Unique)
         {
             player.Out.SendMessage(text, eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+
+            if (!string.IsNullOrWhiteSpace(lore))
+            {
+                player.Out.SendMessage(lore, eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+            }
+
             player.Out.SendSpellEffectAnimation(player, player, UniqueGlowEffect, 0, false, 1);
         }
 
         player.Out.SendMessage(text, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        if (rarity == eLootRarity.Unique && !string.IsNullOrWhiteSpace(lore))
+        {
+            player.Out.SendMessage($"\"{lore}\"", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
     }
 
     #endregion

@@ -128,7 +128,11 @@ public static class ExpeditionManager
         Runs[run.CharacterId] = run;
         ObjectiveTracker.Attach(player);
 
+        // Boon effects live on the GamePlayer object only, so each login applies them again.
+        ExpeditionBoons.ApplyAll(player, run);
+
         player.Out.SendMessage($"Expedition resumed: act {run.Act} of {ActGenerator.ActCount}, {run.CurrentAct?.ZoneName}. Type /run journal for your objectives.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        ExpeditionBoons.RemindOffer(player, run);
     }
 
     /// <summary>
@@ -199,6 +203,7 @@ public static class ExpeditionManager
         }
 
         ObjectiveTracker.Detach(player);
+        ExpeditionBoons.RemoveAll(player, false);
         Save(run);
     }
 
@@ -520,6 +525,7 @@ public static class ExpeditionManager
 
             Runs.TryRemove(run.CharacterId, out _);
             ObjectiveTracker.Detach(player);
+            ExpeditionBoons.RemoveAll(player);
             Save(run);
 
             player.Out.SendMessage("You have won the expedition! Your Hardcore flag has been disabled.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -550,12 +556,25 @@ public static class ExpeditionManager
             return;
         }
 
+        // The boon offer is drawn for the act just won (ExpeditionBoons.RollOffer) and waits for /run boon <n>.
+        bool boonOffered = ExpeditionBoons.OfferAtActBreak(run, run.Act, out bool replacedUnclaimedBoon);
+
         run.Act = nextAct;
         run.CurrentAct = next;
         run.AddLog($"Act {nextAct}: {next.ZoneName} (levels {next.MinLevel}-{next.MaxLevel}).");
         Save(run);
 
         player.Out.SendMessage($"Act {nextAct - 1} is won! In {NextActTeleportDelayMilliseconds / 1000} seconds you set out for act {nextAct}: {next.ZoneName}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        if (replacedUnclaimedBoon)
+        {
+            player.Out.SendMessage("The boon you did not choose at the last act break is gone; a new one is offered.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
+
+        if (boonOffered)
+        {
+            ExpeditionBoons.RemindOffer(player, run);
+        }
 
         // A short pause to loot the boss; then the camp. The tracker is re-attached after the move, so whatever it
         // set up for the finished act (its zone, its mists) is rebuilt for the new one.
@@ -577,6 +596,7 @@ public static class ExpeditionManager
             }
 
             ObjectiveTracker.Attach(player);
+            ExpeditionBoons.ApplyAll(player, current);
             player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList());
 
             return 0;
@@ -606,6 +626,7 @@ public static class ExpeditionManager
 
         player.Out.SendCustomTextWindow("Expedition over", SummaryLines(run, "RUN OVER"));
         ObjectiveTracker.Detach(player);
+        ExpeditionBoons.RemoveAll(player);
     }
 
     public static void Abandon(GamePlayer player)
@@ -631,6 +652,7 @@ public static class ExpeditionManager
 
         Runs.TryRemove(run.CharacterId, out _);
         ObjectiveTracker.Detach(player);
+        ExpeditionBoons.RemoveAll(player);
         Save(run);
 
         player.Out.SendMessage("You have abandoned the expedition. Your Hardcore flag is OFF.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);

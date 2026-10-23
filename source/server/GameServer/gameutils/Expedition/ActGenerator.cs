@@ -39,6 +39,19 @@ public static class ActGenerator
     private const int ClearCampRadius = 1500;
     private const int KillNamedRadius = 1500;
     private const int ReachPointRadius = 400;
+
+    /// <summary>An elite camp's mobs are looked for within this radius of its point.</summary>
+    public const int EliteCampRadius = 1200;
+
+    /// <summary>An elite camp is farther than this from every objective point (and from the other elite camp).</summary>
+    public const int EliteMinDistance = 1500;
+
+    /// <summary>Elite camps may be up to this many levels above the act's band.</summary>
+    public const int EliteLevelSlack = 3;
+
+    // Closer than this to the act camp, an elite camp is described as "right by the camp".
+    private const int EliteNearCampDistance = 600;
+
     private static readonly (int Min, int Max)[] LevelBands = [(1, 10), (10, 20), (20, 32), (32, 44), (44, 50)];
     private static readonly string[] CompassAreas = ["south", "south-west", "west", "north-west", "north", "north-east", "east", "south-east"];
     private static readonly Lazy<ZoneTable> LoadedTable = new(LoadTable, true);
@@ -455,6 +468,9 @@ public static class ActGenerator
         int campY = oy + campLocalY;
         ActObjective first = objectives[0];
 
+        // Elite packs come last, so the seed's earlier choices are the same as before elites existed.
+        List<EliteCamp> elites = ChooseElites(rng, zoneGoals, objectives, bossName, minLevel, maxLevel, zone.RegionId, ox, oy, campX, campY);
+
         return new ActPlan
         {
             Act = act,
@@ -480,8 +496,86 @@ public static class ActGenerator
                 HealthMultiplier = 3 + act
             },
             BossSpawned = false,
-            BossKilled = false
+            BossKilled = false,
+            Elites = elites
         };
+    }
+
+    /// <summary>
+    /// One or two elite camps: zone camps of the band (or up to <see cref="EliteLevelSlack"/> levels above) whose mob
+    /// is neither an objective's nor the boss's, farther than <see cref="EliteMinDistance"/> from every objective point
+    /// and from each other, preferring camps seen at least twice (packs). Empty when no camp qualifies.
+    /// </summary>
+    private static List<EliteCamp> ChooseElites(Random rng, List<AutonomousCapnBryGoalCatalog.Entry> zoneGoals, List<ActObjective> objectives,
+        string bossName, int minLevel, int maxLevel, int regionId, int ox, int oy, int campX, int campY)
+    {
+        HashSet<string> excludedNames = new(StringComparer.OrdinalIgnoreCase) { bossName ?? string.Empty };
+
+        foreach (ActObjective objective in objectives)
+        {
+            if (!string.IsNullOrEmpty(objective.MobName))
+            {
+                excludedNames.Add(objective.MobName);
+            }
+        }
+
+        long minDistanceSquared = (long)EliteMinDistance * EliteMinDistance;
+        List<AutonomousCapnBryGoalCatalog.Entry> candidates = zoneGoals
+            .Where(e => e.Levels is { Length: > 0 } && e.Levels.Min() <= maxLevel + EliteLevelSlack && e.Levels.Max() >= minLevel)
+            .Where(e => !excludedNames.Contains(e.Name))
+            .Where(e => objectives.All(o => DistanceSquared(ox + e.LocalX, oy + e.LocalY, o.X, o.Y) > minDistanceSquared))
+            .ToList();
+        List<EliteCamp> elites = new();
+        int wanted = rng.Next(1, 3);
+
+        while (elites.Count < wanted && candidates.Count > 0)
+        {
+            List<AutonomousCapnBryGoalCatalog.Entry> pool = candidates.Where(e => e.Sightings >= 2).ToList();
+
+            if (pool.Count == 0)
+            {
+                pool = candidates;
+            }
+
+            AutonomousCapnBryGoalCatalog.Entry goal = pool[rng.Next(pool.Count)];
+            string affix = ExpeditionElites.Affixes[rng.Next(ExpeditionElites.Affixes.Count)];
+            int x = ox + goal.LocalX;
+            int y = oy + goal.LocalY;
+
+            elites.Add(new EliteCamp
+            {
+                MobName = goal.Name,
+                Affix = affix,
+                RegionId = regionId,
+                X = x,
+                Y = y,
+                Z = goal.Z,
+                Radius = EliteCampRadius,
+                Level = goal.Levels.Max() + 2,
+                Description = $"A {affix} pack of {goal.Name} lairs {DescribeFromCamp(campX, campY, x, y)}"
+            });
+
+            // The next pack is another mob, away from this one.
+            candidates = candidates
+                .Where(e => !string.Equals(e.Name, goal.Name, StringComparison.OrdinalIgnoreCase))
+                .Where(e => DistanceSquared(ox + e.LocalX, oy + e.LocalY, x, y) > minDistanceSquared)
+                .ToList();
+        }
+
+        return elites;
+    }
+
+    /// <summary>"to the north-east of the camp" (DOL headings, as <see cref="DescribeArea"/>), or "right by the camp".</summary>
+    public static string DescribeFromCamp(int campX, int campY, int x, int y)
+    {
+        if (DistanceSquared(campX, campY, x, y) <= (long)EliteNearCampDistance * EliteNearCampDistance)
+        {
+            return "right by the camp";
+        }
+
+        int heading = new Point2D(campX, campY).GetHeading(x, y) % 4096;
+
+        return $"to the {CompassAreas[(heading + 256) / 512 % 8]} of the camp";
     }
 
     /// <summary>The act's journal lines: zone and band, each objective, the boss.</summary>

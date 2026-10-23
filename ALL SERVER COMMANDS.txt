@@ -1,6 +1,6 @@
 OFFLINE DAOC 0.3 - SERVER COMMAND REFERENCE
 
-288 command registrations read from the shipped server assemblies.
+289 command registrations read from the shipped server assemblies.
 Normal commands can still have level, realm, cooldown or state requirements.
 GM/admin commands can change or delete game data. Back up before using them.
 Descriptions containing a localization key have no matching shipped English text.
@@ -507,6 +507,17 @@ NORMAL PLAYER COMMANDS
   /invite <player>
   Handler: DOL.GS.Commands.InviteCommandHandler
 
+/junk
+  Expedition loot cleanup: destroy or auto-sell unwanted drops.
+  /junk common
+  /junk magic
+  /junk rare
+  /junk auto off
+  /junk auto common
+  /junk auto magic
+  /junk status
+  Handler: DOL.GS.Commands.JunkCommandHandler
+
 /kiss
   Blow a kiss
   /kiss
@@ -778,6 +789,8 @@ NORMAL PLAYER COMMANDS
   /run new [seed]
   /run status
   /run journal
+  /run boons
+  /run boon <1-3>
   /run seed
   /run abandon
   /run debug

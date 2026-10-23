@@ -12,6 +12,8 @@ namespace DOL.GS.Commands;
     "/run new [seed]",
     "/run status",
     "/run journal",
+    "/run boons",
+    "/run boon <1-3>",
     "/run seed",
     "/run abandon",
     "/run debug")]
@@ -109,6 +111,37 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                 }
 
                 client.Out.SendCustomTextWindow("Expedition journal", ExpeditionManager.JournalLines(run).ToList());
+
+                return;
+            }
+
+            case "boons":
+            case "boon":
+            {
+                if (run == null)
+                {
+                    client.Out.SendMessage("You are not on an expedition. Type /run new to start one at level 1.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                // "/run boon 2" (or "/run boons 2") takes a boon; without a number the offer is shown.
+                if (args.Length < 3)
+                {
+                    client.Out.SendCustomTextWindow("Expedition boons", ExpeditionBoons.OfferLines(run));
+
+                    return;
+                }
+
+                if (!int.TryParse(args[2], out int choice))
+                {
+                    client.Out.SendMessage("Type /run boon followed by the number of the boon, for example /run boon 2.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                ExpeditionBoons.TryChoose(player, run, choice, out string message);
+                client.Out.SendMessage(message, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 return;
             }

@@ -15,8 +15,8 @@ The newest version is first. For the full detail of every earlier update, see
   Hardcore does; the run's summary is shown at your next login (on any character, within a day). `/run status`,
   `/run journal`, `/run seed` and `/run abandon` show and manage the run. Runs are saved in the new
   `offline_expeditions` table, kept after the character is gone, and carried over by the progress import.
-- Expedition loot: monsters you kill on a run now drop much more loot, in five rarities: Common, [Magic], [Rare],
-  [Epic] and Unique items with their own names (such as "Mistwarden's Blade of the Lough"). Rarer items have better
+- Expedition loot: monsters you kill on a run now drop much more loot, in five rarities: [Common], [Magic], [Rare],
+  [Epic] and Unique items (see the uniques below). Rarer items have better
   bonuses and quality and a level or two more; Epic and Unique items get an extra bonus. Any kill that isn't grey to you
   drops something about two times in three, more for tougher monsters and more after each kill without a drop, and you
   never go three such kills without one; grey monsters drop about one time in three. Your first objective kill of a run always drops a Magic or
@@ -32,6 +32,21 @@ The newest version is first. For the full detail of every earlier update, see
   Moher, World's End and more) for the later acts. Acts now find their camps, named mobs and bosses in the world's
   own monster spawns instead of an old bestiary snapshot (which stays as the fallback), and a zone is only used
   when it has at least three monster camps in the act's level band. Old frontier zones are never used.
+- Expedition boons: each act boss you defeat offers three boons (from the run seed, never one you already have,
+  always a loot boon while any is left); `/run boons` shows them, `/run boon <1-3>` takes one; boons last the run and
+  are re-applied at login. Fortune (every drop one rarity better), Greed (+25% drop chance, you take 15% more damage),
+  Prospector (+10% drop chance), Ironhide (+10% max health, 10% less physical damage), Warding (15% less spell
+  damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters nearby are announced).
+- Expedition elite packs: each act marks one or two camps (never an objective's or the boss's) as an elite pack with a
+  seeded affix: Swift, Venomous, Armoured, Stalwart, Frenzied or Spectral. Elites are level +2, larger, double health
+  (Stalwart triple) and always drop Rare or better. The journal lists each pack and where it lairs; you sense a pack
+  when you approach.
+- Expedition uniques and `/junk`: 18 hand-made uniques with fixed names, lore and strong fixed bonuses, six each for
+  levels 1-19, 20-39 and 40+; a run hands out each unique once before any repeats; armor and weapon uniques take your
+  class's best armor or a weapon you use. Common drops now show [Common]. `/junk common|magic|rare` destroys
+  Expedition items of that rarity and lower in your backpack for the merchant price (asks first; Epic, Unique and
+  non-Expedition items are never touched); `/junk auto off|common|magic` sells such drops on the spot (saved per
+  character); `/junk status` shows the setting; server setting `expedition_auto_junk`.
 **Fishing**
 - Fishing: face open water with a fishing pole and type /fish to relax and fish. Each realm's waters have their own
   fish in four sizes (brown trout and pike in Albion, arctic char and halibut in Midgard, salmon and bream in Hibernia),

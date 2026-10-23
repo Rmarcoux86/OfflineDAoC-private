@@ -44,6 +44,21 @@ public sealed class BossSpec
 }
 
 /// <summary>
+/// An elite pack: a world camp whose monsters <see cref="ExpeditionElites"/> buffs with an affix while the run's
+/// player is near. Coordinates are global; Level is the generated pack level (the camp's top level + 2).
+/// </summary>
+public sealed class EliteCamp
+{
+    public string MobName = string.Empty;
+    public string Affix = string.Empty;
+    public int RegionId;
+    public int X, Y, Z;
+    public int Radius;
+    public int Level;
+    public string Description = string.Empty;
+}
+
+/// <summary>
 /// A generated act. All members are public fields, so System.Text.Json only
 /// (de)serializes them with IncludeFields = true: always serialize with
 /// <see cref="ExpeditionJson.Options"/>.
@@ -61,6 +76,9 @@ public sealed class ActPlan
     public BossSpec Boss;
     public bool BossSpawned;
     public bool BossKilled;
+
+    // Plans saved before elite packs existed have no "Elites" member; System.Text.Json then keeps this initialiser.
+    public List<EliteCamp> Elites = new();
 }
 
 /// <summary>

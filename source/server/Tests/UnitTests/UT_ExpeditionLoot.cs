@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace DOL.GS.Tests;
 
-/// <summary>Expedition loot's pure logic: rarity rolls, the pity counter and unique names. No server is needed.</summary>
+/// <summary>Expedition loot's pure logic: rarity rolls, the pity counter, rarity tags and junk rules. No server is needed.</summary>
 [TestFixture]
 public class UT_ExpeditionLoot
 {
@@ -156,29 +156,90 @@ public class UT_ExpeditionLoot
     }
 
     [Test]
-    public void UniqueNames_AreNonEmpty_NoRepeatedWords_AndShort()
+    public void DecoratedNames_CarryTheRarity_AndStayShort()
     {
-        Random rng = new(42);
-        string[] nouns = { "Blade", "Helm", "Ring", "Greatsword", "Gauntlets", "Relic" };
-        string[] zones = { "Lough Derg", "Isle of Glass", "Campacorentin Forest", string.Empty, null };
-
-        for (int i = 0; i < 1000; i++)
-        {
-            string name = ExpeditionLoot.GenerateUniqueName(rng, nouns[i % nouns.Length], zones[i % zones.Length]);
-
-            Assert.That(name, Is.Not.Null.And.Not.Empty);
-            Assert.That(name.Trim(), Is.EqualTo(name));
-            Assert.That(name.Length, Is.LessThanOrEqualTo(ExpeditionLoot.MaxNameLength), name);
-            Assert.That(ExpeditionLoot.HasRepeatedWord(name), Is.False, name);
-        }
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Common, "Studded Boots"), Is.EqualTo("[Common] Studded Boots"));
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Magic, "Studded Boots"), Is.EqualTo("[Magic] Studded Boots"));
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Rare, " Studded Boots "), Is.EqualTo("[Rare] Studded Boots"));
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Unique, "Hearthstone Band"), Is.EqualTo("Hearthstone Band"));
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Epic, new string('x', 100)).Length, Is.EqualTo(ExpeditionLoot.MaxNameLength));
+        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Common, new string('x', 100)).Length, Is.EqualTo(ExpeditionLoot.MaxNameLength));
     }
 
     [Test]
-    public void DecoratedNames_CarryTheRarity_AndStayShort()
+    public void TryGetRarity_ReadsTheExpeditionSuffix_AndIgnoresOtherItems()
     {
-        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Common, "Studded Boots"), Is.EqualTo("Studded Boots"));
-        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Magic, "Studded Boots"), Is.EqualTo("[Magic] Studded Boots"));
-        Assert.That(ExpeditionLoot.DecorateName(eLootRarity.Epic, new string('x', 100)).Length, Is.EqualTo(ExpeditionLoot.MaxNameLength));
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Armsman | Expedition Common", out eLootRarity common), Is.True);
+        Assert.That(common, Is.EqualTo(eLootRarity.Common));
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Wizard | Expedition Rare", out eLootRarity rare), Is.True);
+        Assert.That(rare, Is.EqualTo(eLootRarity.Rare));
+        Assert.That(ExpeditionLoot.TryParseRarity("Some lore | Atlas ROG | Expedition Unique", out eLootRarity unique), Is.True);
+        Assert.That(unique, Is.EqualTo(eLootRarity.Unique));
+
+        Assert.That(ExpeditionLoot.TryParseRarity(null, out _), Is.False);
+        Assert.That(ExpeditionLoot.TryParseRarity(string.Empty, out _), Is.False);
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Armsman", out _), Is.False);
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Armsman | Expedition Legendary", out _), Is.False);
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Armsman | Expedition 3", out _), Is.False);
+        Assert.That(ExpeditionLoot.TryParseRarity("Atlas ROG | Armsman | Expedition magic", out _), Is.False);
+
+        DbInventoryItem expedition = new() { Template = new DbItemTemplate { Description = "Atlas ROG | Cleric | Expedition Magic" } };
+        DbInventoryItem stock = new() { Template = new DbItemTemplate { Description = "A plain sword." } };
+
+        Assert.That(ExpeditionLoot.TryGetRarity(expedition, out eLootRarity magic), Is.True);
+        Assert.That(magic, Is.EqualTo(eLootRarity.Magic));
+        Assert.That(ExpeditionLoot.TryGetRarity(stock, out _), Is.False);
+        Assert.That(ExpeditionLoot.TryGetRarity(null, out _), Is.False);
+    }
+
+    [Test]
+    public void Junk_TakesTheRarityAndBelow_NeverEpicOrUnique()
+    {
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Common, eLootRarity.Common), Is.True);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Magic, eLootRarity.Common), Is.False);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Common, eLootRarity.Magic), Is.True);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Magic, eLootRarity.Magic), Is.True);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Rare, eLootRarity.Magic), Is.False);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Rare, eLootRarity.Rare), Is.True);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Epic, eLootRarity.Rare), Is.False);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Epic, eLootRarity.Epic), Is.False);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Unique, eLootRarity.Unique), Is.False);
+    }
+
+    [Test]
+    public void AutoJunk_SellsOnlyAtOrBelowTheSetting_AndOnlyCommonOrMagic()
+    {
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Common, null), Is.False);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Common, eLootRarity.Common), Is.True);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Magic, eLootRarity.Common), Is.False);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Common, eLootRarity.Magic), Is.True);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Magic, eLootRarity.Magic), Is.True);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Rare, eLootRarity.Magic), Is.False);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Unique, eLootRarity.Magic), Is.False);
+        Assert.That(ExpeditionLoot.ShouldAutoJunk(eLootRarity.Common, eLootRarity.Rare), Is.False, "the setting goes up to Magic only");
+
+        Assert.That(ExpeditionLoot.ParseAutoJunk("common"), Is.EqualTo(eLootRarity.Common));
+        Assert.That(ExpeditionLoot.ParseAutoJunk(" Magic "), Is.EqualTo(eLootRarity.Magic));
+        Assert.That(ExpeditionLoot.ParseAutoJunk("off"), Is.Null);
+        Assert.That(ExpeditionLoot.ParseAutoJunk("rare"), Is.Null);
+        Assert.That(ExpeditionLoot.ParseAutoJunk(null), Is.Null);
+    }
+
+    [Test]
+    public void SellValue_MatchesTheMerchantFormula()
+    {
+        Assert.That(ExpeditionLoot.SellValue(1000, 1, 1, 50), Is.EqualTo(500));
+        Assert.That(ExpeditionLoot.SellValue(1000, 3, 1, 50), Is.EqualTo(1500));
+        Assert.That(ExpeditionLoot.SellValue(1000, 0, 0, 50), Is.EqualTo(500));
+        Assert.That(ExpeditionLoot.SellValue(1, 1, 1, 50), Is.EqualTo(1), "a 1-copper item still sells for its price");
+        Assert.That(ExpeditionLoot.SellValue(0, 1, 1, 50), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void FortuneBoon_ShiftsTheRolledRarity_OnlyWithTheBoon()
+    {
+        Assert.That(ExpeditionBoons.ShiftRolledRarity(new[] { ExpeditionBoons.Fortune }, eLootRarity.Common), Is.EqualTo(eLootRarity.Magic));
+        Assert.That(ExpeditionBoons.ShiftRolledRarity(Array.Empty<string>(), eLootRarity.Common), Is.EqualTo(eLootRarity.Common));
     }
 
     [Test]
