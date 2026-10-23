@@ -259,6 +259,11 @@ public static class ExpeditionManager
         ExpeditionRun run = GetRun(player);
         GameLiving target = (args as EnemyKilledEventArgs)?.Target;
 
+        if (run != null)
+        {
+            ExpeditionDebug.Report(player, $"kill event for {target?.Name} (level {target?.Level}) reached the run; tracker attached: {ObjectiveTracker.IsAttached(player)}.");
+        }
+
         // GameLiving.RemoveFromWorld also raises EnemyKilled on the attackers of a living that merely despawns.
         if (run == null || target == null || !(target.IsBeingHandledByReaperService || target.Health <= 0))
         {

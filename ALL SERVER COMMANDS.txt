@@ -780,6 +780,7 @@ NORMAL PLAYER COMMANDS
   /run journal
   /run seed
   /run abandon
+  /run debug
   Handler: DOL.GS.Commands.RunCommandHandler
 
 /safety

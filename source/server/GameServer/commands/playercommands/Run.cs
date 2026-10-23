@@ -13,7 +13,8 @@ namespace DOL.GS.Commands;
     "/run status",
     "/run journal",
     "/run seed",
-    "/run abandon")]
+    "/run abandon",
+    "/run debug")]
 public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
 {
     public void OnCommand(GameClient client, string[] args)
@@ -108,6 +109,17 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                 }
 
                 client.Out.SendCustomTextWindow("Expedition journal", ExpeditionManager.JournalLines(run).ToList());
+
+                return;
+            }
+
+            case "debug":
+            {
+                bool on = !ExpeditionDebug.IsChatOn(player);
+                player.TempProperties.SetProperty(ExpeditionDebug.ChatKey, on);
+
+                string attached = run == null ? "no active run" : $"tracker attached: {ObjectiveTracker.IsAttached(player)}";
+                client.Out.SendMessage($"Expedition debug {(on ? "ON" : "OFF")} ({attached}). Kills and loot rolls are explained in this window.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 return;
             }

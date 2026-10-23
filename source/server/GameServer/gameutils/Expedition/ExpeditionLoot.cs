@@ -155,6 +155,9 @@ public static class ExpeditionLoot
     {
         if (player == null || string.IsNullOrEmpty(player.ObjectId) || !IsLootableKill(target))
         {
+            GameNPC npc = target as GameNPC;
+            ExpeditionDebug.Report(player, $"no loot roll for {target?.Name}: not lootable (npc {npc != null}, can drop {npc?.CanDropLoot}, controlled {npc?.Brain is IControlledBrain}, bot {npc is GameBot}).");
+
             return false;
         }
 
@@ -169,6 +172,8 @@ public static class ExpeditionLoot
             // GamePlayer.EnemyKilled and GameLiving.ProcessDeath can both report one kill; a respawn of the same mob later is a new kill.
             if (luck.LastTarget == target && now - luck.LastKillAt < KillDedupeWindowMs)
             {
+                ExpeditionDebug.Report(player, $"no loot roll for {target.Name}: the same kill was rolled {now - luck.LastKillAt} ms ago.");
+
                 return false;
             }
 
@@ -187,8 +192,10 @@ public static class ExpeditionLoot
                 LootTuning tuning = LootTuning.FromProperties();
                 int chance = KillDropChance(target.Level, player.Level, bandMin, bandMax, luck.DryKills, tuning);
                 bool counts = CountsForPity(target.Level, player.Level, bandMin, bandMax);
+                int dryBefore = luck.DryKills;
 
                 dropped = RollKill(Random.Shared, luck, chance, counts);
+                ExpeditionDebug.Report(player, $"loot roll for {target.Name} (level {target.Level}, you {player.Level}, band {bandMin}-{bandMax}): chance {chance}%, counts for pity {counts}, dry kills {dryBefore}, dropped {dropped}. Settings: base {tuning.BaseChance}, pity step {tuning.PityStep}, guarantee {tuning.PityGuarantee}.");
             }
         }
 

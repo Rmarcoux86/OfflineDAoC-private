@@ -126,6 +126,11 @@ public static class ObjectiveTracker
         }
     }
 
+    public static bool IsAttached(GamePlayer player)
+    {
+        return player != null && States.TryGetValue(player.ObjectId ?? string.Empty, out TrackerState state) && state.Player == player && !state.Detached;
+    }
+
     public static void Detach(GamePlayer player)
     {
         if (player == null || string.IsNullOrEmpty(player.ObjectId))
@@ -237,6 +242,8 @@ public static class ObjectiveTracker
 
         if (!States.TryGetValue(player.ObjectId, out TrackerState state) || state.Player != player)
         {
+            ExpeditionDebug.Report(player, $"kill of {killedArgs.Target?.Name} ignored: the tracker is not attached to this player (state found: {state != null}).");
+
             return;
         }
 
@@ -280,17 +287,22 @@ public static class ObjectiveTracker
     {
         // GameLiving.RemoveFromWorld (GameLiving.cs:3591) also calls EnemyKilled on every attacker of a living that
         // merely despawns; only a living that is really dying (handled by the ReaperService) or at 0 health counts.
+        GamePlayer player = state.Player;
+
         if (target == null || target is ExpeditionBoss || !(target.IsBeingHandledByReaperService || target.Health <= 0))
         {
+            ExpeditionDebug.Report(player, $"kill of {target?.Name} ignored: not a dying monster (boss {target is ExpeditionBoss}, reaper {target?.IsBeingHandledByReaperService}, health {target?.Health}).");
+
             return;
         }
 
-        GamePlayer player = state.Player;
         ExpeditionRun run = ExpeditionManager.GetRun(player);
         ActPlan plan = run?.CurrentAct;
 
         if (plan == null || plan != state.Plan || plan.Objectives == null)
         {
+            ExpeditionDebug.Report(player, $"kill of {target.Name} ignored: run {(run == null ? "missing" : "found")}, plan {(plan == null ? "missing" : "found")}, same plan as the tracker {plan == state.Plan}.");
+
             return;
         }
 
@@ -305,11 +317,15 @@ public static class ObjectiveTracker
         {
             if (state.Detached)
             {
+                ExpeditionDebug.Report(player, $"kill of {target.Name} ignored: the tracker was detached.");
+
                 return;
             }
 
             if (state.RecentKills.TryGetValue(target, out long countedAt) && now - countedAt < KillDedupeWindowMs)
             {
+                ExpeditionDebug.Report(player, $"kill of {target.Name} ignored: already counted {now - countedAt} ms ago.");
+
                 return;
             }
 
