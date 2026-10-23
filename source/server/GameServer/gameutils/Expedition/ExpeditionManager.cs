@@ -265,9 +265,18 @@ public static class ExpeditionManager
             return;
         }
 
-        if (Interlocked.Exchange(ref run.LastKillTarget, target) == target)
+        // The same object is raised again when a respawned mob dies, so only a repeat within a few seconds is a duplicate.
+        long now = GameLoop.GameLoopTime;
+
+        lock (run.KillSync)
         {
-            return;
+            if (run.LastKillTarget == target && now - run.LastKillTick < 5000)
+            {
+                return;
+            }
+
+            run.LastKillTarget = target;
+            run.LastKillTick = now;
         }
 
         Interlocked.Increment(ref run.Kills);
@@ -427,6 +436,11 @@ public static class ExpeditionManager
             record.Kills = run.Kills;
             record.Deaths = run.Deaths;
             record.BossesKilled = run.BossesKilled;
+            record.LootCommon = run.LootByRarity[(int) eLootRarity.Common];
+            record.LootMagic = run.LootByRarity[(int) eLootRarity.Magic];
+            record.LootRare = run.LootByRarity[(int) eLootRarity.Rare];
+            record.LootEpic = run.LootByRarity[(int) eLootRarity.Epic];
+            record.LootUnique = run.LootByRarity[(int) eLootRarity.Unique];
             record.StartedUtc = run.StartedUtc.ToString("o", CultureInfo.InvariantCulture);
             record.EndedUtc = run.EndedUtc?.ToString("o", CultureInfo.InvariantCulture) ?? string.Empty;
             record.ActJson = run.CurrentAct == null ? string.Empty : JsonSerializer.Serialize(run.CurrentAct, ExpeditionJson.Options);
@@ -629,6 +643,7 @@ public static class ExpeditionManager
 
         lines.Add($"Seed: {run.Seed}");
         lines.Add($"Kills: {run.Kills}   Bosses slain: {run.BossesKilled}");
+        lines.Add(run.LootSummary);
         lines.Add(string.Empty);
 
         // DescribePlan's first line is the "Act N of 5: zone (levels a-b)" header.
@@ -666,6 +681,7 @@ public static class ExpeditionManager
             $"Reached act {run.Act} of {ActGenerator.ActCount}" + (run.CurrentAct == null ? string.Empty : $" ({run.CurrentAct.ZoneName})"),
             $"Kills: {run.Kills}",
             $"Bosses slain: {run.BossesKilled}",
+            run.LootSummary,
             $"Time: {(int)length.TotalHours}h {length.Minutes}m",
             string.Empty,
             "Journal:"
@@ -693,6 +709,7 @@ public static class ExpeditionManager
             Kills = record.Kills,
             Deaths = record.Deaths,
             BossesKilled = record.BossesKilled,
+            LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,
             Record = record

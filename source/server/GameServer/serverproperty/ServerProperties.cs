@@ -2549,6 +2549,38 @@ namespace DOL.GS.ServerProperties
 
 		#endregion
 
+		#region EXPEDITION LOOT
+
+		/// <summary>Offline DAoC Expedition loot: per-kill drop chance (in %) for a monster in the act's level band.</summary>
+		[ServerProperty("expedition", "expedition_loot_chance", "Expedition loot: drop chance (%) per kill of a monster in the act's level band.", 50)]
+		public static int EXPEDITION_LOOT_CHANCE = 50;
+
+		/// <summary>Expedition loot: drop chance (in %) per kill of a grey monster (more than 5 levels below the player) or one below the act band.</summary>
+		[ServerProperty("expedition", "expedition_loot_grey_chance", "Expedition loot: drop chance (%) per kill of a grey monster or one below the act's level band.", 15)]
+		public static int EXPEDITION_LOOT_GREY_CHANCE = 15;
+
+		/// <summary>Expedition loot: extra drop chance (in %) for an orange or red monster (two levels or more above the player).</summary>
+		[ServerProperty("expedition", "expedition_loot_high_con_bonus", "Expedition loot: extra drop chance (%) for a monster two or more levels above the player.", 15)]
+		public static int EXPEDITION_LOOT_HIGH_CON_BONUS = 15;
+
+		/// <summary>Expedition loot: the pity counter adds this many % to the drop chance per counted kill without a drop.</summary>
+		[ServerProperty("expedition", "expedition_loot_pity_step", "Expedition loot: extra drop chance (%) per counted kill in a row without a drop.", 10)]
+		public static int EXPEDITION_LOOT_PITY_STEP = 10;
+
+		/// <summary>Expedition loot: hard pity. The Nth counted kill in a row without a drop always drops (0 turns it off).</summary>
+		[ServerProperty("expedition", "expedition_loot_pity_guarantee", "Expedition loot: a drop is guaranteed at least every this many counted kills (0 = off).", 4)]
+		public static int EXPEDITION_LOOT_PITY_GUARANTEE = 4;
+
+		/// <summary>Expedition loot: drop events of an act boss, each Rare or better.</summary>
+		[ServerProperty("expedition", "expedition_boss_drops", "Expedition loot: number of Rare-or-better drops from an act boss.", 3)]
+		public static int EXPEDITION_BOSS_DROPS = 3;
+
+		/// <summary>Expedition loot outside runs: every real player gets the per-kill Expedition loot everywhere.</summary>
+		[ServerProperty("expedition", "expedition_loot_outside_runs", "Give every real player the Expedition per-kill loot outside expedition runs too.", false)]
+		public static bool EXPEDITION_LOOT_OUTSIDE_RUNS = false;
+
+		#endregion
+
 		#region CONTROLS_AUTOMATION
 
 		[ServerProperty("controls_automation", "auto_select_opening_style", "Automatically perform the opening style of the currently selected style if conditions are not met (recursive).", false)]

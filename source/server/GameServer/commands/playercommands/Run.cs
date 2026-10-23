@@ -93,6 +93,7 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                 string boss = plan == null ? "unknown" : plan.BossKilled ? "slain" : plan.BossSpawned ? "awake" : "waiting";
 
                 client.Out.SendMessage($"Expedition act {run.Act}/{ActGenerator.ActCount} | levels {plan?.MinLevel}-{plan?.MaxLevel} | {plan?.ZoneName} | objectives {done}/{total} | boss {boss}", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                client.Out.SendMessage(run.LootSummary, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 return;
             }

@@ -24,6 +24,11 @@ public class OfflineExpeditionRecord : DataObject
     private int m_kills;
     private int m_deaths;
     private int m_bossesKilled;
+    private int m_lootCommon;
+    private int m_lootMagic;
+    private int m_lootRare;
+    private int m_lootEpic;
+    private int m_lootUnique;
     private string m_startedUtc = string.Empty;
     private string m_endedUtc = string.Empty;
     private string m_actJson = string.Empty;
@@ -151,6 +156,62 @@ public class OfflineExpeditionRecord : DataObject
         }
     }
 
+    /// <summary>Expedition loot found on the run, per rarity (<see cref="ExpeditionLoot"/>).</summary>
+    [DataElement(AllowDbNull = false)]
+    public int LootCommon
+    {
+        get { return m_lootCommon; }
+        set
+        {
+            Dirty = true;
+            m_lootCommon = value;
+        }
+    }
+
+    [DataElement(AllowDbNull = false)]
+    public int LootMagic
+    {
+        get { return m_lootMagic; }
+        set
+        {
+            Dirty = true;
+            m_lootMagic = value;
+        }
+    }
+
+    [DataElement(AllowDbNull = false)]
+    public int LootRare
+    {
+        get { return m_lootRare; }
+        set
+        {
+            Dirty = true;
+            m_lootRare = value;
+        }
+    }
+
+    [DataElement(AllowDbNull = false)]
+    public int LootEpic
+    {
+        get { return m_lootEpic; }
+        set
+        {
+            Dirty = true;
+            m_lootEpic = value;
+        }
+    }
+
+    [DataElement(AllowDbNull = false)]
+    public int LootUnique
+    {
+        get { return m_lootUnique; }
+        set
+        {
+            Dirty = true;
+            m_lootUnique = value;
+        }
+    }
+
     [DataElement(AllowDbNull = false, Varchar = 40)]
     public string StartedUtc
     {
@@ -218,6 +279,10 @@ public sealed class ExpeditionRun
     public int Kills;
     public int Deaths;
     public int BossesKilled;
+
+    /// <summary>Expedition loot found on the run, indexed by <see cref="eLootRarity"/> (Common..Unique).</summary>
+    public int[] LootByRarity = new int[5];
+
     public DateTime StartedUtc;
     public DateTime? EndedUtc;
     public List<string> Log = new();
@@ -230,8 +295,13 @@ public sealed class ExpeditionRun
     /// (GameLiving.ProcessDeath and GamePlayer.EnemyKilled both notify it), so one target is counted once.
     /// </summary>
     internal object LastKillTarget;
+    internal long LastKillTick;
+    internal readonly object KillSync = new();
 
     public bool IsActive => Status == ExpeditionManager.StatusActive;
+
+    /// <summary>"Loot: 3 common, 2 magic, 1 rare, 0 epic, 0 unique" for /run status, the journal and the summary.</summary>
+    public string LootSummary => $"Loot: {LootByRarity[0]} common, {LootByRarity[1]} magic, {LootByRarity[2]} rare, {LootByRarity[3]} epic, {LootByRarity[4]} unique";
 
     public void AddLog(string line)
     {

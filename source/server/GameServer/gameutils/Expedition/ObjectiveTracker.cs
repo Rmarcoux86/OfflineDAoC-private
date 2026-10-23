@@ -14,7 +14,7 @@ namespace DOL.GS.Expedition;
 /// Follows a run's act objectives for one attached player: kills (the player's own, their pets', their companion
 /// bots' and their group's), reach-point objectives and the mists boundary that keeps the player in the act's zone.
 /// When every objective is done it spawns the act boss (<see cref="ExpeditionBoss"/>) and tells
-/// <see cref="ExpeditionManager"/>; when the boss dies it hands out the guaranteed reward and reports the kill.
+/// <see cref="ExpeditionManager"/>; when the boss dies it hands out the boss loot (<see cref="ExpeditionLoot.BossDrops"/>) and reports the kill.
 /// <para>
 /// Kill credit: GameLiving.ProcessDeath (GameLiving.cs:1996) raises EnemyKilled on the owner of a pet or companion
 /// bot (BotBrain is an IControlledBrain whose owner is the player) and on group players in range, so the per-player
@@ -70,6 +70,7 @@ public static class ObjectiveTracker
 
         // Attach is idempotent: a second call rebuilds the state for the run's current act.
         Detach(player);
+        ExpeditionLoot.ResetLuck(player);
 
         ExpeditionRun run = ExpeditionManager.GetRun(player);
         ActPlan plan = run?.CurrentAct;
@@ -297,6 +298,8 @@ public static class ObjectiveTracker
         string progressMessage = null;
         string doneMessage = null;
         bool completedNow = false;
+        bool firstObjectiveKill = false;
+        ActObjective objective;
 
         lock (state.Sync)
         {
@@ -313,28 +316,42 @@ public static class ObjectiveTracker
             state.RecentKills[target] = now;
 
             // One kill advances one objective: the first open one it matches.
-            ActObjective objective = FindKillObjective(plan, target);
+            objective = FindKillObjective(plan, target);
 
-            if (objective == null)
+            if (objective != null)
             {
-                return;
+                // The run's first objective kill: act 1, and no kill objective has any progress yet.
+                firstObjectiveKill = run.Act == 1 && !AnyKillProgress(plan);
+
+                objective.Progress = Math.Min(objective.Count, objective.Progress + 1);
+                progressMessage = $"Objective: {objective.Description} ({objective.Progress}/{objective.Count})";
+
+                if (objective.Done)
+                {
+                    doneMessage = $"Objective complete: {objective.Description}";
+                    run.AddLog($"Act {plan.Act}: objective complete - {objective.Description}.");
+                }
+
+                if (!plan.BossSpawned && AllObjectivesDone(plan))
+                {
+                    plan.BossSpawned = true;
+                    state.BossPending = true;
+                    completedNow = true;
+                }
+            }
+        }
+
+        // Every credited kill of a monster may drop Expedition loot; the run's first objective kill always drops Magic+.
+        bool dropped = ExpeditionLoot.OnKill(player, target, firstObjectiveKill ? eLootRarity.Magic : null);
+
+        if (objective == null)
+        {
+            if (dropped)
+            {
+                ExpeditionManager.Save(run);
             }
 
-            objective.Progress = Math.Min(objective.Count, objective.Progress + 1);
-            progressMessage = $"Objective: {objective.Description} ({objective.Progress}/{objective.Count})";
-
-            if (objective.Done)
-            {
-                doneMessage = $"Objective complete: {objective.Description}";
-                run.AddLog($"Act {plan.Act}: objective complete - {objective.Description}.");
-            }
-
-            if (!plan.BossSpawned && AllObjectivesDone(plan))
-            {
-                plan.BossSpawned = true;
-                state.BossPending = true;
-                completedNow = true;
-            }
+            return;
         }
 
         Tell(player, progressMessage, false);
@@ -345,6 +362,20 @@ public static class ObjectiveTracker
         }
 
         FinishProgress(state, run, plan, completedNow);
+    }
+
+    /// <summary>True when a kill objective of the act already has progress. The caller holds <c>state.Sync</c>.</summary>
+    private static bool AnyKillProgress(ActPlan plan)
+    {
+        foreach (ActObjective objective in plan.Objectives)
+        {
+            if (objective != null && objective.Kind != eObjectiveKind.ReachPoint && objective.Progress > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static ActObjective FindKillObjective(ActPlan plan, GameLiving target)
@@ -785,42 +816,10 @@ public static class ObjectiveTracker
         }
 
         Tell(player, $"{boss.Name} is slain!", true);
-        GiveBossReward(player);
+        ExpeditionLoot.BossDrops(player, boss);
 
         // The manager saves the run, advances or ends it, and may Detach this player.
         ExpeditionManager.OnBossKilled(player);
-    }
-
-    /// <summary>
-    /// The guaranteed drop: one random-object-generation item for the player's realm, class and level, built as
-    /// AtlasROGManager.GenerateROG does (AtlasROGManager.cs:25), with a ground drop when the backpack is full.
-    /// </summary>
-    private static void GiveBossReward(GamePlayer player)
-    {
-        try
-        {
-            byte itemLevel = (byte) Math.Clamp(player.Level + 3, 1, 255);
-            GeneratedUniqueItem item = new(player.Realm, (eCharacterClass) player.CharacterClass.ID, itemLevel);
-            item.AllowAdd = true;
-            item.IsTradable = true;
-
-            DbInventoryItem invItem = GameInventoryItem.Create(item);
-            invItem.IsROG = true;
-
-            if (player.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, invItem))
-            {
-                player.Out.SendMessage($"You receive {invItem.Name}.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
-
-                return;
-            }
-
-            player.CreateItemOnTheGround(invItem);
-            player.Out.SendMessage($"Your backpack is full: {invItem.Name} has been placed on the ground.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-        }
-        catch (Exception ex)
-        {
-            log.Error($"[EXPEDITION] The boss reward could not be generated for {player.Name}.", ex);
-        }
     }
 
     #endregion
