@@ -74,7 +74,9 @@ EXPEDITION MODE
                      (+25% drop chance, you take 15% more damage), Prospector (+10% drop chance),
                      Ironhide (+10% max health, 10% less physical damage), Warding (15% less
                      spell damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters
-                     nearby are announced).
+                     nearby are announced), Thornmail (melee attackers take heat damage),
+                     Vampiric (25% chance a hit heals you for half its damage), Rejuvenation
+                     (2% health every 3 seconds), Arcane Fury (+15% spell crit).
   /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.
   /run journal       reopen the objective list.     /run status   one-line summary.

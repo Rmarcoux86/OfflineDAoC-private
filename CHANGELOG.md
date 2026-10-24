@@ -63,7 +63,9 @@ The newest version is first. For the full detail of every earlier update, see
   always a loot boon while any is left); `/run boons` shows them, `/run boon <1-3>` takes one; boons last the run and
   are re-applied at login. Fortune (every drop one rarity better), Greed (+25% drop chance, you take 15% more damage),
   Prospector (+10% drop chance), Ironhide (+10% max health, 10% less physical damage), Warding (15% less spell
-  damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters nearby are announced).
+  damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters nearby are announced), Thornmail (melee
+  attackers take 3 + your level heat damage per hit), Vampiric (25% chance a hit you land heals you for half its
+  damage), Rejuvenation (2% max health every 3 seconds, even in combat), Arcane Fury (+15% spell crit).
 - Expedition elite packs: each act marks one or two camps (never an objective's or the boss's) as an elite pack with a
   seeded affix: Swift, Venomous, Armoured, Stalwart, Frenzied or Spectral. Elites are level +2, larger, double health
   (Stalwart triple) and always drop Rare or better. The journal lists each pack and where it lairs; you sense a pack

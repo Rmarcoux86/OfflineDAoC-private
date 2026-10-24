@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using DOL.AI.Brain;
+using DOL.Events;
 using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Expedition;
@@ -19,7 +21,13 @@ public static class BoonEffects
     private const int HuntersEyeIntervalMilliseconds = 3000;
     private const long HuntersEyeRepeatMilliseconds = 60_000;
 
+    private const int RejuvenationIntervalMilliseconds = 3000;
+    private const int RejuvenationPercent = 2;
+    private const int VampiricChancePercent = 25;
+
     private static readonly object CreateSync = new();
+    private static readonly object HandlerSync = new();
+    private static bool _handlersRegistered;
 
     /// <summary>
     /// The AbilityBonus amounts per boon. Of_Toughness is a percent of base max health (MaxHealthCalculator);
@@ -32,7 +40,8 @@ public static class BoonEffects
         [ExpeditionBoons.Greed] = new[] { (eProperty.PhysicalAbsorption, -15), (eProperty.MagicAbsorption, -15) },
         [ExpeditionBoons.Ironhide] = new[] { (eProperty.Of_Toughness, 10), (eProperty.PhysicalAbsorption, 10) },
         [ExpeditionBoons.Warding] = new[] { (eProperty.MagicAbsorption, 15) },
-        [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) }
+        [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) },
+        [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) }
     };
 
     private sealed class AppliedBoons
@@ -40,6 +49,7 @@ public static class BoonEffects
         public readonly HashSet<string> Ids = new();
         public readonly Dictionary<GameNPC, long> Announced = new();
         public ECSGameTimer HuntersEyeTimer;
+        public ECSGameTimer RejuvenationTimer;
     }
 
     /// <summary>Applies every boon of the run not yet applied to this player object, then updates the client.</summary>
@@ -87,6 +97,16 @@ public static class BoonEffects
                 if (id == ExpeditionBoons.HuntersEye && state.HuntersEyeTimer == null)
                 {
                     state.HuntersEyeTimer = new ECSGameTimer(player, timer => HuntersEyeTick(player, state), HuntersEyeIntervalMilliseconds);
+                }
+
+                if (id == ExpeditionBoons.Rejuvenation && state.RejuvenationTimer == null)
+                {
+                    state.RejuvenationTimer = new ECSGameTimer(player, timer => RejuvenationTick(player, state), RejuvenationIntervalMilliseconds);
+                }
+
+                if (id == ExpeditionBoons.Thornmail || id == ExpeditionBoons.Vampiric)
+                {
+                    EnsureHandlers();
                 }
             }
         }
@@ -136,6 +156,8 @@ public static class BoonEffects
             state.Announced.Clear();
             state.HuntersEyeTimer?.Stop();
             state.HuntersEyeTimer = null;
+            state.RejuvenationTimer?.Stop();
+            state.RejuvenationTimer = null;
         }
 
         player.TempProperties.RemoveProperty(StateKey);
@@ -229,6 +251,112 @@ public static class BoonEffects
         }
 
         return HuntersEyeIntervalMilliseconds;
+    }
+
+    /// <summary>True when the boon is applied to this player object (cheap: no run lookup).</summary>
+    private static bool HasBoon(GamePlayer player, string id)
+    {
+        AppliedBoons state = player?.TempProperties.GetProperty<AppliedBoons>(StateKey, null);
+
+        if (state == null)
+        {
+            return false;
+        }
+
+        lock (state)
+        {
+            return state.Ids.Contains(id);
+        }
+    }
+
+    /// <summary>Every 3 seconds: 2% of maximum health, in or out of combat. Stops when the run or the boon is gone.</summary>
+    private static int RejuvenationTick(GamePlayer player, AppliedBoons state)
+    {
+        ExpeditionRun run = ExpeditionManager.GetRun(player);
+
+        lock (state)
+        {
+            if (run == null || state.RejuvenationTimer == null || !state.Ids.Contains(ExpeditionBoons.Rejuvenation))
+            {
+                state.RejuvenationTimer = null;
+
+                return 0;
+            }
+        }
+
+        if (player.IsAlive && player.CurrentRegion != null && player.Health < player.MaxHealth)
+        {
+            player.ChangeHealth(player, eHealthChangeType.Regenerate, Math.Max(1, player.MaxHealth * RejuvenationPercent / 100));
+        }
+
+        return RejuvenationIntervalMilliseconds;
+    }
+
+    private static void EnsureHandlers()
+    {
+        lock (HandlerSync)
+        {
+            if (_handlersRegistered)
+            {
+                return;
+            }
+
+            GameEventMgr.AddHandler(GameLivingEvent.AttackedByEnemy, OnAttackedByEnemy);
+            _handlersRegistered = true;
+        }
+    }
+
+    [GameServerStoppedEvent]
+    public static void OnServerStopped(DOLEvent e, object sender, EventArgs args)
+    {
+        lock (HandlerSync)
+        {
+            if (_handlersRegistered)
+            {
+                GameEventMgr.RemoveHandler(GameLivingEvent.AttackedByEnemy, OnAttackedByEnemy);
+                _handlersRegistered = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Global AttackedByEnemy handler (GameLiving.OnAttackedByEnemy, raised for every attack on the attacked living):
+    /// Thornmail burns a monster whose melee hit lands on the player; Vampiric heals the player from a hit it lands.
+    /// </summary>
+    private static void OnAttackedByEnemy(DOLEvent e, object sender, EventArgs args)
+    {
+        if (args is not AttackedByEnemyEventArgs attackedArgs || attackedArgs.AttackData is not AttackData ad || !ad.IsHit)
+        {
+            return;
+        }
+
+        try
+        {
+            if (sender is GamePlayer defender && ad.IsMeleeAttack && ad.Attacker is GameNPC attacker && attacker.IsAlive && defender.IsAlive
+                && HasBoon(defender, ExpeditionBoons.Thornmail))
+            {
+                int thorns = 3 + defender.Level;
+                attacker.TakeDamage(defender, eDamageType.Heat, thorns, 0);
+                defender.Out?.SendMessage($"Thornmail burns {attacker.GetName(0, false)} for {thorns} damage!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
+            }
+
+            int dealt = ad.Damage + ad.CriticalDamage;
+
+            if (ad.Attacker is GamePlayer striker && ad.Target != striker && dealt > 0 && striker.IsAlive && striker.Health < striker.MaxHealth
+                && HasBoon(striker, ExpeditionBoons.Vampiric) && Util.Chance(VampiricChancePercent))
+            {
+                int healed = striker.ChangeHealth(striker, eHealthChangeType.Spell, Math.Max(1, dealt / 2));
+
+                if (healed > 0)
+                {
+                    striker.Out?.SendMessage($"Vampiric: you drain {healed} health.", eChatType.CT_Spell, eChatLoc.CL_SystemWindow);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // A boon must never break combat.
+        }
     }
 
     private static bool IsNamedMonster(GameNPC npc)

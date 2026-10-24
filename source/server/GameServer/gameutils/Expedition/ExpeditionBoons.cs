@@ -25,6 +25,10 @@ public static class ExpeditionBoons
     public const string Warding = "warding";
     public const string Bloodlust = "bloodlust";
     public const string HuntersEye = "hunters_eye";
+    public const string Thornmail = "thornmail";
+    public const string Vampiric = "vampiric";
+    public const string Rejuvenation = "rejuvenation";
+    public const string ArcaneFury = "arcane_fury";
 
     /// <summary>Drop chance added by Greed, in percentage points.</summary>
     public const int GreedChanceBonus = 25;
@@ -41,7 +45,11 @@ public static class ExpeditionBoons
         new(Ironhide, "Ironhide", "+10% maximum health and 10% less physical damage taken.", false),
         new(Warding, "Warding", "15% less damage taken from spells.", false),
         new(Bloodlust, "Bloodlust", "+15% melee critical hit chance (the 50% cap still applies).", false),
-        new(HuntersEye, "Hunter's Eye", "Named monsters within 2000 units are announced to you.", false)
+        new(HuntersEye, "Hunter's Eye", "Named monsters within 2000 units are announced to you.", false),
+        new(Thornmail, "Thornmail", "Monsters that hit you in melee take heat damage (3 + your level) on every hit.", false),
+        new(Vampiric, "Vampiric", "Each hit you land (melee or spell) has a 25% chance to heal you for half its damage.", false),
+        new(Rejuvenation, "Rejuvenation", "You regenerate 2% of your maximum health every 3 seconds, even in combat.", false),
+        new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false)
     };
 
     public static BoonDefinition Find(string id)
