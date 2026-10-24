@@ -249,10 +249,20 @@ public static class ObjectiveTracker
     /// <summary>Per-player handler: the sender is the attached player (GamePlayer.EnemyKilled, GameLiving.EnemyKilled).</summary>
     private static void OnPlayerEnemyKilled(DOLEvent e, object sender, EventArgs args)
     {
-        if (sender is not GamePlayer player || args is not EnemyKilledEventArgs killedArgs)
+        if (sender is GamePlayer player && args is EnemyKilledEventArgs killedArgs)
         {
-            return;
+            CreditKill(player, killedArgs.Target);
         }
+    }
+
+    /// <summary>
+    /// Counts a kill for the player's objectives (and its loot and realm points). Reached from the player's EnemyKilled
+    /// event, and from <see cref="ExpeditionManager"/> for a kill the game did not credit to the player (a monster that
+    /// died to a damage-over-time tick after the player's attacker entry expired). HandleKill ignores a repeat.
+    /// </summary>
+    internal static void CreditKill(GamePlayer player, GameLiving target)
+    {
+        EnemyKilledEventArgs killedArgs = new(target);
 
         if (!States.TryGetValue(player.ObjectId, out TrackerState state) || state.Player != player)
         {

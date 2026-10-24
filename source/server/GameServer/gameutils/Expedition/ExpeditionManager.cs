@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
+using DOL.AI.Brain;
 using DOL.Database;
 using DOL.Events;
 using DOL.GS.PacketHandler;
@@ -237,6 +238,13 @@ public static class ExpeditionManager
     /// </summary>
     private static void OnDying(DOLEvent e, object sender, EventArgs args)
     {
+        if (sender is GameNPC npc)
+        {
+            CreditUntrackedKill(npc, (args as DyingEventArgs)?.Killer);
+
+            return;
+        }
+
         if (sender is not GamePlayer player)
         {
             return;
@@ -257,6 +265,37 @@ public static class ExpeditionManager
         }
 
         OnPlayerDied(player);
+    }
+
+    /// <summary>
+    /// A monster killed by a run's player who is no longer on its attacker list: a damage-over-time spell only lists its
+    /// caster on the first tick (DoTSpellHandler sets CausesCombat on that tick only), and the entry expires after a few
+    /// seconds, so a later tick's kill raises no EnemyKilled for the player (GameLiving.ProcessDeath). The run counts the
+    /// kill here instead; a kill that is also reported the normal way is ignored as a repeat.
+    /// </summary>
+    private static void CreditUntrackedKill(GameNPC npc, GameObject killer)
+    {
+        GamePlayer player = killer as GamePlayer;
+
+        if (player == null && killer is GameNPC pet && pet.Brain is IControlledBrain brain)
+        {
+            player = brain.GetPlayerOwner();
+        }
+
+        if (player == null || GetRun(player) == null || npc.attackComponent?.AttackerTracker == null)
+        {
+            return;
+        }
+
+        if (npc.attackComponent.AttackerTracker.ContainsAttacker(player) || (killer is GameLiving livingKiller && npc.attackComponent.AttackerTracker.ContainsAttacker(livingKiller)))
+        {
+            return;
+        }
+
+        ExpeditionDebug.Report(player, $"{npc.Name} died to {killer?.Name} without listing you as an attacker (damage over time); the kill is counted.");
+
+        OnEnemyKilled(null, player, new EnemyKilledEventArgs(npc));
+        ObjectiveTracker.CreditKill(player, npc);
     }
 
     private static void OnEnemyKilled(DOLEvent e, object sender, EventArgs args)

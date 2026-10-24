@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: a monster that dies to a damage-over-time spell now counts for objectives, loot and realm points. The
+  game only lists a DoT's caster as an attacker on its first tick, so a kill by a later tick was not credited.
 - Expedition: a run started before realm points existed is given, once at login, the realm points it would have
   earned so far (its kills, finished objectives and act bosses).
 - Expedition realm points: runs give realm points for monsters (5 + 3 per level, none for grey, 4x for elite packs),
