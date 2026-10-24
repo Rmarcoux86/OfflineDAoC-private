@@ -51,13 +51,18 @@ public static partial class BoonEffects
             return;
         }
 
+        // A damage-over-time tick (a bleed from a style, a DoT spell) is not a hit of the player's: it is small, and
+        // it would use up Vampiric and Siphon rolls and pad Chain Lightning's count (owner, 2026-10-24: Vampiric
+        // "procced on the bleed" for 1 health). Executioner still sees it, so a bleed can finish a monster off.
+        bool dotTick = ad.SpellHandler?.Spell?.SpellType is eSpellType.DamageOverTime or eSpellType.HereticDamageOverTime
+            or eSpellType.StyleBleeding;
         HashSet<string> boons;
         int hitNumber;
 
         lock (state)
         {
             boons = new HashSet<string>(state.Ids);
-            hitNumber = ++state.HitCount;
+            hitNumber = dotTick ? 0 : ++state.HitCount;
         }
 
         GameLiving target = ad.Target;
@@ -73,13 +78,13 @@ public static partial class BoonEffects
             striker.Out?.SendMessage($"Executioner: you finish off {victim.GetName(0, false)}!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
         }
 
-        if (dealt <= 0)
+        if (dealt <= 0 || dotTick)
         {
             return;
         }
 
         // Chain Lightning: every Nth hit arcs to nearby enemies for half its damage.
-        if (boons.Contains(ExpeditionBoons.ChainLightning) && hitNumber % ChainLightningEveryNthHit == 0 && target != null)
+        if (boons.Contains(ExpeditionBoons.ChainLightning) && hitNumber > 0 && hitNumber % ChainLightningEveryNthHit == 0 && target != null)
         {
             int arc = Math.Max(1, dealt / 2);
             int arcs = 0;
