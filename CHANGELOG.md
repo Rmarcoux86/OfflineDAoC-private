@@ -8,7 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
-- The act 1 boss of every run is Three Point Oh, who shouts "You want this ring? It's got…" when it appears.
+- The act 1 boss of every run is Three Point Oh, who shouts "You want this ring? It's got…" when it appears, and
+  always drops Three Point Oh's Ring (+1 to each of the eight attributes) on top of its normal drops.
 - Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of
   merchants), else beside the act camp; the journal gives its /loc. Hand it a unique weapon and pick a weapon type you
   can use: the same unique (name, bonuses, proc, item level) is reforged as that type for 2, 15 or 75 gold by tier.

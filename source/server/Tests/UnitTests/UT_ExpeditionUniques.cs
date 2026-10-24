@@ -234,4 +234,12 @@ public class UT_ExpeditionUniques
 
         Assert.That(ExpeditionUniques.FindByName("No Such Blade"), Is.Null);
     }
+
+    [Test]
+    public void ThreePointOhRing_HasEveryAttributeOnce()
+    {
+        Assert.That(ExpeditionUniques.ThreePointOhRingStats.Length, Is.EqualTo(8));
+        Assert.That(new HashSet<DOL.GS.eProperty>(ExpeditionUniques.ThreePointOhRingStats).Count, Is.EqualTo(8));
+        Assert.That(ExpeditionUniques.ThreePointOhRingName, Is.EqualTo("Three Point Oh's Ring"));
+    }
 }

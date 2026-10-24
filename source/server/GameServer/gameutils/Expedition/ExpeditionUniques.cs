@@ -271,6 +271,44 @@ public static class ExpeditionUniques
     }
 
     /// <summary>Picks the player's unique for this drop and remembers it as found on the run.</summary>
+    public const string ThreePointOhRingName = "Three Point Oh's Ring";
+
+    /// <summary>The eight attributes, +1 each, on Three Point Oh's Ring (owner, 2026-10-24).</summary>
+    public static readonly eProperty[] ThreePointOhRingStats =
+    {
+        eProperty.Strength, eProperty.Constitution, eProperty.Dexterity, eProperty.Quickness,
+        eProperty.Intelligence, eProperty.Piety, eProperty.Empathy, eProperty.Charisma
+    };
+
+    /// <summary>
+    /// The ring Three Point Oh (every run's act 1 boss) always drops on top of its normal drops: +1 to each attribute.
+    /// Marked Unique so /junk never touches it.
+    /// </summary>
+    public static GeneratedUniqueItem BuildThreePointOhRing(GamePlayer player)
+    {
+        GeneratedUniqueItem item = new(player.Realm, (eCharacterClass) player.CharacterClass.ID, 1, eObjectType.Magical, InventorySlotFor(eUniqueSlot.Ring));
+        item.Model = ModelFor(eUniqueSlot.Ring);
+        ClearMagic(item);
+
+        for (int i = 0; i < ThreePointOhRingStats.Length; i++)
+        {
+            ExpeditionLoot.SetBonus(item, i + 1, ThreePointOhRingStats[i], 1);
+        }
+
+        item.Name = ThreePointOhRingName;
+        item.Description = $"\"You want this ring? It's got...\" | Atlas ROG | Expedition {eLootRarity.Unique}";
+        item.Quality = 100;
+        item.Condition = item.MaxCondition;
+        item.Durability = item.MaxDurability;
+        item.IsTradable = true;
+        item.IsDropable = true;
+        item.IsPickable = true;
+        item.Price = Money.SetAutoPrice(5, 100);
+        item.AllowAdd = true;
+
+        return item;
+    }
+
     public static UniqueDefinition FindByName(string name)
     {
         return Catalog.FirstOrDefault(definition => string.Equals(definition.Name, name, StringComparison.Ordinal));

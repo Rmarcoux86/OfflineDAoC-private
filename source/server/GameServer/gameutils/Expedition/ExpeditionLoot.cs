@@ -629,6 +629,12 @@ public static class ExpeditionLoot
             Deliver(player, boss, rarity);
         }
 
+        // Three Point Oh always drops its ring as well.
+        if (boss != null && string.Equals(boss.Name, ActGenerator.FirstActBoss, StringComparison.Ordinal))
+        {
+            GiveSpecial(player, boss, ExpeditionUniques.BuildThreePointOhRing(player), "You want this ring? It's got...");
+        }
+
         // Bounty Hunter: one more, rolled as a boss drop (Rare floor).
         for (int i = 0; i < BoonEffects.ExtraBossDrops(player); i++)
         {
@@ -1098,6 +1104,31 @@ public static class ExpeditionLoot
     }
 
     /// <summary>The drop's chat line; a unique also gets the screen-centre line, its lore and the glow.</summary>
+    /// <summary>A fixed item (not rolled) given as a Unique drop: bag or ground, journal and the Unique announcement.</summary>
+    private static void GiveSpecial(GamePlayer player, GameNPC source, GeneratedUniqueItem item, string lore)
+    {
+        try
+        {
+            DbInventoryItem invItem = GameInventoryItem.Create(item);
+            invItem.IsROG = true;
+            invItem.Creator = source?.Name;
+            bool inBackpack = player.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, invItem);
+
+            if (!inBackpack)
+            {
+                player.CreateItemOnTheGround(invItem);
+            }
+
+            ExpeditionRun run = ExpeditionManager.GetRun(player);
+            run?.AddLog($"Act {run.Act}: found {invItem.Name} ({eLootRarity.Unique}).");
+            Announce(player, invItem.Name, eLootRarity.Unique, inBackpack, lore);
+        }
+        catch (Exception ex)
+        {
+            log.Error($"[EXPEDITION] {item?.Name} could not be given to {player.Name}.", ex);
+        }
+    }
+
     private static void Announce(GamePlayer player, string name, eLootRarity rarity, bool inBackpack, string lore = null)
     {
         string where = inBackpack ? string.Empty : " Your backpack is full: it lies on the ground.";
