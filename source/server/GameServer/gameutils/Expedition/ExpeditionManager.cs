@@ -113,7 +113,6 @@ public static class ExpeditionManager
             run.Deaths++;
             run.EndedUtc = DateTime.UtcNow;
             run.AddLog($"Act {run.Act}: {run.CharacterName} was found dead on returning. The expedition is over.");
-            ExpeditionLegacy.BankRun(run);
             Save(run);
 
             return;
@@ -404,7 +403,6 @@ public static class ExpeditionManager
         };
         run.AddLog($"Expedition begun by {player.Name} with seed {runSeed}.");
         run.AddLog($"Act 1: {plan.ZoneName} (levels {plan.MinLevel}-{plan.MaxLevel}).");
-        string startingBoon = ExpeditionLegacy.GrantStartingBoon(player, run);
 
         player.Emote(eEmote.StagFrenzy);
         player.HCFlag = true;
@@ -413,6 +411,7 @@ public static class ExpeditionManager
         Runs[run.CharacterId] = run;
         Save(run);
 
+        ExpeditionAccountRealm.GiveToNewRun(player, run);
         player.Out.SendMessage($"Your expedition begins! Seed {runSeed}. Your HARDCORE flag is ON: death ends the run and deletes this character.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         if (!player.MoveTo((ushort)plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading))
@@ -429,15 +428,6 @@ public static class ExpeditionManager
         {
             player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
             ExpeditionPromotion.OnRunStarted(player);
-
-            // Legacy perks: the boon was added to the run above; its effect and the starting item wait for the client.
-            if (startingBoon != null)
-            {
-                ExpeditionBoons.ApplyAll(player, run);
-                player.Out.SendMessage($"Legacy: you begin with the boon {startingBoon}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-            }
-
-            ExpeditionLegacy.GrantStartingItem(player);
         });
 
         return true;
@@ -541,7 +531,6 @@ public static class ExpeditionManager
             record.BoonsJson = JsonSerializer.Serialize(run.Boons ?? new List<string>(), ExpeditionJson.Options);
             record.PendingBoonOfferJson = JsonSerializer.Serialize(run.PendingBoonOffer ?? new List<string>(), ExpeditionJson.Options);
             record.RealmPointsEarned = run.RealmPointsEarned;
-            record.RenownBanked = run.RenownBanked;
 
             if (record.IsPersisted)
             {
@@ -604,7 +593,6 @@ public static class ExpeditionManager
             run.EndedUtc = DateTime.UtcNow;
             run.SummaryShown = true;
             run.AddLog($"{run.CharacterName} has won the expedition.");
-            ExpeditionLegacy.BankRun(run);
 
             // As at level 50 (GamePlayer.cs:4627): the challenge is complete, the character is safe again.
             player.HCFlag = false;
@@ -708,7 +696,6 @@ public static class ExpeditionManager
         run.Deaths++;
         run.EndedUtc = DateTime.UtcNow;
         run.AddLog($"Act {run.Act}: {run.CharacterName} has fallen. The expedition is over.");
-        ExpeditionLegacy.BankRun(run);
 
         Runs.TryRemove(run.CharacterId, out _);
         Save(run);
@@ -804,8 +791,7 @@ public static class ExpeditionManager
             $"Kills: {run.Kills}",
             $"Bosses slain: {run.BossesKilled}",
             run.LootSummary,
-            $"Realm points earned: {run.RealmPointsEarned}",
-            run.RenownBanked > 0 ? $"Renown banked for your Legacy: {run.RenownBanked} (type /legacy)" : "Renown banked: none",
+            $"Realm points earned: {run.RealmPointsEarned} (kept on your account: {ExpeditionAccountRealm.Total(run.AccountName)} in all)",
             $"Time: {(int)length.TotalHours}h {length.Minutes}m",
             string.Empty,
             "Journal:"
@@ -834,7 +820,6 @@ public static class ExpeditionManager
             Deaths = record.Deaths,
             BossesKilled = record.BossesKilled,
             RealmPointsEarned = record.RealmPointsEarned,
-            RenownBanked = record.RenownBanked,
             LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,

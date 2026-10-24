@@ -90,12 +90,8 @@ EXPEDITION MODE
   Realm points      runs give realm points: monsters (4x for elites), objectives, act bosses and
                      a big award for winning. Spend realm ability points with /train (Realm
                      Abilities). Setting: expedition_rp_rate.
-  /legacy           your Legacy: a run ending in death banks 25% of its realm points as Renown,
-                     a won run 50% (1 Renown per 100 realm points, +10 per act boss); abandoning
-                     banks nothing. /legacy buy <n> buys permanent perks for every later run:
-                     Seasoned (+XP), Renowned (+realm points), Lucky (+drop chance), Outfitted
-                     (start with a Rare item), Blessed Start (start with a boon), Discerning
-                     (4 boon choices).
+                     Realm points are kept on your account: a new run's character starts
+                     with every realm point your account has earned, even after a death.
   Your class         at run start you pick your advanced class and are promoted right away, even
                      at level 1 (asked again at login if you never answered); /train works
                      anywhere during a run.

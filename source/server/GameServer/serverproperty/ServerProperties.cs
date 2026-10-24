@@ -2592,12 +2592,6 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_rp_rate", "Expedition realm points: multiplier for the realm points runs give (kills, elites, objectives, act bosses, victory). 0 turns them off.", 1.0)]
 		public static double EXPEDITION_RP_RATE = 1.0;
 
-		[ServerProperty("expedition", "expedition_legacy_death_share", "Expedition Legacy: percent of a run's realm points banked as Renown when the run ends in death.", 25)]
-		public static int EXPEDITION_LEGACY_DEATH_SHARE = 25;
-
-		[ServerProperty("expedition", "expedition_legacy_win_share", "Expedition Legacy: percent of a run's realm points banked as Renown when the run is won.", 50)]
-		public static int EXPEDITION_LEGACY_WIN_SHARE = 50;
-
 		/// <summary>Expedition sky: rain and fog intensity of the storm the run player sees over the whole region (0 turns it off, 120 at most).</summary>
 		[ServerProperty("expedition", "expedition_weather_intensity", "Expedition sky: rain and fog intensity of the run player's own storm over the whole region (0 = off, max 120).", 100)]
 		public static int EXPEDITION_WEATHER_INTENSITY = 100;

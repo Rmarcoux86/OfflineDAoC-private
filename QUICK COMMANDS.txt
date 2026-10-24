@@ -50,10 +50,6 @@ On the launcher, click + Lv.1 or + Lv.50 under a faction:
 /junk auto off|common|magic
 /junk status
   Sell such drops on the spot (saved per character); show the setting.
-/legacy
-  Expedition Legacy: your Renown and the permanent perks it buys.
-/legacy buy <number>
-  Buy a Legacy perk or its next rank.
 
 /fish
   Face open water with a fishing pole and type /fish to cast your line and relax.

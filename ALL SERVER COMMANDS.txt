@@ -1,6 +1,6 @@
 OFFLINE DAOC 0.3 - SERVER COMMAND REFERENCE
 
-290 command registrations read from the shipped server assemblies.
+289 command registrations read from the shipped server assemblies.
 Normal commands can still have level, realm, cooldown or state requirements.
 GM/admin commands can change or delete game data. Back up before using them.
 Descriptions containing a localization key have no matching shipped English text.
@@ -544,12 +544,6 @@ NORMAL PLAYER COMMANDS
   Makes a laughing gesture
   /bang
   Handler: DOL.GS.Commands.EmoteCommandHandler
-
-/legacy
-  Expedition Legacy: Renown banked from your runs and the permanent perks it buys.
-  /legacy
-  /legacy buy <number>
-  Handler: DOL.GS.Commands.LegacyCommandHandler
 
 /level
   Allows you to level 20 instantly if you have a level 50

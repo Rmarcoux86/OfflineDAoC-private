@@ -58,8 +58,6 @@ autonomous bot goals.
 | `/junk common`, `/junk magic`, `/junk rare` | Destroy Expedition items of that rarity and lower in your backpack for the merchant price (asks first; Epic, Unique and non-Expedition items are never touched). |
 | `/junk auto off`, `/junk auto common`, `/junk auto magic` | Sell such drops on the spot instead of bagging them (saved per character; server setting `expedition_auto_junk`). |
 | `/junk status` | Show the auto-junk setting and what each `/junk` would sell. |
-| `/legacy` | Show your Expedition Legacy: Renown banked from finished runs and the permanent perks it buys. |
-| `/legacy buy <number>` | Buy a Legacy perk or its next rank. |
 
 For the complete advanced reference, see **ALL SERVER COMMANDS.txt** inside the
 download. That file separates normal-player, GM and administrator registrations.

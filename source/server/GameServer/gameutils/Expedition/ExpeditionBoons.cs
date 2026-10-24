@@ -63,7 +63,7 @@ public static class ExpeditionBoons
     /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act
     /// and taken boons. While any loot boon is left, one of them is in the offer.
     /// </summary>
-    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, int size = OfferSize)
+    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken)
     {
         var rng = new Random(unchecked(seed * 131 + act));
         List<BoonDefinition> available = Catalog.Where(boon => taken == null || !taken.Contains(boon.Id)).ToList();
@@ -77,7 +77,7 @@ public static class ExpeditionBoons
             available.Remove(pick);
         }
 
-        while (offer.Count < size && available.Count > 0)
+        while (offer.Count < OfferSize && available.Count > 0)
         {
             BoonDefinition pick = available[rng.Next(available.Count)];
             offer.Add(pick);
@@ -113,7 +113,7 @@ public static class ExpeditionBoons
         lock (run.Boons)
         {
             replacedUnclaimed = run.PendingBoonOffer.Count > 0;
-            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), ExpeditionLegacy.OfferSize(run.AccountName));
+            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList());
             run.PendingBoonOffer = offer;
         }
 
@@ -165,7 +165,7 @@ public static class ExpeditionBoons
             return chance;
         }
 
-        return LootChanceWithBoons(Snapshot(run), chance) + ExpeditionLegacy.LootChanceBonus(player);
+        return LootChanceWithBoons(Snapshot(run), chance);
     }
 
     /// <summary>Greed and Prospector add percentage points to the drop chance; the caller clamps to 0-100.</summary>

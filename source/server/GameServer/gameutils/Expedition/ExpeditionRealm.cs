@@ -8,8 +8,8 @@ namespace DOL.GS.Expedition;
 /// <summary>
 /// Realm points on a run: monsters that are not grey give a few, elite pack members four times as many, finished
 /// objectives and act bosses much more, and winning the run a large final award. The realm ranks they bring buy realm
-/// abilities in the trainer window (/train works anywhere on a run). What the run earned is banked as Renown at its end
-/// (<see cref="ExpeditionLegacy"/>).
+/// abilities in the trainer window (/train works anywhere on a run). Everything earned is also kept on the account
+/// (<see cref="ExpeditionAccountRealm"/>).
 /// </summary>
 public static class ExpeditionRealm
 {
@@ -103,7 +103,7 @@ public static class ExpeditionRealm
 
     /// <summary>
     /// Gives realm points through the normal path (xp-style server rate, realm rank-ups and their messages), scaled by
-    /// expedition_rp_rate and the Renowned perk, and adds what was actually gained to the run's total.
+    /// expedition_rp_rate, and adds what was actually gained to the run's total and to the account (ExpeditionAccountRealm).
     /// </summary>
     private static void Grant(GamePlayer player, int basePoints)
     {
@@ -114,7 +114,7 @@ public static class ExpeditionRealm
             return;
         }
 
-        long amount = (long) Math.Round(basePoints * Properties.EXPEDITION_RP_RATE * ExpeditionLegacy.RealmPointFactor(player));
+        long amount = (long) Math.Round(basePoints * Properties.EXPEDITION_RP_RATE);
 
         if (amount <= 0)
         {
@@ -131,5 +131,7 @@ public static class ExpeditionRealm
         {
             run.RealmPointsEarned += gained;
         }
+
+        ExpeditionAccountRealm.Add(run.AccountName, gained);
     }
 }
