@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Runs already under way pick up act changes at login: an act planned under older rules gets its shrines, and, while
+  its boss has not appeared, the extra objectives the act now has. Nothing already done is changed.
 - Removed the Expedition sky (the run player's own dark storm) and its settings `expedition_weather_intensity`,
   `expedition_weather_fog` and `expedition_weather_speed`: it never showed reliably and its packets caused trouble.
 - Lesser buffs show in the effect bar with their own icons; a used shrine shows "(spent)" at once; Vampiirs (who can't

@@ -546,4 +546,23 @@ public class UT_ExpeditionActGenerator
 
         Assert.That(wanted, Is.EquivalentTo(new[] { ExpeditionBuffs.StrengthConstitution, ExpeditionBuffs.DexterityQuickness, ExpeditionBuffs.Armor }));
     }
+
+    [Test]
+    public void Generate_ForcedZone_ReplansTheSameZone()
+    {
+        foreach (eRealm realm in new[] { eRealm.Albion, eRealm.Midgard, eRealm.Hibernia })
+        {
+            for (int seed = 0; seed < 20; seed++)
+            {
+                ActPlan plan = FromCatalog(2, realm, seed, -1);
+                ActPlan again = ActGenerator.Generate(2, realm, seed, -1, FakeOffset, CatalogCampSource.Instance, plan.ZoneId);
+
+                Assert.That(again, Is.Not.Null, $"{realm} seed {seed}");
+                Assert.That(again.ZoneId, Is.EqualTo(plan.ZoneId), $"{realm} seed {seed}");
+                Assert.That(again.Objectives.Select(o => o.Description), Is.EqualTo(plan.Objectives.Select(o => o.Description)), $"{realm} seed {seed}: same zone, same plan");
+            }
+        }
+
+        Assert.That(ActGenerator.Generate(2, eRealm.Hibernia, 1, -1, FakeOffset, CatalogCampSource.Instance, 99999), Is.Null, "a zone the act cannot use");
+    }
 }

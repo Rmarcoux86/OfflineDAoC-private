@@ -126,6 +126,15 @@ public static class ExpeditionManager
             return;
         }
 
+        // An act planned under older rules gets what the act would get now (shrines; objectives while its boss is away).
+        string upgraded = ActGenerator.UpgradeInProgress(run.CurrentAct, player.Realm, run.Seed);
+
+        if (upgraded != null)
+        {
+            run.AddLog($"Act {run.Act}: updated to the latest rules ({upgraded}).");
+            Save(run);
+        }
+
         Runs[run.CharacterId] = run;
         ObjectiveTracker.Attach(player);
 
@@ -138,6 +147,11 @@ public static class ExpeditionManager
         {
             ExpeditionPromotion.OnRunResumed(player);
             ExpeditionRealm.Backfill(player);
+
+            if (upgraded != null)
+            {
+                player.Out.SendMessage($"Your act has been updated to the latest rules: {upgraded}. Type /run journal to see them.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
         });
     }
 

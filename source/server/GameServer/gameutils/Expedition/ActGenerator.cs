@@ -255,7 +255,8 @@ public static class ActGenerator
         return Generate(act, realm, seed, previousZoneId, zoneOffset, WorldThenCatalogCampSource.Instance);
     }
 
-    public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, Func<int, (int ox, int oy)> zoneOffset, IExpeditionCampSource campSource)
+    public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, Func<int, (int ox, int oy)> zoneOffset, IExpeditionCampSource campSource,
+        int forcedZoneId = -1)
     {
         ArgumentNullException.ThrowIfNull(zoneOffset);
         ArgumentNullException.ThrowIfNull(campSource);
@@ -272,6 +273,17 @@ public static class ActGenerator
         }
 
         ZoneCandidate zone = choices[rng.Next(choices.Count)];
+
+        // Re-planning an act already under way (UpgradeInProgress): its own zone, with the same random sequence after.
+        if (forcedZoneId >= 0)
+        {
+            zone = candidates.FirstOrDefault(z => z.ZoneId == forcedZoneId);
+
+            if (zone == null)
+            {
+                return null;
+            }
+        }
         List<AutonomousCapnBryGoalCatalog.Entry> zoneGoals = campSource.GetZoneCamps(zone.RegionId, zone.ZoneId).ToList();
 
         if (zoneGoals.Count == 0)
@@ -653,6 +665,108 @@ public static class ActGenerator
     }
 
     /// <summary>"to the north-east of the camp" (DOL headings, as <see cref="DescribeArea"/>), or "right by the camp".</summary>
+    /// <summary>
+    /// Brings an act planned under older rules up to date (owner, 2026-10-24: updates should reach runs already going).
+    /// Adds shrines when it has none, and, while its boss has not come, objectives up to what the act gets now (kill
+    /// objectives on monsters it does not use yet, reach markers at new spots). Nothing already done is changed.
+    /// Returns a short description of what was added, or null when nothing was.
+    /// </summary>
+    public static string UpgradeInProgress(ActPlan plan, eRealm realm, int seed)
+    {
+        if (plan == null || plan.Objectives == null || plan.BossKilled)
+        {
+            return null;
+        }
+
+        bool needShrines = plan.Shrines == null || plan.Shrines.Count == 0;
+        ActPlan fresh;
+
+        try
+        {
+            fresh = Generate(plan.Act, realm, seed, -1, WorldZoneOffset, WorldThenCatalogCampSource.Instance, plan.ZoneId);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (fresh == null || fresh.ZoneId != plan.ZoneId)
+        {
+            return null;
+        }
+
+        int objectivesAdded = 0;
+
+        if (!plan.BossSpawned)
+        {
+            foreach (ActObjective candidate in fresh.Objectives)
+            {
+                if (plan.Objectives.Count >= fresh.Objectives.Count)
+                {
+                    break;
+                }
+
+                bool clash = plan.Objectives.Any(o =>
+                    (candidate.Kind != eObjectiveKind.ReachPoint && string.Equals(o.MobName, candidate.MobName, StringComparison.OrdinalIgnoreCase))
+                    || (o.X == candidate.X && o.Y == candidate.Y));
+
+                if (clash)
+                {
+                    continue;
+                }
+
+                candidate.Id = $"a{plan.Act}-{plan.Objectives.Count + 1}";
+                candidate.Progress = 0;
+                plan.Objectives.Add(candidate);
+                objectivesAdded++;
+            }
+        }
+
+        int shrinesAdded = 0;
+
+        if (needShrines)
+        {
+            List<(int X, int Y, int Z)> camps;
+
+            try
+            {
+                (int ox, int oy) = WorldZoneOffset(plan.ZoneId);
+                camps = WorldThenCatalogCampSource.Instance.GetZoneCamps(plan.RegionId, plan.ZoneId).Select(e => (ox + e.LocalX, oy + e.LocalY, e.Z)).ToList();
+            }
+            catch (Exception)
+            {
+                camps = new List<(int X, int Y, int Z)>();
+            }
+
+            if (camps.Count > 0)
+            {
+                // Placed around this act's own objectives and elite packs, not the fresh plan's.
+                plan.Shrines = ExpeditionShrines.Choose(new Random(unchecked(seed * 53 + plan.Act)), camps, (plan.CampX, plan.CampY), plan.Objectives,
+                    plan.Elites, plan.RegionId, (x, y) => DescribeFromCamp(plan.CampX, plan.CampY, x, y));
+                shrinesAdded = plan.Shrines.Count;
+            }
+        }
+
+        if (objectivesAdded == 0 && shrinesAdded == 0)
+        {
+            return null;
+        }
+
+        List<string> parts = new();
+
+        if (objectivesAdded > 0)
+        {
+            parts.Add($"{objectivesAdded} new objective{(objectivesAdded == 1 ? string.Empty : "s")}");
+        }
+
+        if (shrinesAdded > 0)
+        {
+            parts.Add($"{shrinesAdded} shrine{(shrinesAdded == 1 ? string.Empty : "s")} to find");
+        }
+
+        return string.Join(" and ", parts);
+    }
+
     public static string DescribeFromCamp(int campX, int campY, int x, int y)
     {
         if (DistanceSquared(campX, campY, x, y) <= (long)EliteNearCampDistance * EliteNearCampDistance)
