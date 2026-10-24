@@ -51,11 +51,12 @@ public static partial class BoonEffects
             return;
         }
 
-        // A damage-over-time tick (a bleed from a style, a DoT spell) is not a hit of the player's: it is small, and
-        // it would use up Vampiric and Siphon rolls and pad Chain Lightning's count (owner, 2026-10-24: Vampiric
-        // "procced on the bleed" for 1 health). Executioner still sees it, so a bleed can finish a monster off.
-        bool dotTick = ad.SpellHandler?.Spell?.SpellType is eSpellType.DamageOverTime or eSpellType.HereticDamageOverTime
-            or eSpellType.StyleBleeding;
+        // Damage-over-time ticks are not hits for Siphon or Chain Lightning's count. A style bleed is a small melee
+        // side effect and rolls nothing (owner, 2026-10-24: Vampiric "procced on the bleed" for 1 health), but a DoT
+        // spell is a caster's real damage, so Vampiric rolls on its ticks (owner, same day). Executioner sees both,
+        // so a tick can finish a monster off.
+        bool styleBleed = ad.SpellHandler?.Spell?.SpellType is eSpellType.StyleBleeding;
+        bool dotTick = styleBleed || ad.SpellHandler?.Spell?.SpellType is eSpellType.DamageOverTime or eSpellType.HereticDamageOverTime;
         HashSet<string> boons;
         int hitNumber;
 
@@ -78,7 +79,7 @@ public static partial class BoonEffects
             striker.Out?.SendMessage($"Executioner: you finish off {victim.GetName(0, false)}!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
         }
 
-        if (dealt <= 0 || dotTick)
+        if (dealt <= 0 || styleBleed)
         {
             return;
         }
@@ -118,7 +119,7 @@ public static partial class BoonEffects
         }
 
         // Siphon: power from every hit.
-        if (boons.Contains(ExpeditionBoons.Siphon) && striker.Mana < striker.MaxMana)
+        if (boons.Contains(ExpeditionBoons.Siphon) && !dotTick && striker.Mana < striker.MaxMana)
         {
             striker.ChangeMana(striker, eManaChangeType.Spell, Math.Max(1, striker.MaxMana * SiphonPercent / 100));
         }
