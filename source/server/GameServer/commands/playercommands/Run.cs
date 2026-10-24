@@ -14,6 +14,7 @@ namespace DOL.GS.Commands;
     "/run journal",
     "/run boons",
     "/run boon <1-3>",
+    "/run reroll",
     "/run seed",
     "/run abandon",
     "/run debug")]
@@ -142,6 +143,21 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
 
                 ExpeditionBoons.TryChoose(player, run, choice, out string message);
                 client.Out.SendMessage(message, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                return;
+            }
+
+            case "reroll":
+            {
+                if (run == null)
+                {
+                    client.Out.SendMessage("You are not on an expedition. Type /run new to start one at level 1.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                ExpeditionBoons.TryReroll(player, run, out string rerollMessage);
+                client.Out.SendMessage(rerollMessage, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 return;
             }

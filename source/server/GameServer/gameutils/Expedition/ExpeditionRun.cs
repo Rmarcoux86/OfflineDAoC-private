@@ -262,6 +262,19 @@ public class OfflineExpeditionRecord : DataObject
     private string m_boonsJson;
     private string m_pendingBoonOfferJson;
     private long m_realmPointsEarned;
+    private int m_rerollsUsed;
+
+    /// <summary>Boon offer rerolls used on this run (<see cref="ExpeditionBoons.RerollsPerRun"/>).</summary>
+    [DataElement(AllowDbNull = false)]
+    public int RerollsUsed
+    {
+        get { return m_rerollsUsed; }
+        set
+        {
+            Dirty = true;
+            m_rerollsUsed = value;
+        }
+    }
 
     /// <summary>Realm points the run has earned (<see cref="ExpeditionRealm"/>).</summary>
     [DataElement(AllowDbNull = false)]
@@ -322,6 +335,9 @@ public sealed class ExpeditionRun
 
     /// <summary>Realm points earned on the run (ExpeditionRealm); updated under <see cref="KillSync"/>.</summary>
     public long RealmPointsEarned;
+
+    /// <summary>Boon offer rerolls used (ExpeditionBoons.TryReroll); changed under the Boons lock.</summary>
+    public int RerollsUsed;
 
     /// <summary>Expedition loot found on the run, indexed by <see cref="eLootRarity"/> (Common..Unique).</summary>
     public int[] LootByRarity = new int[5];

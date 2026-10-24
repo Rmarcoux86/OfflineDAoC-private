@@ -222,4 +222,33 @@ public class UT_ExpeditionBoons
             }
         }
     }
+
+    [Test]
+    public void RollOffer_Reroll_LeavesOutTheRerolledBoons()
+    {
+        for (int seed = 1; seed <= 300; seed++)
+        {
+            List<string> first = ExpeditionBoons.RollOffer(seed, 2, new List<string>());
+            List<string> rerolled = ExpeditionBoons.RollOffer(seed, 2, new List<string>(), true, first, 1);
+            List<string> again = ExpeditionBoons.RollOffer(seed, 2, new List<string>(), true, first, 1);
+
+            Assert.That(rerolled.Intersect(first), Is.Empty, $"seed {seed}");
+            Assert.That(rerolled.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"seed {seed}");
+            Assert.That(rerolled.Count(id => ExpeditionBoons.Find(id).IsLoot), Is.GreaterThanOrEqualTo(1), $"seed {seed}");
+            Assert.That(again, Is.EqualTo(rerolled), $"seed {seed}: the same seed and reroll give the same offer");
+        }
+    }
+
+    [Test]
+    public void RollOffer_Reroll_FallsBackWhenTooFewBoonsAreLeft()
+    {
+        List<string> left = ExpeditionBoons.Catalog.Select(boon => boon.Id).Take(4).ToList();
+        List<string> taken = ExpeditionBoons.Catalog.Select(boon => boon.Id).Skip(4).ToList();
+        List<string> first = left.Take(3).ToList();
+
+        List<string> rerolled = ExpeditionBoons.RollOffer(9, 3, taken, true, first, 1);
+
+        Assert.That(rerolled.Count, Is.EqualTo(3));
+        Assert.That(rerolled, Does.Contain(left[3]), "the one fresh boon is always in the rerolled offer");
+    }
 }

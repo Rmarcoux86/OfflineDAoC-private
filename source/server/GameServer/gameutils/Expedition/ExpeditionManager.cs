@@ -570,6 +570,7 @@ public static class ExpeditionManager
             record.BoonsJson = JsonSerializer.Serialize(run.Boons ?? new List<string>(), ExpeditionJson.Options);
             record.PendingBoonOfferJson = JsonSerializer.Serialize(run.PendingBoonOffer ?? new List<string>(), ExpeditionJson.Options);
             record.RealmPointsEarned = run.RealmPointsEarned;
+            record.RerollsUsed = run.RerollsUsed;
 
             if (record.IsPersisted)
             {
@@ -859,6 +860,7 @@ public static class ExpeditionManager
             Deaths = record.Deaths,
             BossesKilled = record.BossesKilled,
             RealmPointsEarned = record.RealmPointsEarned,
+            RerollsUsed = record.RerollsUsed,
             LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,

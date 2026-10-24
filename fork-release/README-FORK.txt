@@ -86,6 +86,7 @@ EXPEDITION MODE
                      an extra item), Scavenger (20% chance of a second item per drop), Glory
                      (+50% realm points for the rest of the run).
   /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
+  /run reroll        swap the offer for 3 different boons (2 rerolls per run).
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.
   /run journal       reopen the objective list.     /run status   one-line summary.
   /run seed          show the seed (/run new <seed> replays the same run).

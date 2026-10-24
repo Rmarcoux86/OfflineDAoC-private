@@ -54,6 +54,7 @@ autonomous bot goals.
 | `/run seed` | Show this run's seed, to share or replay it. |
 | `/run abandon` | Give up the run after a confirmation; your Hardcore flag goes off. |
 | `/run boons` | Show the three boons offered after an act boss, and the boons you have. |
+| `/run reroll` | Swap the waiting boon offer for 3 different boons. 2 rerolls per run. |
 | `/run boon <1-3>` | Take one boon of the offer; it lasts the whole run and is re-applied at login. |
 | `/junk common`, `/junk magic`, `/junk rare` | Destroy Expedition items of that rarity and lower in your backpack for the merchant price (asks first; Epic, Unique and non-Expedition items are never touched). |
 | `/junk auto off`, `/junk auto common`, `/junk auto magic` | Sell such drops on the spot instead of bagging them (saved per character; server setting `expedition_auto_junk`). |

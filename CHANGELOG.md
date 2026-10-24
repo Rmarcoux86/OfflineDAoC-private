@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Boon rerolls: `/run reroll` swaps a waiting boon offer for 3 boons that were not in it (still one loot boon), 2 times
+  per run. Rerolls follow the seed.
 - Boons: pure melee classes (no power, such as Hero, Blademaster, Armsman, Warrior) are never offered Arcane Fury
   or Siphon.
 - New boon Glory: +50% realm points for the rest of the run (they are kept on the account as usual).

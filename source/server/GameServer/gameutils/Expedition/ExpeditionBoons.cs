@@ -18,6 +18,9 @@ public static class ExpeditionBoons
 {
     public const int OfferSize = 3;
 
+    /// <summary>How many times a run may reroll a boon offer (/run reroll).</summary>
+    public const int RerollsPerRun = 2;
+
     public const string Fortune = "fortune";
     public const string Greed = "greed";
     public const string Prospector = "prospector";
@@ -101,26 +104,45 @@ public static class ExpeditionBoons
     #region Offers
 
     /// <summary>
-    /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act
-    /// and taken boons. While any loot boon is left, one of them is in the offer.
+    /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act,
+    /// taken boons and reroll. While any loot boon is left, one of them is in the offer. A reroll
+    /// (<paramref name="reroll"/> above 0) draws from boons not in <paramref name="exclude"/> (the offer being
+    /// rerolled) and only falls back to them when too few others are left.
     /// </summary>
-    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, bool usesPower = true)
+    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, bool usesPower = true,
+        IReadOnlyCollection<string> exclude = null, int reroll = 0)
     {
-        var rng = new Random(unchecked(seed * 131 + act));
+        var rng = new Random(unchecked(seed * 131 + act + reroll * 7919));
         List<BoonDefinition> available = Catalog
             .Where(boon => taken == null || !taken.Contains(boon.Id))
             .Where(boon => usesPower || !CasterOnly.Contains(boon.Id))
             .ToList();
+        List<BoonDefinition> fresh = available.Where(boon => exclude == null || !exclude.Contains(boon.Id)).ToList();
         var offer = new List<BoonDefinition>();
-        List<BoonDefinition> loot = available.Where(boon => boon.IsLoot).ToList();
+        List<BoonDefinition> loot = fresh.Where(boon => boon.IsLoot).ToList();
+
+        if (loot.Count == 0)
+        {
+            loot = available.Where(boon => boon.IsLoot).ToList();
+        }
 
         if (loot.Count > 0)
         {
             BoonDefinition pick = loot[rng.Next(loot.Count)];
             offer.Add(pick);
             available.Remove(pick);
+            fresh.Remove(pick);
         }
 
+        while (offer.Count < OfferSize && fresh.Count > 0)
+        {
+            BoonDefinition pick = fresh[rng.Next(fresh.Count)];
+            offer.Add(pick);
+            available.Remove(pick);
+            fresh.Remove(pick);
+        }
+
+        // Too few fresh boons left (late in a run): fill from the rerolled offer.
         while (offer.Count < OfferSize && available.Count > 0)
         {
             BoonDefinition pick = available[rng.Next(available.Count)];
@@ -284,7 +306,11 @@ public static class ExpeditionBoons
 
         if (offer.Count > 0)
         {
+            int rerollsLeft = Math.Max(0, RerollsPerRun - run.RerollsUsed);
             lines.Add("Choose one boon with /run boon <number>. It lasts the whole run.");
+            lines.Add(rerollsLeft > 0
+                ? $"Don't like these? /run reroll draws 3 different ones ({rerollsLeft} reroll{(rerollsLeft == 1 ? string.Empty : "s")} left this run)."
+                : "No rerolls left this run.");
             lines.Add(string.Empty);
 
             for (int i = 0; i < offer.Count; i++)
@@ -397,6 +423,62 @@ public static class ExpeditionBoons
     }
 
     /// <summary>Tells the player about a waiting offer (act break and login).</summary>
+    /// <summary>
+    /// /run reroll: replaces the waiting offer with a new one that leaves out the boons just offered, using one of the
+    /// run's <see cref="RerollsPerRun"/> rerolls. The offer was drawn for the act just won (run.Act - 1). Saves the run.
+    /// </summary>
+    public static bool TryReroll(GamePlayer player, ExpeditionRun run, out string message)
+    {
+        if (player == null || run == null)
+        {
+            message = "You are not on an expedition.";
+
+            return false;
+        }
+
+        int rerollNumber;
+
+        lock (run.Boons)
+        {
+            if (run.PendingBoonOffer.Count == 0)
+            {
+                message = "No boon is waiting to reroll. A boon is offered each time you defeat an act boss.";
+
+                return false;
+            }
+
+            if (run.RerollsUsed >= RerollsPerRun)
+            {
+                message = $"You have used all {RerollsPerRun} rerolls for this run.";
+
+                return false;
+            }
+
+            rerollNumber = run.RerollsUsed + 1;
+            List<string> offer = RollOffer(run.Seed, Math.Max(1, run.Act - 1), run.Boons.ToList(), UsesPower(player),
+                run.PendingBoonOffer.ToList(), rerollNumber);
+
+            if (offer.Count == 0)
+            {
+                message = "There are no other boons left to offer.";
+
+                return false;
+            }
+
+            run.PendingBoonOffer = offer;
+            run.RerollsUsed = rerollNumber;
+        }
+
+        run.AddLog($"Act {run.Act}: the boon offer was rerolled ({string.Join(", ", run.PendingBoonOffer.Select(NameOf))}).");
+        ExpeditionManager.Save(run);
+        player.Out.SendCustomTextWindow("Expedition boons", OfferLines(run));
+
+        int left = RerollsPerRun - rerollNumber;
+        message = $"The boon offer is rerolled. {left} reroll{(left == 1 ? string.Empty : "s")} left this run.";
+
+        return true;
+    }
+
     public static void RemindOffer(GamePlayer player, ExpeditionRun run)
     {
         if (player?.Out == null || run == null || run.PendingBoonOffer.Count == 0)
