@@ -373,6 +373,7 @@ public static class ObjectiveTracker
 
         // Every credited kill of a monster may drop Expedition loot; the run's first objective kill always drops Magic+.
         bool dropped = ExpeditionLoot.OnKill(player, target, firstObjectiveKill ? eLootRarity.Magic : null);
+        ExpeditionRealm.OnKill(player, target);
 
         if (objective == null)
         {
@@ -392,6 +393,7 @@ public static class ObjectiveTracker
         if (doneMessage != null)
         {
             Tell(player, doneMessage, true);
+            ExpeditionRealm.OnObjectiveDone(player, plan.Act);
         }
 
         FinishProgress(state, run, plan, completedNow);
@@ -667,6 +669,7 @@ public static class ObjectiveTracker
         foreach (string message in doneMessages)
         {
             Tell(player, message, true);
+            ExpeditionRealm.OnObjectiveDone(player, plan.Act);
         }
 
         FinishProgress(state, run, plan, completedNow);

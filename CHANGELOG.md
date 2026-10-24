@@ -8,6 +8,14 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition realm points: runs give realm points for monsters (5 + 3 per level, none for grey, 4x for elite packs),
+  objectives (250 per act), act bosses (1500 per act) and winning (15000). Realm ranks buy realm abilities with
+  `/train`. Server setting `expedition_rp_rate` (1.0).
+- Expedition Legacy (`/legacy`): when a run ends in death (25%) or victory (50%), that share of its realm points is
+  banked on the account as Renown (1 per 100 realm points, +10 per act boss). Renown buys permanent perks for every
+  later run: Seasoned (+10% XP per rank), Renowned (+10% realm points per rank), Lucky (+5% drop chance per rank),
+  Outfitted (start with a Rare item), Blessed Start (start with a random combat boon), Discerning (4 boon choices).
+  Settings `expedition_legacy_death_share` and `expedition_legacy_win_share`.
 - Expedition: kills for a camp or named-monster objective count anywhere in the objective's zone, not only within
   1500 units of one camp (zones often have several camps of the same monster).
 - Expedition: the journal and `/run status` show each open objective's `/loc`, and killing the right monster in the

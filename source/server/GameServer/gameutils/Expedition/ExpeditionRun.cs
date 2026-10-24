@@ -261,6 +261,32 @@ public class OfflineExpeditionRecord : DataObject
 
     private string m_boonsJson;
     private string m_pendingBoonOfferJson;
+    private long m_realmPointsEarned;
+    private int m_renownBanked;
+
+    /// <summary>Realm points the run has earned (<see cref="ExpeditionRealm"/>).</summary>
+    [DataElement(AllowDbNull = false)]
+    public long RealmPointsEarned
+    {
+        get { return m_realmPointsEarned; }
+        set
+        {
+            Dirty = true;
+            m_realmPointsEarned = value;
+        }
+    }
+
+    /// <summary>Renown banked on the account when the run ended; 0 until then (<see cref="ExpeditionLegacy"/>).</summary>
+    [DataElement(AllowDbNull = false)]
+    public int RenownBanked
+    {
+        get { return m_renownBanked; }
+        set
+        {
+            Dirty = true;
+            m_renownBanked = value;
+        }
+    }
 
     /// <summary>The boons taken on this run, as a JSON string array of boon ids (TEXT column).</summary>
     [DataElement(AllowDbNull = true)]
@@ -306,6 +332,12 @@ public sealed class ExpeditionRun
     public int Kills;
     public int Deaths;
     public int BossesKilled;
+
+    /// <summary>Realm points earned on the run (ExpeditionRealm); updated under <see cref="KillSync"/>.</summary>
+    public long RealmPointsEarned;
+
+    /// <summary>Renown banked when the run ended; 0 while it goes on, or when nothing was banked.</summary>
+    public int RenownBanked;
 
     /// <summary>Expedition loot found on the run, indexed by <see cref="eLootRarity"/> (Common..Unique).</summary>
     public int[] LootByRarity = new int[5];
