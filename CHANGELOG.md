@@ -8,6 +8,12 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Twelve new boons (23 in all): Executioner (hits kill monsters below 15% health outright), Chain Lightning (every
+  4th hit arcs to 3 enemies for half damage), Rupture (a kill tears 15% max health from enemies within 500 units),
+  Phoenix Feather (once per act, below 25% health you are healed to 60%), Soul Harvest (kills restore 8% health and
+  power), Desperation (+30% damage below half health), Glass Cannon (+25% damage, -15% max health), Unshakable (stuns,
+  mezzes and snares half as long), Frostbite (melee hits may snare 40% for 8s), Siphon (3% power per hit), Bounty
+  Hunter (elites and bosses drop an extra item), Scavenger (20% chance of a second item per drop).
 - Expedition: the journal shows the `/loc` of the act camp, the act boss and each elite pack, and the boss's
   "has appeared" message says where it is.
 - Respec anywhere: `/respec ALL`, `/respec <line>` and `/respec REALM` work without a trainer and as often as you like,

@@ -13,7 +13,7 @@ namespace DOL.GS.Expedition;
 /// applied to a player object are recorded in its TempProperties, so applying twice is applying once, and a new login
 /// (a new GamePlayer object) starts clean. AbilityBonus is never saved, so nothing leaks into the character's row.
 /// </summary>
-public static class BoonEffects
+public static partial class BoonEffects
 {
     private const string StateKey = "EXPEDITION_BOONS_APPLIED";
 
@@ -24,6 +24,17 @@ public static class BoonEffects
     private const int RejuvenationIntervalMilliseconds = 3000;
     private const int RejuvenationPercent = 2;
     private const int VampiricChancePercent = 25;
+    private const int PulseIntervalMilliseconds = 500;
+
+    /// <summary>Boons that act on hits (the global AttackedByEnemy handler).</summary>
+    private static readonly HashSet<string> HitBoons = new()
+    {
+        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.ChainLightning,
+        ExpeditionBoons.Frostbite, ExpeditionBoons.Siphon
+    };
+
+    /// <summary>Boons that watch the player's health on a timer.</summary>
+    private static readonly HashSet<string> PulseBoons = new() { ExpeditionBoons.PhoenixFeather, ExpeditionBoons.Desperation };
 
     private static readonly object CreateSync = new();
     private static readonly object HandlerSync = new();
@@ -41,7 +52,9 @@ public static class BoonEffects
         [ExpeditionBoons.Ironhide] = new[] { (eProperty.Of_Toughness, 10), (eProperty.PhysicalAbsorption, 10) },
         [ExpeditionBoons.Warding] = new[] { (eProperty.MagicAbsorption, 15) },
         [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) },
-        [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) }
+        [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) },
+        [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) },
+        [ExpeditionBoons.Unshakable] = new[] { (eProperty.StunDurationReduction, 50), (eProperty.MesmerizeDurationReduction, 50), (eProperty.SpeedDecreaseDurationReduction, 50) }
     };
 
     private sealed class AppliedBoons
@@ -50,6 +63,13 @@ public static class BoonEffects
         public readonly Dictionary<GameNPC, long> Announced = new();
         public ECSGameTimer HuntersEyeTimer;
         public ECSGameTimer RejuvenationTimer;
+
+        // Combat boons (BoonEffects.Combat.cs).
+        public ECSGameTimer PulseTimer;
+        public int HitCount;
+        public int PhoenixUsedAct;
+        public bool DesperationOn;
+        public long NextFrostbiteAt;
     }
 
     /// <summary>Applies every boon of the run not yet applied to this player object, then updates the client.</summary>
@@ -104,9 +124,14 @@ public static class BoonEffects
                     state.RejuvenationTimer = new ECSGameTimer(player, timer => RejuvenationTick(player, state), RejuvenationIntervalMilliseconds);
                 }
 
-                if (id == ExpeditionBoons.Thornmail || id == ExpeditionBoons.Vampiric)
+                if (HitBoons.Contains(id))
                 {
                     EnsureHandlers();
+                }
+
+                if (PulseBoons.Contains(id) && state.PulseTimer == null)
+                {
+                    state.PulseTimer = new ECSGameTimer(player, timer => PulseTick(player, state), PulseIntervalMilliseconds);
                 }
             }
         }
@@ -158,6 +183,14 @@ public static class BoonEffects
             state.HuntersEyeTimer = null;
             state.RejuvenationTimer?.Stop();
             state.RejuvenationTimer = null;
+            state.PulseTimer?.Stop();
+            state.PulseTimer = null;
+
+            if (state.DesperationOn)
+            {
+                SetDesperation(player, state, false);
+                statsChanged = true;
+            }
         }
 
         player.TempProperties.RemoveProperty(StateKey);
@@ -332,30 +365,30 @@ public static class BoonEffects
 
         try
         {
-            if (sender is GamePlayer defender && ad.IsMeleeAttack && ad.Attacker is GameNPC attacker && attacker.IsAlive && defender.IsAlive
-                && HasBoon(defender, ExpeditionBoons.Thornmail))
+            if (sender is GamePlayer defender && ad.Attacker is GameNPC attacker)
             {
-                int thorns = 3 + defender.Level;
-                attacker.TakeDamage(defender, eDamageType.Heat, thorns, 0);
-                defender.Out?.SendMessage($"Thornmail burns {attacker.GetName(0, false)} for {thorns} damage!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
+                OnPlayerHit(defender, attacker, ad);
             }
 
-            int dealt = ad.Damage + ad.CriticalDamage;
-
-            if (ad.Attacker is GamePlayer striker && ad.Target != striker && dealt > 0 && striker.IsAlive && striker.Health < striker.MaxHealth
-                && HasBoon(striker, ExpeditionBoons.Vampiric) && Util.Chance(VampiricChancePercent))
+            if (ad.Attacker is GamePlayer striker && ad.Target != striker)
             {
-                int healed = striker.ChangeHealth(striker, eHealthChangeType.Spell, Math.Max(1, dealt / 2));
-
-                if (healed > 0)
-                {
-                    striker.Out?.SendMessage($"Vampiric: you drain {healed} health.", eChatType.CT_Spell, eChatLoc.CL_SystemWindow);
-                }
+                OnPlayerLandsHit(striker, ad);
             }
         }
         catch (Exception)
         {
             // A boon must never break combat.
+        }
+    }
+
+    /// <summary>A monster's hit on the player (before the damage is applied): Thornmail.</summary>
+    private static void OnPlayerHit(GamePlayer defender, GameNPC attacker, AttackData ad)
+    {
+        if (ad.IsMeleeAttack && attacker.IsAlive && defender.IsAlive && HasBoon(defender, ExpeditionBoons.Thornmail))
+        {
+            int thorns = 3 + defender.Level;
+            attacker.TakeDamage(defender, eDamageType.Heat, thorns, 0);
+            defender.Out?.SendMessage($"Thornmail burns {attacker.GetName(0, false)} for {thorns} damage!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
         }
     }
 

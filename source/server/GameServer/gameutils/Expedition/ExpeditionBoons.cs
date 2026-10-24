@@ -29,6 +29,18 @@ public static class ExpeditionBoons
     public const string Vampiric = "vampiric";
     public const string Rejuvenation = "rejuvenation";
     public const string ArcaneFury = "arcane_fury";
+    public const string Executioner = "executioner";
+    public const string ChainLightning = "chain_lightning";
+    public const string Rupture = "rupture";
+    public const string PhoenixFeather = "phoenix";
+    public const string SoulHarvest = "soul_harvest";
+    public const string Desperation = "desperation";
+    public const string GlassCannon = "glass_cannon";
+    public const string Unshakable = "unshakable";
+    public const string Frostbite = "frostbite";
+    public const string Siphon = "siphon";
+    public const string BountyHunter = "bounty_hunter";
+    public const string Scavenger = "scavenger";
 
     /// <summary>Drop chance added by Greed, in percentage points.</summary>
     public const int GreedChanceBonus = 25;
@@ -49,7 +61,19 @@ public static class ExpeditionBoons
         new(Thornmail, "Thornmail", "Monsters that hit you in melee take heat damage (3 + your level) on every hit.", false),
         new(Vampiric, "Vampiric", "Each hit you land (melee or spell) has a 25% chance to heal you for half its damage.", false),
         new(Rejuvenation, "Rejuvenation", "You regenerate 2% of your maximum health every 3 seconds, even in combat.", false),
-        new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false)
+        new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false),
+        new(Executioner, "Executioner", "Any hit you land on a monster below 15% health kills it outright (not act bosses).", false),
+        new(ChainLightning, "Chain Lightning", "Every 4th hit you land arcs to up to 3 other enemies within 400 units for half its damage.", false),
+        new(Rupture, "Rupture", "When you kill a monster, every enemy within 500 units loses 15% of its maximum health.", false),
+        new(PhoenixFeather, "Phoenix Feather", "Once per act, when your health falls below 25% you are instantly healed to 60%.", false),
+        new(SoulHarvest, "Soul Harvest", "Each monster you kill restores 8% of your health and 8% of your power.", false),
+        new(Desperation, "Desperation", "While below half health you deal 30% more melee and spell damage.", false),
+        new(GlassCannon, "Glass Cannon", "+25% melee and spell damage, but 15% less maximum health.", false),
+        new(Unshakable, "Unshakable", "Stuns, mesmerizes and snares on you last half as long.", false),
+        new(Frostbite, "Frostbite", "Your melee hits have a 25% chance to snare the target by 40% for 8 seconds.", false),
+        new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
+        new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
+        new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true)
     };
 
     public static BoonDefinition Find(string id)

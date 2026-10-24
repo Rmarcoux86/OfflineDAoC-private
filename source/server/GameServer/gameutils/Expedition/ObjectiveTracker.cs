@@ -384,6 +384,7 @@ public static class ObjectiveTracker
         // Every credited kill of a monster may drop Expedition loot; the run's first objective kill always drops Magic+.
         bool dropped = ExpeditionLoot.OnKill(player, target, firstObjectiveKill ? eLootRarity.Magic : null);
         ExpeditionRealm.OnKill(player, target);
+        BoonEffects.OnKill(player, target);
 
         if (objective == null)
         {

@@ -628,6 +628,13 @@ public static class ExpeditionLoot
 
             Deliver(player, boss, rarity);
         }
+
+        // Bounty Hunter: one more, rolled as a boss drop (Rare floor).
+        for (int i = 0; i < BoonEffects.ExtraBossDrops(player); i++)
+        {
+            player.Out.SendMessage("Bounty Hunter: the boss drops an extra item.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
+            Deliver(player, boss, ExpeditionBoons.ShiftRolledRarity(run, RollRarity(Random.Shared, true, eLootRarity.Rare)));
+        }
     }
 
     /// <summary>
@@ -640,6 +647,13 @@ public static class ExpeditionLoot
         rarity = ExpeditionBoons.ShiftRolledRarity(ExpeditionManager.GetRun(player), rarity);
 
         Deliver(player, killed, rarity);
+
+        // Scavenger: sometimes a second item, rolled on its own.
+        if (BoonEffects.RollsSecondDrop(player))
+        {
+            player.Out?.SendMessage("Scavenger: you find a second item.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
+            Deliver(player, killed, ExpeditionBoons.ShiftRolledRarity(ExpeditionManager.GetRun(player), RollRarity(Random.Shared, false, forced ?? eLootRarity.Common)));
+        }
     }
 
     private static void Deliver(GamePlayer player, GameNPC killed, eLootRarity rarity)

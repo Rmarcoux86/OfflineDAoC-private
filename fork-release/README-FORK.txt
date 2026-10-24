@@ -76,7 +76,14 @@ EXPEDITION MODE
                      spell damage), Bloodlust (+15% melee crit), Hunter's Eye (named monsters
                      nearby are announced), Thornmail (melee attackers take heat damage),
                      Vampiric (25% chance a hit heals you for half its damage), Rejuvenation
-                     (2% health every 3 seconds), Arcane Fury (+15% spell crit).
+                     (2% health every 3 seconds), Arcane Fury (+15% spell crit), Executioner (hits
+                     kill monsters below 15% health), Chain Lightning (every 4th hit arcs to 3
+                     enemies), Rupture (kills hurt nearby enemies), Phoenix Feather (once per
+                     act, a rescue heal below 25%), Soul Harvest (kills restore health and
+                     power), Desperation (+30% damage below half health), Glass Cannon (+25%
+                     damage, -15% health), Unshakable (CC half as long), Frostbite (melee hits
+                     may snare), Siphon (power per hit), Bounty Hunter (elites and bosses drop
+                     an extra item), Scavenger (20% chance of a second item per drop).
   /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.
   /run journal       reopen the objective list.     /run status   one-line summary.
