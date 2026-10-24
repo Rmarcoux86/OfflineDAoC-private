@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: you earn 5x experience during a run (on top of `xp_rate`), so you keep pace with acts that span
+  levels 1-50. Server setting `expedition_xp_rate` (5.0).
 - Expedition: during a run monsters drop no stock weapons, armor or jewelry, so every piece of equipment you find is
   Expedition loot with a rarity. Money, quest items and crafting materials still drop. Server setting
   `expedition_replace_stock_gear` (on).

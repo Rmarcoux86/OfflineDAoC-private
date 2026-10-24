@@ -2586,6 +2586,9 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_replace_stock_gear", "Expedition loot: during a run, monsters drop no stock weapons, armor or jewelry (money, quest items and materials still drop); all gear comes from Expedition loot with a rarity.", true)]
 		public static bool EXPEDITION_REPLACE_STOCK_GEAR = true;
 
+		[ServerProperty("expedition", "expedition_xp_rate", "Expedition XP: experience multiplier during a run, on top of xp_rate (5.0 = five times the normal amount). Acts span levels 1-50, so a run needs much faster levelling than the normal game.", 5.0)]
+		public static double EXPEDITION_XP_RATE = 5.0;
+
 		/// <summary>Expedition sky: rain and fog intensity of the storm the run player sees over the whole region (0 turns it off, 120 at most).</summary>
 		[ServerProperty("expedition", "expedition_weather_intensity", "Expedition sky: rain and fog intensity of the run player's own storm over the whole region (0 = off, max 120).", 100)]
 		public static int EXPEDITION_WEATHER_INTENSITY = 100;
