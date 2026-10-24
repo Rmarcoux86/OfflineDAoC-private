@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using DOL.AI.Brain;
 using DOL.Database;
@@ -52,6 +53,13 @@ public static class ExpeditionElites
     public const int StalwartCrowdControlReduction = 50;
     public const int FrenzyHealthPercent = 50;
     public const int FrenzyMeleeDamageBonus = 30;
+
+    // A lone elite (its camp has a single monster) takes every bonus in one fight, so it gets a lighter version
+    // (owner, 2026-10-24: "too strong" as a single mob): no extra levels, 1.5x health (2x Stalwart), half the frenzy.
+    public const int SoloLevelBonus = 0;
+    public const double SoloHealthMultiplier = 1.5;
+    public const double SoloStalwartHealthMultiplier = 2.0;
+    public const int SoloFrenzyMeleeDamageBonus = 15;
     public const int VenomChancePercent = 35;
     public const long VenomCooldownMs = 6000;
 
@@ -71,6 +79,7 @@ public static class ExpeditionElites
     {
         public string OwnerKey;
         public string Affix;
+        public bool Solo;
         public string OriginalName;
         public byte OriginalLevel;
         public byte OriginalSize;
@@ -171,18 +180,15 @@ public static class ExpeditionElites
         List<GameNPC> found = new();
         int radius = Math.Clamp(camp.Radius > 0 ? camp.Radius : ActGenerator.EliteCampRadius, 1, ushort.MaxValue);
         player.CurrentRegion.GetInRadius(point, eGameObjectType.NPC, (ushort)radius, found);
+        List<GameNPC> pack = found.Where(npc => CanBecomeElite(npc, camp.MobName)).ToList();
+        bool solo = pack.Count == 1;
         int woken = 0;
 
-        foreach (GameNPC npc in found)
+        foreach (GameNPC npc in pack)
         {
-            if (!CanBecomeElite(npc, camp.MobName))
-            {
-                continue;
-            }
-
             try
             {
-                if (Apply(npc, camp.Affix, player.ObjectId))
+                if (Apply(npc, camp.Affix, player.ObjectId, solo))
                 {
                     woken++;
                 }
@@ -212,12 +218,13 @@ public static class ExpeditionElites
         return string.Equals(npc.Name, mobName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool Apply(GameNPC npc, string affix, string ownerKey)
+    private static bool Apply(GameNPC npc, string affix, string ownerKey, bool solo)
     {
         EliteState state = new()
         {
             OwnerKey = ownerKey,
             Affix = affix,
+            Solo = solo,
             OriginalName = npc.Name,
             OriginalLevel = npc.Level,
             OriginalSize = npc.Size,
@@ -232,11 +239,13 @@ public static class ExpeditionElites
         EnsureHandlers();
 
         // Level first: the Level setter re-derives the stats the health formula reads (GameNPC.Level, SetStats).
-        npc.Level = (byte)Math.Min(byte.MaxValue, npc.Level + LevelBonus);
+        npc.Level = (byte)Math.Min(byte.MaxValue, npc.Level + (solo ? SoloLevelBonus : LevelBonus));
 
         // GameNPC health is (constitution + level curve + BaseBuffBonusCategory[MaxHealth]) x MaxHealthScalingFactor
         // (MaxHealthCalculator); a flat buff bonus of (multiplier - 1) x the current maximum multiplies it.
-        int multiplier = affix == Stalwart ? StalwartHealthMultiplier : HealthMultiplier;
+        double multiplier = solo
+            ? affix == Stalwart ? SoloStalwartHealthMultiplier : SoloHealthMultiplier
+            : affix == Stalwart ? StalwartHealthMultiplier : HealthMultiplier;
         double scaling = Math.Max(0.01, npc.MaxHealthScalingFactor);
         AddBonus(npc, state, eProperty.MaxHealth, (int)Math.Round(npc.MaxHealth * (multiplier - 1) / scaling));
 
@@ -535,7 +544,7 @@ public static class ExpeditionElites
             state.Frenzied = true;
         }
 
-        AddBonus(defender, state, eProperty.MeleeDamage, FrenzyMeleeDamageBonus);
+        AddBonus(defender, state, eProperty.MeleeDamage, state.Solo ? SoloFrenzyMeleeDamageBonus : FrenzyMeleeDamageBonus);
         string text = $"{defender.GetName(0, true)} flies into a frenzy!";
 
         foreach (GamePlayer player in defender.GetPlayersInRadius(FrenzyMessageRadius))
