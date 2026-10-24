@@ -852,6 +852,7 @@ public static class ExpeditionManager
         {
             lines.AddRange(ActGenerator.DescribePlan(plan));
             lines.AddRange(ExpeditionElites.DescribeElites(plan));
+            lines.AddRange(ExpeditionShrines.Describe(plan));
         }
         else
         {

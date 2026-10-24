@@ -45,6 +45,9 @@ public static class ExpeditionBoons
     public const string BountyHunter = "bounty_hunter";
     public const string Scavenger = "scavenger";
     public const string Glory = "glory";
+    public const string BlessedArms = "blessed_arms";
+    public const string SecondWind = "second_wind";
+    public const string WardedHide = "warded_hide";
 
     /// <summary>Realm points added by Glory, in percent.</summary>
     public const int GloryRealmPointPercent = 50;
@@ -81,7 +84,10 @@ public static class ExpeditionBoons
         new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
         new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
         new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true),
-        new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false)
+        new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false),
+        new(BlessedArms, "Blessed Arms", "A lesser strength/constitution and dexterity/quickness buff for the rest of the run.", false),
+        new(SecondWind, "Second Wind", "A lesser endurance regeneration buff for the rest of the run.", false),
+        new(WardedHide, "Warded Hide", "A lesser armor buff for the rest of the run.", false)
     };
 
     /// <summary>
@@ -420,9 +426,14 @@ public static class ExpeditionBoons
     public static void RemoveAll(GamePlayer player, bool sendUpdates = true)
     {
         BoonEffects.RemoveAll(player, sendUpdates);
+
+        // The run's shrine and boon buffs end with it; a quitting player's effects go with the player object.
+        if (sendUpdates)
+        {
+            ExpeditionBuffs.CancelAll(player);
+        }
     }
 
-    /// <summary>Tells the player about a waiting offer (act break and login).</summary>
     /// <summary>
     /// /run reroll: replaces the waiting offer with a new one that leaves out the boons just offered, using one of the
     /// run's <see cref="RerollsPerRun"/> rerolls. The offer was drawn for the act just won (run.Act - 1). Saves the run.
@@ -479,6 +490,7 @@ public static class ExpeditionBoons
         return true;
     }
 
+    /// <summary>Tells the player about a waiting offer (act break and login).</summary>
     public static void RemindOffer(GamePlayer player, ExpeditionRun run)
     {
         if (player?.Out == null || run == null || run.PendingBoonOffer.Count == 0)

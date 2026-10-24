@@ -79,6 +79,24 @@ public sealed class ActPlan
 
     // Plans saved before elite packs existed have no "Elites" member; System.Text.Json then keeps this initialiser.
     public List<EliteCamp> Elites = new();
+
+    // Plans saved before shrines existed have none (the initialiser is kept).
+    public List<ShrineSpec> Shrines = new();
+}
+
+/// <summary>
+/// A wild shrine (<see cref="ExpeditionShrines"/>): found by walking near it, used by touching it, after which its buff
+/// group lasts the rest of the act. Coordinates are global.
+/// </summary>
+public sealed class ShrineSpec
+{
+    public string Group = string.Empty;
+    public int RegionId;
+    public int X, Y, Z;
+    public bool Guarded;
+    public string Direction = string.Empty;
+    public bool Discovered;
+    public bool Used;
 }
 
 /// <summary>

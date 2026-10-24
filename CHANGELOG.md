@@ -8,6 +8,14 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Wild shrines: each act has 3 green-crystal shrines out in the zone, at monster camps, one of them beside an elite
+  pack. The journal gives their direction until you come within 2000 units, then their `/loc`. Walk up to one for a
+  lesser buff for the rest of the act: Might (strength/constitution), Grace (dexterity/quickness), Warding (armor) or
+  Vigor (endurance regeneration).
+- Buff boons: Blessed Arms (lesser strength/constitution and dexterity/quickness), Second Wind (lesser endurance
+  regeneration) and Warded Hide (lesser armor), for the rest of the run.
+- Lesser buffs are real buff spells at 60% of the player buff cap for your level (endurance regeneration at half the
+  strongest such buff), so a buff class's stronger buff of the same kind always takes over.
 - Expedition XP follows the XP table: 5x through level 10 (the default `expedition_xp_rate`), then it grows with the
   experience each level needs: about 7x at 20, 10.5x at 30, 27x at 40 and 49x at 49, so even-con kills per level go
   from about 10 to about 18 instead of rising 18-fold (was a flat 5x).

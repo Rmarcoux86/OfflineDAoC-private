@@ -89,6 +89,10 @@ EXPEDITION MODE
                      may snare), Siphon (power per hit), Bounty Hunter (elites and bosses drop
                      an extra item), Scavenger (20% chance of a second item per drop), Glory
                      (+50% realm points for the rest of the run).
+                     Buff boons: Blessed Arms, Second Wind, Warded Hide (lesser buffs).
+  Shrines           3 green crystals per act, out at monster camps (one beside an elite
+                     pack). The journal shows their direction, then their /loc once you
+                     are close. Walk up to one: a lesser buff for the rest of the act.
   /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
   /run reroll        swap the offer for 3 different boons (2 rerolls per run).
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.

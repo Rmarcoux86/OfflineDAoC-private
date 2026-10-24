@@ -480,6 +480,8 @@ public static class ActGenerator
 
         // Elite packs come last, so the seed's earlier choices are the same as before elites existed.
         List<EliteCamp> elites = ChooseElites(rng, zoneGoals, objectives, bossName, minLevel, maxLevel, zone.RegionId, ox, oy, campX, campY);
+        List<ShrineSpec> shrines = ExpeditionShrines.Choose(rng, zoneGoals.Select(e => (ox + e.LocalX, oy + e.LocalY, e.Z)).ToList(),
+            (campX, campY), objectives, elites, zone.RegionId, (x, y) => DescribeFromCamp(campX, campY, x, y));
 
         return new ActPlan
         {
@@ -507,7 +509,8 @@ public static class ActGenerator
             },
             BossSpawned = false,
             BossKilled = false,
-            Elites = elites
+            Elites = elites,
+            Shrines = shrines
         };
     }
 

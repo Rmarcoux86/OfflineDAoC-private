@@ -483,4 +483,67 @@ public class UT_ExpeditionActGenerator
             Assert.That(ActGenerator.BossTitle(4, seed, "x"), Is.EqualTo(named[1]), $"seed {seed}: the same seed gives the same boss");
         }
     }
+
+    [Test]
+    public void Shrines_ThreeDifferentGroupsInsideTheZoneAwayFromTheCamp()
+    {
+        int withShrines = 0;
+
+        foreach (eRealm realm in new[] { eRealm.Albion, eRealm.Midgard, eRealm.Hibernia })
+        {
+            for (int act = 1; act <= ActGenerator.ActCount; act++)
+            {
+                for (int seed = 0; seed < 15; seed++)
+                {
+                    ActPlan plan = FromCatalog(act, realm, seed, -1);
+                    string context = $"{realm} act {act} seed {seed} zone {plan.ZoneName}";
+
+                    Assert.That(plan.Shrines.Count, Is.LessThanOrEqualTo(ExpeditionShrines.ShrinesPerAct), context);
+                    Assert.That(plan.Shrines.Select(s => s.Group).Distinct().Count(), Is.EqualTo(plan.Shrines.Count), context);
+
+                    foreach (ShrineSpec shrine in plan.Shrines)
+                    {
+                        long dx = shrine.X - plan.CampX;
+                        long dy = shrine.Y - plan.CampY;
+
+                        Assert.That(ExpeditionBuffs.Groups, Does.Contain(shrine.Group), context);
+                        Assert.That(dx * dx + dy * dy, Is.GreaterThan((long) ExpeditionShrines.MinDistance * ExpeditionShrines.MinDistance), context + " camp distance");
+                        Assert.That(shrine.Discovered || shrine.Used, Is.False, context);
+                        Assert.That(shrine.Direction, Does.Contain("camp"), context);
+                    }
+
+                    if (plan.Shrines.Count == ExpeditionShrines.ShrinesPerAct)
+                    {
+                        withShrines++;
+                    }
+                }
+            }
+        }
+
+        Assert.That(withShrines, Is.GreaterThan(150), "most acts have all three shrines");
+    }
+
+    [Test]
+    public void LesserBuffs_SixtyPercentOfTheCapAndGrantedByBoonsAndUsedShrines()
+    {
+        Assert.That(ExpeditionBuffs.StatValue(50), Is.EqualTo(56), "60% of 1.875 x 50");
+        Assert.That(ExpeditionBuffs.StatValue(1), Is.EqualTo(1));
+
+        var run = new ExpeditionRun
+        {
+            CurrentAct = new ActPlan
+            {
+                Shrines =
+                [
+                    new ShrineSpec { Group = ExpeditionBuffs.Armor, Used = true },
+                    new ShrineSpec { Group = ExpeditionBuffs.Endurance, Used = false }
+                ]
+            }
+        };
+        run.Boons.Add(ExpeditionBoons.BlessedArms);
+
+        HashSet<string> wanted = ExpeditionBuffs.Wanted(run);
+
+        Assert.That(wanted, Is.EquivalentTo(new[] { ExpeditionBuffs.StrengthConstitution, ExpeditionBuffs.DexterityQuickness, ExpeditionBuffs.Armor }));
+    }
 }
