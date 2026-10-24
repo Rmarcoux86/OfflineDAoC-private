@@ -111,6 +111,7 @@ public static class ExpeditionShrines
     {
         List<ShrineSpec> shrines = plan?.Shrines;
         bool changed = false;
+        bool usedNow = false;
 
         if (shrines != null && shrines.Count > 0)
         {
@@ -138,6 +139,7 @@ public static class ExpeditionShrines
                     shrine.Discovered = true;
                     shrine.Used = true;
                     changed = true;
+                    usedNow = true;
                     run.AddLog($"Act {plan.Act}: blessed at the {ExpeditionBuffs.ShrineName(shrine.Group)}.");
                     player.Out.SendMessage($"The {ExpeditionBuffs.ShrineName(shrine.Group)} blesses you: lesser {ExpeditionBuffs.NameOf(shrine.Group).ToLowerInvariant()} for the rest of the act.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
                     player.Out.SendMessage($"The {ExpeditionBuffs.ShrineName(shrine.Group)} blesses you: lesser {ExpeditionBuffs.NameOf(shrine.Group).ToLowerInvariant()} for the rest of the act.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -150,6 +152,13 @@ public static class ExpeditionShrines
         if (changed)
         {
             ExpeditionManager.Save(run);
+        }
+
+        if (usedNow)
+        {
+            // The shrine objects carry their name from when they were spawned; the next tick puts them back with a
+            // used shrine shown as "(spent)".
+            Despawn(player);
         }
     }
 

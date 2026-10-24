@@ -145,6 +145,13 @@ public static class ExpeditionBuffs
 
             foreach (string group in wanted)
             {
+                // A Vampiir cannot hold stat buffs (DualStatBuff refuses them with a chat line, and no effect is made),
+                // so casting would repeat on every tick.
+                if (!CanHold(player, group))
+                {
+                    continue;
+                }
+
                 if (!ours.ContainsKey(group) || levelChanged)
                 {
                     Cast(player, group);
@@ -157,6 +164,33 @@ public static class ExpeditionBuffs
         {
             Log.Error($"[EXPEDITION] Lesser buffs could not be kept up for {player.Name}.", ex);
         }
+    }
+
+    /// <summary>False for a buff the engine refuses the player outright (Vampiir stat abilities, DualStatBuff.ApplyEffectOnTarget).</summary>
+    private static bool CanHold(GamePlayer player, string group)
+    {
+        return group switch
+        {
+            StrengthConstitution => !player.HasAbility(Abilities.VampiirStrength) && !player.HasAbility(Abilities.VampiirConstitution),
+            DexterityQuickness => !player.HasAbility(Abilities.VampiirDexterity) && !player.HasAbility(Abilities.VampiirQuickness),
+            _ => true
+        };
+    }
+
+    /// <summary>
+    /// The effect bar icon (and cast effect) of each group, the ones the stock buff merchant's spells use
+    /// (BuffMerchant.cs: 1517 strength/constitution, 1526 dexterity/quickness, 1506 spec armor factor) and spells.csv
+    /// 1081 "Chant of Endurance" for endurance regeneration. Without an icon the buff is invisible in the effect bar.
+    /// </summary>
+    private static ushort IconOf(string group)
+    {
+        return group switch
+        {
+            StrengthConstitution => 1517,
+            DexterityQuickness => 1526,
+            Armor => 1506,
+            _ => 1081
+        };
     }
 
     /// <summary>Ends every lesser buff on the player (the run is over).</summary>
@@ -224,6 +258,8 @@ public static class ExpeditionBuffs
             SpellID = SpellIdBase + index,
             Name = $"Lesser {NameOf(group).Split(' ')[0]}",
             Description = $"A lesser {NameOf(group).ToLowerInvariant()} buff from the expedition.",
+            Icon = IconOf(group),
+            ClientEffect = IconOf(group),
             Value = value,
             Duration = DurationSeconds,
             Range = 0,

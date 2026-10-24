@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Lesser buffs show in the effect bar with their own icons; a used shrine shows "(spent)" at once; Vampiirs (who can't
+  hold stat buffs) no longer get a chat line every 2 seconds from Might, Grace or Blessed Arms.
 - Wild shrines: each act has 3 green-crystal shrines out in the zone, at monster camps, one of them beside an elite
   pack. The journal gives their direction until you come within 2000 units, then their `/loc`. Walk up to one for a
   lesser buff for the rest of the act: Might (strength/constitution), Grace (dexterity/quickness), Warding (armor) or
