@@ -169,9 +169,9 @@ public class UT_ExpeditionActGenerator
                     Assert.That(plan.ZoneName, Is.Not.Empty, context);
                     Assert.That(InsideZone(plan.ZoneId, plan.CampX, plan.CampY), Is.True, context + " camp");
                     Assert.That(plan.CampHeading, Is.LessThan(4096), context);
-                    Assert.That(plan.Objectives.Count, Is.InRange(2, 3), context);
+                    Assert.That(plan.Objectives.Count, Is.InRange(ExpectedObjectives(act).Min, ExpectedObjectives(act).Max), context);
                     Assert.That(plan.Objectives[0].Kind, Is.EqualTo(eObjectiveKind.ClearCamp), context);
-                    Assert.That(plan.Objectives[0].Count, Is.InRange(5, 8), context);
+                    Assert.That(plan.Objectives[0].Count, Is.InRange(ActGenerator.ClearCountRange(act).Min, ActGenerator.ClearCountRange(act).Max), context);
                     Assert.That(plan.Objectives[0].Radius, Is.EqualTo(1500), context);
                     Assert.That(plan.BossSpawned || plan.BossKilled, Is.False, context);
                 });
@@ -202,13 +202,13 @@ public class UT_ExpeditionActGenerator
                     }
                 }
 
-                Assert.That(plan.Objectives.Select(o => o.Kind).Distinct().Count(), Is.EqualTo(plan.Objectives.Count), context);
+                Assert.That(plan.Objectives.Count(o => o.Kind == eObjectiveKind.ClearCamp), Is.GreaterThanOrEqualTo(1), context);
                 Assert.Multiple(() =>
                 {
                     Assert.That(plan.Boss, Is.Not.Null, context);
                     Assert.That(plan.Boss.Level, Is.EqualTo(max + 2), context);
                     Assert.That(plan.Boss.HealthMultiplier, Is.EqualTo(3 + act), context);
-                    Assert.That(plan.Boss.Title, Is.EqualTo($"Warden of {plan.ZoneName}"), context);
+                    Assert.That(plan.Boss.Title, Is.EqualTo(ActGenerator.BossTitle(act, seed, plan.ZoneName)), context);
                     Assert.That(plan.Boss.BaseMobName, Is.Not.Empty, context);
                     Assert.That(plan.Boss.RegionId, Is.EqualTo(plan.RegionId), context);
                     Assert.That(InsideZone(plan.ZoneId, plan.Boss.X, plan.Boss.Y), Is.True, context + " boss");
@@ -436,5 +436,51 @@ public class UT_ExpeditionActGenerator
             Assert.That(lines[2], Does.StartWith("[ ]").And.EndWith("(0/" + plan.Objectives[1].Count + ")"));
             Assert.That(lines[^1], Does.Contain(plan.Boss.Title).And.Contain(plan.Boss.BaseMobName));
         });
+    }
+
+    private static (int Min, int Max) ExpectedObjectives(int act)
+    {
+        return act switch
+        {
+            1 => (2, 2),
+            2 => (3, 3),
+            3 => (3, 4),
+            4 => (4, 4),
+            _ => (4, 5)
+        };
+    }
+
+    [Test]
+    public void ObjectiveCount_GrowsWithTheAct()
+    {
+        for (int seed = 0; seed < 200; seed++)
+        {
+            for (int act = 1; act <= ActGenerator.ActCount; act++)
+            {
+                int count = ActGenerator.ObjectiveCount(act, new System.Random(seed));
+                (int min, int max) = ExpectedObjectives(act);
+
+                Assert.That(count, Is.InRange(min, max), $"act {act} seed {seed}");
+            }
+        }
+
+        Assert.That(ActGenerator.ClearCountRange(1), Is.EqualTo((5, 8)));
+        Assert.That(ActGenerator.ClearCountRange(5), Is.EqualTo((9, 12)));
+    }
+
+    [Test]
+    public void BossTitle_WardensThenNamedBossesWithoutRepeats()
+    {
+        for (int seed = 0; seed < 500; seed++)
+        {
+            Assert.That(ActGenerator.BossTitle(1, seed, "Connacht"), Is.EqualTo("Warden of Connacht"));
+            Assert.That(ActGenerator.BossTitle(2, seed, "Lough Gur"), Is.EqualTo("Warden of Lough Gur"));
+
+            List<string> named = new() { ActGenerator.BossTitle(3, seed, "a"), ActGenerator.BossTitle(4, seed, "b"), ActGenerator.BossTitle(5, seed, "c") };
+
+            Assert.That(named, Is.All.Matches<string>(name => ActGenerator.NamedBosses.Contains(name)), $"seed {seed}");
+            Assert.That(named.Distinct().Count(), Is.EqualTo(3), $"seed {seed}: no name twice in a run");
+            Assert.That(ActGenerator.BossTitle(4, seed, "x"), Is.EqualTo(named[1]), $"seed {seed}: the same seed gives the same boss");
+        }
     }
 }

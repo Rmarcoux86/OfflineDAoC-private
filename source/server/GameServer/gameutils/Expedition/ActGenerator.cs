@@ -344,7 +344,7 @@ public static class ActGenerator
         }
 
         AutonomousCapnBryGoalCatalog.Entry clearGoal = clearPool[rng.Next(clearPool.Count)];
-        int clearCount = rng.Next(5, 9);
+        (int clearMin, int clearMax) = ClearCountRange(act);
 
         // KillNamed: a different mob from the top third of the band.
         int namedThreshold = minLevel + (maxLevel - minLevel) * 2 / 3;
@@ -365,38 +365,48 @@ public static class ActGenerator
                 .ToList();
         }
 
-        AutonomousCapnBryGoalCatalog.Entry namedGoal = namedPool[rng.Next(namedPool.Count)];
-
         // ReachPoint: one of the quarter of the zone's camps farthest from the camp.
         List<AutonomousCapnBryGoalCatalog.Entry> farPool = zoneGoals
             .OrderByDescending(e => DistanceSquared(e.LocalX, e.LocalY, campLocalX, campLocalY))
             .Take(Math.Max(1, zoneGoals.Count / 4))
             .ToList();
-        AutonomousCapnBryGoalCatalog.Entry farGoal = farPool[rng.Next(farPool.Count)];
 
-        // Two objectives (ClearCamp plus one other) or all three.
+        // Later acts have more objectives (owner, 2026-10-24): the camp first, then a named monster and a far
+        // marker, then a second camp and a second named monster. Act 1 keeps two: the camp and one of the others.
+        int objectiveCount = ObjectiveCount(act, rng);
         List<eObjectiveKind> kinds = [eObjectiveKind.ClearCamp];
 
-        if (rng.Next(2, 4) == 3)
-        {
-            kinds.Add(eObjectiveKind.KillNamed);
-            kinds.Add(eObjectiveKind.ReachPoint);
-        }
-        else
+        if (objectiveCount == 2)
         {
             kinds.Add(rng.Next(2) == 0 ? eObjectiveKind.KillNamed : eObjectiveKind.ReachPoint);
         }
+        else
+        {
+            eObjectiveKind[] order = [eObjectiveKind.KillNamed, eObjectiveKind.ReachPoint, eObjectiveKind.ClearCamp, eObjectiveKind.KillNamed];
+            kinds.AddRange(order.Take(objectiveCount - 1));
+        }
 
         List<ActObjective> objectives = new();
+        HashSet<string> usedNames = new(StringComparer.Ordinal);
+        HashSet<AutonomousCapnBryGoalCatalog.Entry> usedGoals = new();
 
         foreach (eObjectiveKind kind in kinds)
         {
             AutonomousCapnBryGoalCatalog.Entry goal = kind switch
             {
-                eObjectiveKind.ClearCamp => clearGoal,
-                eObjectiveKind.KillNamed => namedGoal,
-                _ => farGoal
+                eObjectiveKind.ClearCamp when objectives.Count == 0 => clearGoal,
+                eObjectiveKind.ClearCamp => PickUnused(rng, clearPool, inBand, usedNames, usedGoals),
+                eObjectiveKind.KillNamed => PickUnused(rng, namedPool, otherMobs, usedNames, usedGoals),
+                _ => PickUnused(rng, farPool, farPool, null, usedGoals)
             };
+
+            usedGoals.Add(goal);
+
+            if (kind != eObjectiveKind.ReachPoint)
+            {
+                usedNames.Add(goal.Name);
+            }
+
             string area = DescribeArea(areaCentre, heartRadius, goal.LocalX, goal.LocalY);
             string description = kind switch
             {
@@ -410,7 +420,7 @@ public static class ActGenerator
                 Id = $"a{act}-{objectives.Count + 1}",
                 Kind = kind,
                 MobName = kind == eObjectiveKind.ReachPoint ? string.Empty : goal.Name,
-                Count = kind == eObjectiveKind.ClearCamp ? clearCount : 1,
+                Count = kind == eObjectiveKind.ClearCamp ? rng.Next(clearMin, clearMax + 1) : 1,
                 Progress = 0,
                 RegionId = zone.RegionId,
                 X = ox + goal.LocalX,
@@ -492,13 +502,87 @@ public static class ActGenerator
                 X = ox + bossGoal.LocalX,
                 Y = oy + bossGoal.LocalY,
                 Z = bossGoal.Z,
-                Title = $"Warden of {zone.ZoneName}",
+                Title = BossTitle(act, seed, zone.ZoneName),
                 HealthMultiplier = 3 + act
             },
             BossSpawned = false,
             BossKilled = false,
             Elites = elites
         };
+    }
+
+    /// <summary>The named final bosses of acts 3 to 5 (owner, 2026-10-24). A run draws three of them, none twice.</summary>
+    public static readonly IReadOnlyList<string> NamedBosses = ["Drunkstains", "Scob Mahob", "Ios", "Toothmouth", "Gwyraan"];
+
+    /// <summary>The first act whose boss is one of <see cref="NamedBosses"/>.</summary>
+    public const int FirstNamedBossAct = 3;
+
+    /// <summary>
+    /// The act boss's name: "Warden of {zone}" in acts 1 and 2; from act 3 a named boss, picked by a shuffle of
+    /// <see cref="NamedBosses"/> seeded by the run alone, so the acts of one run never repeat a name.
+    /// </summary>
+    public static string BossTitle(int act, int seed, string zoneName)
+    {
+        if (act < FirstNamedBossAct || NamedBosses.Count == 0)
+        {
+            return $"Warden of {zoneName}";
+        }
+
+        List<string> order = NamedBosses.ToList();
+        var rng = new Random(unchecked(seed * 977 + 13));
+
+        for (int i = order.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            (order[i], order[j]) = (order[j], order[i]);
+        }
+
+        return order[(act - FirstNamedBossAct) % order.Count];
+    }
+
+    /// <summary>Objectives per act: 2, 3, 3-4, 4, 4-5.</summary>
+    public static int ObjectiveCount(int act, Random rng)
+    {
+        return act switch
+        {
+            <= 1 => 2,
+            2 => 3,
+            3 => rng.Next(3, 5),
+            4 => 4,
+            _ => rng.Next(4, 6)
+        };
+    }
+
+    /// <summary>Kills a camp objective asks for: 5-8 in act 1, one more at each end per act (9-12 in act 5).</summary>
+    public static (int Min, int Max) ClearCountRange(int act)
+    {
+        int extra = Math.Clamp(act, 1, ActCount) - 1;
+
+        return (5 + extra, 8 + extra);
+    }
+
+    /// <summary>
+    /// A goal from <paramref name="pool"/> not used by an earlier objective (by mob name when
+    /// <paramref name="usedNames"/> is given, else by camp); then from <paramref name="fallback"/>; then anything in the pool.
+    /// </summary>
+    private static AutonomousCapnBryGoalCatalog.Entry PickUnused(Random rng, List<AutonomousCapnBryGoalCatalog.Entry> pool,
+        List<AutonomousCapnBryGoalCatalog.Entry> fallback, HashSet<string> usedNames, HashSet<AutonomousCapnBryGoalCatalog.Entry> usedGoals)
+    {
+        bool Unused(AutonomousCapnBryGoalCatalog.Entry e) => !usedGoals.Contains(e) && (usedNames == null || !usedNames.Contains(e.Name));
+
+        List<AutonomousCapnBryGoalCatalog.Entry> candidates = pool.Where(Unused).ToList();
+
+        if (candidates.Count == 0)
+        {
+            candidates = fallback.Where(Unused).ToList();
+        }
+
+        if (candidates.Count == 0)
+        {
+            candidates = pool;
+        }
+
+        return candidates[rng.Next(candidates.Count)];
     }
 
     /// <summary>

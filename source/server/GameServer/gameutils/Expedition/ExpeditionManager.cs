@@ -343,17 +343,18 @@ public static class ExpeditionManager
     /// <summary>
     /// expedition_xp_rate's factor at each player level (index = level - 1). Levelling takes more and more even-con
     /// kills (GamePlayer.XPForLevel against GameLiving.XPForLiving: about 25 at level 5, 75 at 20, 150 at 35, 410 at 40,
-    /// 875 at 49), so the factor follows the kills per level from level 10 on, raised to the power 0.85 so later levels
-    /// still feel a little slower (owner, 2026-10-24: "close, not the exact same"). 1 through level 10, so act 1 stays
-    /// at expedition_xp_rate. At the default rate of 5, kills per level go from 10 at level 10 to about 15 at level 49.
+    /// 875 at 49), so the factor follows the kills per level from level 10 on, raised to the power 0.8 so later levels
+    /// take somewhat longer (owner, 2026-10-24: "close, not the exact same"; then "slightly longer, not excruciating",
+    /// with objectives giving experience to make up part of it). 1 through level 10, so act 1 stays at
+    /// expedition_xp_rate. At the default rate of 5, even-con kills per level go from 10 at level 10 to about 18 at 49.
     /// </summary>
     private static readonly double[] LevelXpFactors =
     {
         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-        1.04, 1.08, 1.09, 1.14, 1.2, 1.26, 1.29, 1.32, 1.37, 1.41,
-        1.49, 1.74, 1.67, 1.75, 1.83, 1.91, 1.94, 2.04, 2.14, 2.21,
-        2.25, 2.3, 2.39, 2.46, 2.55, 2.73, 2.88, 2.92, 3.06, 5.98,
-        8.82, 9.1, 9.19, 9.69, 9.92, 10.38, 10.7, 11.16, 11.41
+        1.04, 1.07, 1.08, 1.14, 1.19, 1.25, 1.27, 1.3, 1.35, 1.38,
+        1.46, 1.69, 1.62, 1.7, 1.77, 1.84, 1.87, 1.95, 2.04, 2.11,
+        2.14, 2.19, 2.27, 2.33, 2.42, 2.57, 2.71, 2.74, 2.86, 5.38,
+        7.76, 7.99, 8.06, 8.47, 8.67, 9.05, 9.31, 9.68, 9.89
     };
 
     /// <summary>The experience multiplier on a run for a player of <paramref name="level"/>, on top of xp_rate.</summary>
@@ -362,6 +363,34 @@ public static class ExpeditionManager
         int index = Math.Clamp(level, 1, LevelXpFactors.Length) - 1;
 
         return Math.Max(0, rate) * LevelXpFactors[index];
+    }
+
+    /// <summary>Experience for a finished objective, in percent of what the player's current level needs.</summary>
+    public const int ObjectiveXpPercent = 20;
+
+    /// <summary>Experience for an act boss, in percent of what the player's current level needs.</summary>
+    public const int BossXpPercent = 50;
+
+    /// <summary>
+    /// Gives <paramref name="percent"/> of the experience the player's current level needs (not multiplied by any
+    /// rate: it is already sized to the level). Nothing at the level cap.
+    /// </summary>
+    public static void GrantLevelShare(GamePlayer player, int percent, string reason)
+    {
+        if (player == null || percent <= 0 || player.Level >= GamePlayer.MAX_LEVEL)
+        {
+            return;
+        }
+
+        long amount = (player.ExperienceForNextLevel - player.ExperienceForCurrentLevel) * percent / 100;
+
+        if (amount <= 0)
+        {
+            return;
+        }
+
+        player.Out.SendMessage($"{reason}: you gain {amount:N0} experience.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.GainExperience(eXPSource.Quest, amount, false);
     }
 
     public static ExpeditionRun GetRun(GamePlayer player)

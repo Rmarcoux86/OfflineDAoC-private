@@ -9,8 +9,13 @@ The newest version is first. For the full detail of every earlier update, see
 
 **Expedition mode**
 - Expedition XP follows the XP table: 5x through level 10 (the default `expedition_xp_rate`), then it grows with the
-  experience each level needs: about 7x at 20, 11x at 30, 30x at 40 and 57x at 49, so kills per level only creep up
-  (about 10 at level 10, 15 at 49) instead of rising 18-fold (was a flat 5x).
+  experience each level needs: about 7x at 20, 10.5x at 30, 27x at 40 and 49x at 49, so even-con kills per level go
+  from about 10 to about 18 instead of rising 18-fold (was a flat 5x).
+- Expedition objectives grow with the act: 2, 3, 3-4, 4 and 4-5 per act (extra ones are a second camp and a second
+  named monster), and camps ask for 5-8 kills in act 1 up to 9-12 in act 5.
+- Objectives give 20% of the experience your current level needs, act bosses 50%.
+- Named final bosses from act 3: each run draws three of Drunkstains, Scob Mahob, Ios, Toothmouth and Gwyraan for acts
+  3 to 5, never the same one twice.
 - Boon rerolls: `/run reroll` swaps a waiting boon offer for 3 boons that were not in it (still one loot boon), 2 times
   per run. Rerolls follow the seed.
 - Boons: pure melee classes (no power, such as Hero, Blademaster, Armsman, Warrior) are never offered Arcane Fury

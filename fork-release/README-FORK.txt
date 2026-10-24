@@ -57,7 +57,10 @@ EXPEDITION MODE
                      Monsters drop no stock gear during a run (money, quest items and
                      materials still drop): setting expedition_replace_stock_gear.
                      Run experience: 5x through level 10, then it grows with the XP table
-                     (about 11x at 30, 57x at 49). Setting expedition_xp_rate (default 5).
+                     (about 10x at 30, 49x at 49). Setting expedition_xp_rate (default 5).
+                     Objectives give 20% of a level's experience, act bosses 50%. Later
+                     acts have more objectives (2 in act 1 up to 4-5 in act 5), and acts
+                     3-5 end with named bosses.
   Uniques            18 hand-made uniques with fixed names, lore and strong fixed bonuses, six
                      each for levels 1-19, 20-39 and 40+. A run hands out each unique once before
                      any repeats; armor and weapon uniques take your class's best armor or a

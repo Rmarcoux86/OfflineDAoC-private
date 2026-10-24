@@ -43,11 +43,13 @@ public static class ExpeditionRealm
 
     public static void OnObjectiveDone(GamePlayer player, int act)
     {
+        ExpeditionManager.GrantLevelShare(player, ExpeditionManager.ObjectiveXpPercent, "Objective complete");
         Grant(player, ObjectivePointsPerAct * Math.Max(1, act));
     }
 
     public static void OnBossKilled(GamePlayer player, int act, bool wonRun)
     {
+        ExpeditionManager.GrantLevelShare(player, ExpeditionManager.BossXpPercent, "Act boss slain");
         Grant(player, BossPointsPerAct * Math.Max(1, act) + (wonRun ? VictoryPoints : 0));
     }
 
