@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Respec anywhere: `/respec ALL`, `/respec <line>` and `/respec REALM` work without a trainer and as often as you like,
+  on and off runs. Server setting `respec_anywhere` (on).
 - Expedition: a monster that dies to a damage-over-time spell now counts for objectives, loot and realm points. The
   game only lists a DoT's caster as an attacker on its first tick, so a kill by a later tick was not credited.
 - Expedition: a run started before realm points existed is given, once at login, the realm points it would have

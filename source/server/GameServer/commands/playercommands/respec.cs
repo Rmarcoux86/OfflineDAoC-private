@@ -19,8 +19,20 @@ namespace DOL.GS.Commands
         
         public void OnCommand(GameClient client, string[] args)
         {
+            // Offline fork: respec anywhere, as often as you like (server setting respec_anywhere).
+            bool anywhere = ServerProperties.Properties.RESPEC_ANYWHERE;
+
             if (args.Length < 2)
             {
+                if (anywhere)
+                {
+                    DisplayMessage(client, "Respec anywhere, as often as you like:");
+                    DisplayMessage(client, "/respec ALL to respec all skills");
+                    DisplayMessage(client, "/respec <line name> to respec a single skill line");
+                    DisplayMessage(client, "/respec REALM to respec realm abilities");
+                    return;
+                }
+
                 if (ServerProperties.Properties.FREE_RESPEC || client.Player.Level < 50)
                 {
                     DisplayMessage(client, "Target any trainer and use:");
@@ -68,7 +80,7 @@ namespace DOL.GS.Commands
 
             GameTrainer trainer = client.Player.TargetObject as GameTrainer;
             // Player must be speaking with trainer to respec.  (Thus have trainer targeted.) Prevents losing points out in the wild.
-            if (args[1].ToLower() != "buy" && (trainer == null || !trainer.CanTrain(client.Player)))
+            if (!anywhere && args[1].ToLower() != "buy" && (trainer == null || !trainer.CanTrain(client.Player)))
             {
                 DisplayMessage(client, "You must be speaking with your trainer to respec.");
                 return;
@@ -104,7 +116,7 @@ namespace DOL.GS.Commands
                         {
                             // Check for full respecs.
                             if ( client.Player.RespecAmountAllSkill < 1
-                                && !ServerProperties.Properties.FREE_RESPEC)
+                                && !ServerProperties.Properties.FREE_RESPEC && !anywhere)
                             {
                                 DisplayMessage(client, "You don't seem to have any full skill respecs available.");
                                 return;
@@ -120,7 +132,7 @@ namespace DOL.GS.Commands
                 //	{
                 //		// Check for DOL respecs.
                 //		if (client.Player.RespecAmountDOL < 1
-                //			&& !ServerProperties.Properties.FREE_RESPEC)
+                //			&& !ServerProperties.Properties.FREE_RESPEC && !anywhere)
                 //		{
                 //			DisplayMessage(client, "You don't seem to have any DOL respecs available.");
                 //			return;
@@ -135,7 +147,7 @@ namespace DOL.GS.Commands
                         if (/*client.Player.Level >= 50 || */TimeSpan.FromSeconds(client.Player.PlayedTimeSinceLevel).Hours > 24)
                         {
                             if (client.Player.RespecAmountRealmSkill < 1
-                                && !ServerProperties.Properties.FREE_RESPEC)
+                                && !ServerProperties.Properties.FREE_RESPEC && !anywhere)
                             {
                                 DisplayMessage(client, "You don't seem to have any realm skill respecs available.");
                                 return;
@@ -161,7 +173,7 @@ namespace DOL.GS.Commands
                         {
                             // Check for single-line respecs.
                             if (client.Player.RespecAmountSingleSkill < 1
-                            && !ServerProperties.Properties.FREE_RESPEC)
+                            && !ServerProperties.Properties.FREE_RESPEC && !anywhere)
                             {
                                 DisplayMessage(client, "You don't seem to have any single-line respecs available.");
                                 return;
@@ -196,6 +208,11 @@ namespace DOL.GS.Commands
 
             int specPoints = player.SkillSpecialtyPoints;
             int realmSpecPoints = player.RealmSpecialtyPoints;
+
+            // Respec anywhere is unlimited: whatever the respec methods take from the stored counts is put back below.
+            int allBefore = player.RespecAmountAllSkill;
+            int singleBefore = player.RespecAmountSingleSkill;
+            int realmBefore = player.RespecAmountRealmSkill;
 
             if (player.TempProperties.GetProperty<bool>(ALL_RESPEC))
             {
@@ -235,6 +252,13 @@ namespace DOL.GS.Commands
                 }
                 player.Out.SendUpdateMoney();
             }
+            if (ServerProperties.Properties.RESPEC_ANYWHERE)
+            {
+                player.RespecAmountAllSkill = Math.Max(allBefore, player.RespecAmountAllSkill);
+                player.RespecAmountSingleSkill = Math.Max(singleBefore, player.RespecAmountSingleSkill);
+                player.RespecAmountRealmSkill = Math.Max(realmBefore, player.RespecAmountRealmSkill);
+            }
+
             // Assign full points returned
             if (player.SkillSpecialtyPoints > specPoints)
             {

@@ -92,6 +92,8 @@ EXPEDITION MODE
                      Abilities). Setting: expedition_rp_rate.
                      Realm points are kept on your account: a new run's character starts
                      with every realm point your account has earned, even after a death.
+  /respec ALL | <line> | REALM  respec skills or realm abilities anywhere, as often as you
+                     like (setting respec_anywhere).
   Your class         at run start you pick your advanced class and are promoted right away, even
                      at level 1 (asked again at login if you never answered); /train works
                      anywhere during a run.

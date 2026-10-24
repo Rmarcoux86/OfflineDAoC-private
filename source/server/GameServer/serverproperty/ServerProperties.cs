@@ -604,6 +604,12 @@ namespace DOL.GS.ServerProperties
 		/// </summary>
 		[ServerProperty("server", "free_respec", "Set to true to always allow respecs", false)]
 		public static bool FREE_RESPEC;
+
+		/// <summary>
+		/// Offline fork: /respec works without a trainer and as often as you like.
+		/// </summary>
+		[ServerProperty("server", "respec_anywhere", "Offline fork: /respec ALL, /respec <line> and /respec REALM work anywhere (no trainer) and as often as you like.", true)]
+		public static bool RESPEC_ANYWHERE = true;
 		#endregion
 
 		#region WORLD
