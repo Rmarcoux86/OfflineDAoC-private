@@ -376,6 +376,8 @@ public static class ObjectiveTracker
 
         if (objective == null)
         {
+            TellIfWrongCamp(player, plan, target);
+
             if (dropped)
             {
                 ExpeditionManager.Save(run);
@@ -392,6 +394,34 @@ public static class ObjectiveTracker
         }
 
         FinishProgress(state, run, plan, completedNow);
+    }
+
+    /// <summary>
+    /// A kill that matched an open objective's monster name but not its camp: says where the objective's camp is, so a
+    /// player fighting the same monster in another camp knows why nothing counted.
+    /// </summary>
+    private static void TellIfWrongCamp(GamePlayer player, ActPlan plan, GameLiving target)
+    {
+        foreach (ActObjective objective in plan.Objectives)
+        {
+            if (objective == null || objective.Done || objective.Kind == eObjectiveKind.ReachPoint)
+            {
+                continue;
+            }
+
+            if (!string.Equals(target.Name, objective.MobName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string loc = ActGenerator.DescribeLoc(objective.RegionId, objective.X, objective.Y);
+            string where = loc == null ? "elsewhere" : $"at {loc}";
+            int distance = (int) Math.Sqrt(Math.Pow(target.X - objective.X, 2) + Math.Pow(target.Y - objective.Y, 2));
+
+            Tell(player, $"That {target.Name} is not from the objective camp. The camp is {where}, about {distance} units from here.", false);
+
+            return;
+        }
     }
 
     /// <summary>True when a kill objective of the act already has progress. The caller holds <c>state.Sync</c>.</summary>

@@ -578,6 +578,29 @@ public static class ActGenerator
         return $"to the {CompassAreas[(heading + 256) / 512 % 8]} of the camp";
     }
 
+    /// <summary>
+    /// "/loc 33479, 45931": a global point as the zone coordinates the in-game /loc command shows, or null when the
+    /// world is not loaded (unit tests) or the point is outside every zone.
+    /// </summary>
+    public static string DescribeLoc(int regionId, int x, int y)
+    {
+        try
+        {
+            Zone zone = DOL.GS.WorldMgr.GetRegion((ushort) regionId)?.GetZone(x, y);
+
+            if (zone == null)
+            {
+                return null;
+            }
+
+            return $"/loc {x - zone.XOffset}, {y - zone.YOffset}";
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     /// <summary>The act's journal lines: zone and band, each objective, the boss.</summary>
     public static IReadOnlyList<string> DescribePlan(ActPlan plan)
     {
@@ -587,7 +610,9 @@ public static class ActGenerator
         foreach (ActObjective objective in plan.Objectives ?? [])
         {
             string marker = objective.Done ? "[done]" : "[ ]";
-            lines.Add($"{marker} {objective.Description} ({Math.Min(objective.Progress, objective.Count)}/{objective.Count})");
+            string loc = objective.Done ? null : DescribeLoc(objective.RegionId, objective.X, objective.Y);
+            string where = loc == null ? string.Empty : $" - {loc}";
+            lines.Add($"{marker} {objective.Description} ({Math.Min(objective.Progress, objective.Count)}/{objective.Count}){where}");
         }
 
         if (plan.Boss != null)
