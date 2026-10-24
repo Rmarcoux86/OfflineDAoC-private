@@ -340,6 +340,20 @@ public static class ExpeditionManager
 
     #region Contract
 
+    /// <summary>
+    /// Each act's share of expedition_xp_rate: later acts level more slowly (each level needs far more experience), so
+    /// the boost grows with the act. At the default rate of 5: 3x, 4x, 5x, 6x, 7x.
+    /// </summary>
+    private static readonly double[] ActXpFactors = { 0.6, 0.8, 1.0, 1.2, 1.4 };
+
+    /// <summary>The experience multiplier for a run in <paramref name="act"/>, on top of xp_rate.</summary>
+    public static double XpMultiplier(int act, double rate)
+    {
+        int index = Math.Clamp(act, 1, ActXpFactors.Length) - 1;
+
+        return Math.Max(0, rate) * ActXpFactors[index];
+    }
+
     public static ExpeditionRun GetRun(GamePlayer player)
     {
         if (player == null)

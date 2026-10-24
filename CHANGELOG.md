@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition XP scales with the act: 3x, 4x, 5x, 6x, 7x for acts 1-5 at the default `expedition_xp_rate` of 5 (was a
+  flat 5x).
 - Boon rerolls: `/run reroll` swaps a waiting boon offer for 3 boons that were not in it (still one loot boon), 2 times
   per run. Rerolls follow the seed.
 - Boons: pure melee classes (no power, such as Hero, Blademaster, Armsman, Warrior) are never offered Arcane Fury

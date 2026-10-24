@@ -22,4 +22,14 @@ public class UT_ExpeditionRealm
         Assert.That(ExpeditionRealm.BackfillEstimate(100, 10, 1, 2, 1), Is.EqualTo(3200 + 2000 + 500));
         Assert.That(ExpeditionRealm.BackfillEstimate(0, 1, 0, 1, 0), Is.EqualTo(0));
     }
+
+    [Test]
+    public void XpMultiplier_GrowsWithTheAct()
+    {
+        Assert.That(ExpeditionManager.XpMultiplier(1, 5.0), Is.EqualTo(3.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(3, 5.0), Is.EqualTo(5.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(5, 5.0), Is.EqualTo(7.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(9, 5.0), Is.EqualTo(7.0).Within(1e-9), "past the last act stays at the last act");
+        Assert.That(ExpeditionManager.XpMultiplier(0, 5.0), Is.EqualTo(3.0).Within(1e-9));
+    }
 }

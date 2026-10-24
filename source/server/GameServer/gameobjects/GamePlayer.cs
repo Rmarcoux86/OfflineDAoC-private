@@ -4362,9 +4362,11 @@ namespace DOL.GS
                 else
                     baseXp = (long) (baseXp * Properties.XP_RATE);
 
-                if (Properties.EXPEDITION_XP_RATE > 0 && DOL.GS.Expedition.ExpeditionManager.GetRun(this) != null)
+                DOL.GS.Expedition.ExpeditionRun expeditionRun = DOL.GS.Expedition.ExpeditionManager.GetRun(this);
+
+                if (Properties.EXPEDITION_XP_RATE > 0 && expeditionRun != null)
                 {
-                    baseXp = (long) (baseXp * Properties.EXPEDITION_XP_RATE);
+                    baseXp = (long) (baseXp * DOL.GS.Expedition.ExpeditionManager.XpMultiplier(expeditionRun.Act, Properties.EXPEDITION_XP_RATE));
                 }
 
                 long xpBonus = GetModified(eProperty.XpPoints);
