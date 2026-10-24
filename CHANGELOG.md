@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: the journal shows the `/loc` of the act camp, the act boss and each elite pack, and the boss's
+  "has appeared" message says where it is.
 - Respec anywhere: `/respec ALL`, `/respec <line>` and `/respec REALM` work without a trainer and as often as you like,
   on and off runs. Server setting `respec_anywhere` (on).
 - Expedition: a monster that dies to a damage-over-time spell now counts for objectives, loot and realm points. The

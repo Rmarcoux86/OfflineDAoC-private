@@ -606,6 +606,12 @@ public static class ActGenerator
     {
         ArgumentNullException.ThrowIfNull(plan);
         List<string> lines = [$"Act {plan.Act} of {ActCount}: {plan.ZoneName} (levels {plan.MinLevel}-{plan.MaxLevel})"];
+        string campLoc = DescribeLoc(plan.RegionId, plan.CampX, plan.CampY);
+
+        if (campLoc != null)
+        {
+            lines.Add($"Camp: {campLoc}");
+        }
 
         foreach (ActObjective objective in plan.Objectives ?? [])
         {
@@ -618,7 +624,9 @@ public static class ActGenerator
         if (plan.Boss != null)
         {
             string status = plan.BossKilled ? "slain" : plan.BossSpawned ? "has appeared" : "appears when every objective is done";
-            lines.Add($"Boss: {plan.Boss.Title}, a level {plan.Boss.Level} {plan.Boss.BaseMobName} - {status}");
+            string bossLoc = plan.BossKilled ? null : DescribeLoc(plan.Boss.RegionId, plan.Boss.X, plan.Boss.Y);
+            string bossWhere = bossLoc == null ? string.Empty : $" ({bossLoc})";
+            lines.Add($"Boss: {plan.Boss.Title}, a level {plan.Boss.Level} {plan.Boss.BaseMobName} - {status}{bossWhere}");
         }
 
         return lines;

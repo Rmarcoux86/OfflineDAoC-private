@@ -102,7 +102,8 @@ public static class ExpeditionElites
         {
             if (camp != null && !string.IsNullOrEmpty(camp.Description))
             {
-                lines.Add($"Elite: {camp.Description}");
+                string loc = ActGenerator.DescribeLoc(camp.RegionId, camp.X, camp.Y);
+                lines.Add(loc == null ? $"Elite: {camp.Description}" : $"Elite: {camp.Description} ({loc})");
             }
         }
 

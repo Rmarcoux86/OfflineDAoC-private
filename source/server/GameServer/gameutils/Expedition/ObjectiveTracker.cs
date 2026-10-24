@@ -829,7 +829,9 @@ public static class ObjectiveTracker
             return;
         }
 
-        Tell(player, $"{boss.Name} has appeared at {plan.ZoneName}!", true);
+        string bossLoc = ActGenerator.DescribeLoc(plan.RegionId, boss.X, boss.Y);
+
+        Tell(player, bossLoc == null ? $"{boss.Name} has appeared at {plan.ZoneName}!" : $"{boss.Name} has appeared at {plan.ZoneName}, at {bossLoc}!", true);
     }
 
     /// <summary>Respawns a boss that should be up but is not (the player came back, or it died to someone else).</summary>
