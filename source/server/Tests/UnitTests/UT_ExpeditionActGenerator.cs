@@ -469,11 +469,11 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
-    public void BossTitle_WardensThenNamedBossesWithoutRepeats()
+    public void BossTitle_ThreePointOhThenWardenThenNamedBossesWithoutRepeats()
     {
         for (int seed = 0; seed < 500; seed++)
         {
-            Assert.That(ActGenerator.BossTitle(1, seed, "Connacht"), Is.EqualTo("Warden of Connacht"));
+            Assert.That(ActGenerator.BossTitle(1, seed, "Connacht"), Is.EqualTo("Three Point Oh"));
             Assert.That(ActGenerator.BossTitle(2, seed, "Lough Gur"), Is.EqualTo("Warden of Lough Gur"));
 
             List<string> named = new() { ActGenerator.BossTitle(3, seed, "a"), ActGenerator.BossTitle(4, seed, "b"), ActGenerator.BossTitle(5, seed, "c") };
@@ -564,5 +564,13 @@ public class UT_ExpeditionActGenerator
         }
 
         Assert.That(ActGenerator.Generate(2, eRealm.Hibernia, 1, -1, FakeOffset, CatalogCampSource.Instance, 99999), Is.Null, "a zone the act cannot use");
+    }
+
+    [Test]
+    public void BossQuote_OnlyForBossesWithALine()
+    {
+        Assert.That(ActGenerator.BossQuote("Three Point Oh"), Does.StartWith("You want this ring?"));
+        Assert.That(ActGenerator.BossQuote("Warden of Connacht"), Is.Null);
+        Assert.That(ActGenerator.BossQuote(null), Is.Null);
     }
 }

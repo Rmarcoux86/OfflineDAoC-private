@@ -831,6 +831,20 @@ public static class ObjectiveTracker
         string bossLoc = ActGenerator.DescribeLoc(plan.RegionId, boss.X, boss.Y);
 
         Tell(player, bossLoc == null ? $"{boss.Name} has appeared at {plan.ZoneName}!" : $"{boss.Name} has appeared at {plan.ZoneName}, at {bossLoc}!", true);
+
+        // A named boss with a line shouts it as it appears; the player hears it wherever they are in the zone.
+        string quote = ActGenerator.BossQuote(plan.Boss?.Title);
+
+        if (quote != null)
+        {
+            // Players within yelling distance hear the yell itself; one farther off is told directly.
+            boss.Yell(quote);
+
+            if (!player.IsWithinRadius(boss, WorldMgr.YELL_DISTANCE))
+            {
+                player.Out.SendMessage($"{boss.Name} shouts, \"{quote}\"", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+        }
     }
 
     /// <summary>Respawns a boss that should be up but is not (the player came back, or it died to someone else).</summary>

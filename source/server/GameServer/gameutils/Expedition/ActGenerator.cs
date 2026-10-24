@@ -529,15 +529,33 @@ public static class ActGenerator
     /// <summary>The named final bosses of acts 3 to 5 (owner, 2026-10-24). A run draws three of them, none twice.</summary>
     public static readonly IReadOnlyList<string> NamedBosses = ["Drunkstains", "Scob Mahob", "Ios", "Toothmouth", "Gwyraan"];
 
+    /// <summary>What a named boss shouts when it appears; null for one with no line.</summary>
+    public static string BossQuote(string title)
+    {
+        return title switch
+        {
+            FirstActBoss => "You want this ring? It's got\u2026",
+            _ => null
+        };
+    }
+
     /// <summary>The first act whose boss is one of <see cref="NamedBosses"/>.</summary>
     public const int FirstNamedBossAct = 3;
 
+    /// <summary>The act 1 boss of every run (owner, 2026-10-24).</summary>
+    public const string FirstActBoss = "Three Point Oh";
+
     /// <summary>
-    /// The act boss's name: "Warden of {zone}" in acts 1 and 2; from act 3 a named boss, picked by a shuffle of
-    /// <see cref="NamedBosses"/> seeded by the run alone, so the acts of one run never repeat a name.
+    /// The act boss's name: <see cref="FirstActBoss"/> in act 1, "Warden of {zone}" in act 2; from act 3 a named boss,
+    /// picked by a shuffle of <see cref="NamedBosses"/> seeded by the run alone, so the acts of one run never repeat a name.
     /// </summary>
     public static string BossTitle(int act, int seed, string zoneName)
     {
+        if (act <= 1)
+        {
+            return FirstActBoss;
+        }
+
         if (act < FirstNamedBossAct || NamedBosses.Count == 0)
         {
             return $"Warden of {zoneName}";
