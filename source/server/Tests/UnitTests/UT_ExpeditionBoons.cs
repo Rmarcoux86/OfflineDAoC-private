@@ -207,4 +207,19 @@ public class UT_ExpeditionBoons
 
         Assert.That(ExpeditionBoons.OfferLines(run).First(), Does.StartWith("No boon is waiting"));
     }
+
+    [Test]
+    public void RollOffer_PureMelee_NeverOffersCasterOnlyBoons()
+    {
+        for (int seed = 1; seed <= 300; seed++)
+        {
+            for (int act = 1; act <= 4; act++)
+            {
+                List<string> offer = ExpeditionBoons.RollOffer(seed, act, new List<string>(), usesPower: false);
+
+                Assert.That(offer.Any(ExpeditionBoons.CasterOnly.Contains), Is.False, $"seed {seed}, act {act}");
+                Assert.That(offer.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"seed {seed}, act {act}");
+            }
+        }
+    }
 }

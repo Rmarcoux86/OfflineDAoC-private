@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Boons: pure melee classes (no power, such as Hero, Blademaster, Armsman, Warrior) are never offered Arcane Fury
+  or Siphon.
 - New boon Glory: +50% realm points for the rest of the run (they are kept on the account as usual).
 - Boons: Vampiric rolls on damage-over-time spell ticks again (a caster's real damage); style bleeds still roll
   nothing.

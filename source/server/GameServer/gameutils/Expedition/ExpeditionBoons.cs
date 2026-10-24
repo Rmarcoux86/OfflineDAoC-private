@@ -81,6 +81,18 @@ public static class ExpeditionBoons
         new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false)
     };
 
+    /// <summary>
+    /// Boons that only help a class with power (spells): never offered to a pure melee class (one with no power stat,
+    /// such as Hero, Blademaster, Armsman or Warrior), where they would do nothing.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CasterOnly = new HashSet<string>(StringComparer.Ordinal) { ArcaneFury, Siphon };
+
+    /// <summary>True for a class that has power to cast with (CharacterClass.ManaStat set); false for pure melee.</summary>
+    public static bool UsesPower(GamePlayer player)
+    {
+        return player?.CharacterClass == null || player.CharacterClass.ManaStat != eStat.UNDEFINED;
+    }
+
     public static BoonDefinition Find(string id)
     {
         return Catalog.FirstOrDefault(boon => string.Equals(boon.Id, id, StringComparison.Ordinal));
@@ -92,10 +104,13 @@ public static class ExpeditionBoons
     /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act
     /// and taken boons. While any loot boon is left, one of them is in the offer.
     /// </summary>
-    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken)
+    public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, bool usesPower = true)
     {
         var rng = new Random(unchecked(seed * 131 + act));
-        List<BoonDefinition> available = Catalog.Where(boon => taken == null || !taken.Contains(boon.Id)).ToList();
+        List<BoonDefinition> available = Catalog
+            .Where(boon => taken == null || !taken.Contains(boon.Id))
+            .Where(boon => usesPower || !CasterOnly.Contains(boon.Id))
+            .ToList();
         var offer = new List<BoonDefinition>();
         List<BoonDefinition> loot = available.Where(boon => boon.IsLoot).ToList();
 
@@ -128,7 +143,7 @@ public static class ExpeditionBoons
     /// still waiting from an earlier act is replaced (<paramref name="replacedUnclaimed"/>). The caller saves the run.
     /// Returns false when every boon is taken.
     /// </summary>
-    public static bool OfferAtActBreak(ExpeditionRun run, int finishedAct, out bool replacedUnclaimed)
+    public static bool OfferAtActBreak(ExpeditionRun run, int finishedAct, out bool replacedUnclaimed, bool usesPower = true)
     {
         replacedUnclaimed = false;
 
@@ -142,7 +157,7 @@ public static class ExpeditionBoons
         lock (run.Boons)
         {
             replacedUnclaimed = run.PendingBoonOffer.Count > 0;
-            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList());
+            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), usesPower);
             run.PendingBoonOffer = offer;
         }
 
