@@ -24,12 +24,14 @@ public class UT_ExpeditionRealm
     }
 
     [Test]
-    public void XpMultiplier_GrowsWithTheAct()
+    public void XpMultiplier_FlatToLevel10ThenFollowsTheXpTable()
     {
-        Assert.That(ExpeditionManager.XpMultiplier(1, 5.0), Is.EqualTo(3.0).Within(1e-9));
-        Assert.That(ExpeditionManager.XpMultiplier(3, 5.0), Is.EqualTo(5.0).Within(1e-9));
-        Assert.That(ExpeditionManager.XpMultiplier(5, 5.0), Is.EqualTo(7.0).Within(1e-9));
-        Assert.That(ExpeditionManager.XpMultiplier(9, 5.0), Is.EqualTo(7.0).Within(1e-9), "past the last act stays at the last act");
-        Assert.That(ExpeditionManager.XpMultiplier(0, 5.0), Is.EqualTo(3.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(1, 5.0), Is.EqualTo(5.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(10, 5.0), Is.EqualTo(5.0).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(20, 5.0), Is.EqualTo(7.05).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(40, 5.0), Is.GreaterThan(ExpeditionManager.XpMultiplier(39, 5.0) * 1.5), "the level 40 jump");
+        Assert.That(ExpeditionManager.XpMultiplier(49, 5.0), Is.EqualTo(57.05).Within(1e-9));
+        Assert.That(ExpeditionManager.XpMultiplier(50, 5.0), Is.EqualTo(57.05).Within(1e-9), "level 50 uses the last factor");
+        Assert.That(ExpeditionManager.XpMultiplier(10, 6.0), Is.EqualTo(6.0).Within(1e-9), "the setting moves every level");
     }
 }

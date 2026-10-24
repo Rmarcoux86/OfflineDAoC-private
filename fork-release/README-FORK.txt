@@ -56,8 +56,8 @@ EXPEDITION MODE
                      [Rare], [Epic] or a Unique. You never go more than a few kills dry.
                      Monsters drop no stock gear during a run (money, quest items and
                      materials still drop): setting expedition_replace_stock_gear.
-                     Run experience scales with the act: 3x, 4x, 5x, 6x, 7x (setting
-                     expedition_xp_rate, default 5).
+                     Run experience: 5x through level 10, then it grows with the XP table
+                     (about 11x at 30, 57x at 49). Setting expedition_xp_rate (default 5).
   Uniques            18 hand-made uniques with fixed names, lore and strong fixed bonuses, six
                      each for levels 1-19, 20-39 and 40+. A run hands out each unique once before
                      any repeats; armor and weapon uniques take your class's best armor or a

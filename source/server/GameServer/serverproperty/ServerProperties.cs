@@ -2592,7 +2592,7 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_replace_stock_gear", "Expedition loot: during a run, monsters drop no stock weapons, armor or jewelry (money, quest items and materials still drop); all gear comes from Expedition loot with a rarity.", true)]
 		public static bool EXPEDITION_REPLACE_STOCK_GEAR = true;
 
-		[ServerProperty("expedition", "expedition_xp_rate", "Expedition XP: experience multiplier during a run, on top of xp_rate. It scales with the act: act 1 gets 0.6 of it, then 0.8, 1.0, 1.2 and 1.4 (at 5.0: 3x, 4x, 5x, 6x, 7x).", 5.0)]
+		[ServerProperty("expedition", "expedition_xp_rate", "Expedition XP: experience multiplier during a run, on top of xp_rate. This is the rate through level 10; past it the multiplier grows with the experience each level needs (at 5.0: 7x at 20, 11x at 30, 30x at 40, 57x at 49).", 5.0)]
 		public static double EXPEDITION_XP_RATE = 5.0;
 
 		[ServerProperty("expedition", "expedition_rp_rate", "Expedition realm points: multiplier for the realm points runs give (kills, elites, objectives, act bosses, victory). 0 turns them off.", 1.0)]

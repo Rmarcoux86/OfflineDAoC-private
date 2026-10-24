@@ -341,17 +341,27 @@ public static class ExpeditionManager
     #region Contract
 
     /// <summary>
-    /// Each act's share of expedition_xp_rate: later acts level more slowly (each level needs far more experience), so
-    /// the boost grows with the act. At the default rate of 5: 3x, 4x, 5x, 6x, 7x.
+    /// expedition_xp_rate's factor at each player level (index = level - 1). Levelling takes more and more even-con
+    /// kills (GamePlayer.XPForLevel against GameLiving.XPForLiving: about 25 at level 5, 75 at 20, 150 at 35, 410 at 40,
+    /// 875 at 49), so the factor follows the kills per level from level 10 on, raised to the power 0.85 so later levels
+    /// still feel a little slower (owner, 2026-10-24: "close, not the exact same"). 1 through level 10, so act 1 stays
+    /// at expedition_xp_rate. At the default rate of 5, kills per level go from 10 at level 10 to about 15 at level 49.
     /// </summary>
-    private static readonly double[] ActXpFactors = { 0.6, 0.8, 1.0, 1.2, 1.4 };
-
-    /// <summary>The experience multiplier for a run in <paramref name="act"/>, on top of xp_rate.</summary>
-    public static double XpMultiplier(int act, double rate)
+    private static readonly double[] LevelXpFactors =
     {
-        int index = Math.Clamp(act, 1, ActXpFactors.Length) - 1;
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        1.04, 1.08, 1.09, 1.14, 1.2, 1.26, 1.29, 1.32, 1.37, 1.41,
+        1.49, 1.74, 1.67, 1.75, 1.83, 1.91, 1.94, 2.04, 2.14, 2.21,
+        2.25, 2.3, 2.39, 2.46, 2.55, 2.73, 2.88, 2.92, 3.06, 5.98,
+        8.82, 9.1, 9.19, 9.69, 9.92, 10.38, 10.7, 11.16, 11.41
+    };
 
-        return Math.Max(0, rate) * ActXpFactors[index];
+    /// <summary>The experience multiplier on a run for a player of <paramref name="level"/>, on top of xp_rate.</summary>
+    public static double XpMultiplier(int level, double rate)
+    {
+        int index = Math.Clamp(level, 1, LevelXpFactors.Length) - 1;
+
+        return Math.Max(0, rate) * LevelXpFactors[index];
     }
 
     public static ExpeditionRun GetRun(GamePlayer player)
