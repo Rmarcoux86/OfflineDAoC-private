@@ -2779,6 +2779,9 @@ internal sealed partial class MainForm : Form
             externalProcess?.Dispose();
             await RefreshDashboardAsync();
         }
+
+        // Stopping the server is when an update can be installed, so look for one now (owner 2026-10-23).
+        await CheckForForkUpdateAsync();
     }
 
     private void ShowStoppingState()

@@ -15,7 +15,7 @@ INSTALL
 
 UPDATES
   You only install by hand once. From then on the launcher checks for a newer fork update when it
-  opens and every 30 minutes. When one is out and the server is stopped, START SERVER turns gold
+  opens, when you click STOP SERVER, and every 30 minutes. When one is out and the server is stopped, START SERVER turns gold
   and reads GET UPDATE (hover it to see the versions). Click it: the launcher downloads the update,
   closes, installs it in a black window and opens again. If the download fails, the launcher says
   why and START SERVER works as usual. You can always install a newer zip by hand instead.
