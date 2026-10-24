@@ -273,7 +273,10 @@ public static class ExpeditionUniques
     /// <summary>Picks the player's unique for this drop and remembers it as found on the run.</summary>
     public const string ThreePointOhRingName = "Three Point Oh's Ring";
 
-    /// <summary>The eight attributes, +1 each, on Three Point Oh's Ring (owner, 2026-10-24).</summary>
+    /// <summary>How much of each attribute Three Point Oh's Ring gives (owner, 2026-10-24: +1, then +5).</summary>
+    public const int ThreePointOhRingBonus = 5;
+
+    /// <summary>The eight attributes, +<see cref="ThreePointOhRingBonus"/> each, on Three Point Oh's Ring.</summary>
     public static readonly eProperty[] ThreePointOhRingStats =
     {
         eProperty.Strength, eProperty.Constitution, eProperty.Dexterity, eProperty.Quickness,
@@ -281,7 +284,7 @@ public static class ExpeditionUniques
     };
 
     /// <summary>
-    /// The ring Three Point Oh (every run's act 1 boss) always drops on top of its normal drops: +1 to each attribute.
+    /// The ring Three Point Oh (every run's act 1 boss) always drops on top of its normal drops: +5 to each attribute.
     /// Marked Unique so /junk never touches it.
     /// </summary>
     public static GeneratedUniqueItem BuildThreePointOhRing(GamePlayer player)
@@ -292,7 +295,7 @@ public static class ExpeditionUniques
 
         for (int i = 0; i < ThreePointOhRingStats.Length; i++)
         {
-            ExpeditionLoot.SetBonus(item, i + 1, ThreePointOhRingStats[i], 1);
+            ExpeditionLoot.SetBonus(item, i + 1, ThreePointOhRingStats[i], ThreePointOhRingBonus);
         }
 
         item.Name = ThreePointOhRingName;
