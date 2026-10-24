@@ -8,6 +8,10 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition loot is sized to its level: each bonus line is held to what a character of the item's level can use
+  (stats 1.5 x level, hit points 4 x level, resists level/2 + 1, skills level/5 + 1) and the item's total to a budget
+  that grows with level and rarity (about level x 0.45 for Common up to x 0.9 for Epic). A level-2 drop no longer
+  carries +21 Dexterity. Unique rolls give an Epic until level 10.
 - Expedition: automatic class promotion. At run start a yes/no chain asks which advanced class to train (No shows the
   next path; single-path classes such as Disciple to Necromancer are chosen without asking); at level 5 the character is
   promoted with the trainer's own welcome and starter gift. The choice is saved per character and asked again at login

@@ -279,4 +279,58 @@ public class UT_ExpeditionLoot
         item.Bonus7 = 12;
         Assert.That(ExpeditionLoot.CountBonusLines(item), Is.EqualTo(2));
     }
+
+    [Test]
+    public void FitToLevel_ALevel2MagicItem_CannotCarryTwentyOneDexterity()
+    {
+        DbItemTemplate item = new();
+        item.Bonus1Type = (int) eProperty.Dexterity;
+        item.Bonus1 = 21;
+        item.Bonus2Type = (int) eProperty.Strength;
+        item.Bonus2 = 9;
+
+        ExpeditionLoot.FitToLevel(item, 2, eLootRarity.Magic);
+
+        Assert.That(item.Bonus1, Is.InRange(1, 3), "a level-2 character can use at most +3 of a stat");
+        Assert.That(item.Bonus2, Is.InRange(1, 3));
+        Assert.That(item.Bonus1Type, Is.EqualTo((int) eProperty.Dexterity), "the line keeps its property");
+    }
+
+    [Test]
+    public void FitToLevel_StaysWithinTheBudget_UnlessEveryLineIsAlreadyAtOne()
+    {
+        foreach (eLootRarity rarity in new[] { eLootRarity.Common, eLootRarity.Magic, eLootRarity.Rare, eLootRarity.Epic })
+        {
+            foreach (int level in new[] { 1, 2, 5, 10, 20, 35, 50 })
+            {
+                DbItemTemplate item = new();
+                item.Bonus1Type = (int) eProperty.Dexterity;
+                item.Bonus1 = 40;
+                item.Bonus2Type = (int) eProperty.MaxHealth;
+                item.Bonus2 = 150;
+                item.Bonus3Type = (int) eProperty.Resist_Heat;
+                item.Bonus3 = 20;
+
+                ExpeditionLoot.FitToLevel(item, level, rarity);
+
+                double total = ExpeditionLoot.LineUtility(eProperty.Dexterity, item.Bonus1) +
+                               ExpeditionLoot.LineUtility(eProperty.MaxHealth, item.Bonus2) +
+                               ExpeditionLoot.LineUtility(eProperty.Resist_Heat, item.Bonus3);
+                bool allAtFloor = item.Bonus1 == 1 && item.Bonus2 <= 9 && item.Bonus3 == 1;
+
+                Assert.That(total <= ExpeditionLoot.UtilityBudget(level, rarity) + 0.0001 || allAtFloor, Is.True, $"{rarity} at level {level}: {total}");
+                Assert.That(item.Bonus1, Is.LessThanOrEqualTo(Math.Max(1, (int) (level * 1.5))));
+                Assert.That(item.Bonus1, Is.GreaterThanOrEqualTo(1));
+            }
+        }
+    }
+
+    [Test]
+    public void UtilityBudget_GrowsWithLevelAndRarity()
+    {
+        Assert.That(ExpeditionLoot.UtilityBudget(50, eLootRarity.Epic), Is.GreaterThan(ExpeditionLoot.UtilityBudget(50, eLootRarity.Common)));
+        Assert.That(ExpeditionLoot.UtilityBudget(50, eLootRarity.Common), Is.GreaterThan(ExpeditionLoot.UtilityBudget(10, eLootRarity.Common)));
+        Assert.That(ExpeditionLoot.UtilityBudget(1, eLootRarity.Common), Is.EqualTo(1.0));
+        Assert.That(ExpeditionLoot.UniqueMinPlayerLevel, Is.EqualTo(10));
+    }
 }

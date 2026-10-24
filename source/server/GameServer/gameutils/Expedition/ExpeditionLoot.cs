@@ -655,6 +655,13 @@ public static class ExpeditionLoot
             UniqueDefinition unique = null;
             GeneratedUniqueItem item;
 
+            // Uniques are sized for the top of their tier; below level 10 they would dwarf everything else, so an early
+            // Unique roll becomes an Epic until then.
+            if (rarity == eLootRarity.Unique && player.Level < UniqueMinPlayerLevel)
+            {
+                rarity = eLootRarity.Epic;
+            }
+
             if (rarity == eLootRarity.Unique)
             {
                 unique = ExpeditionUniques.PickFor(player, run);
@@ -754,6 +761,11 @@ public static class ExpeditionLoot
             AddExtraBonus(item);
         }
 
+        // The stock generator lets any item reach 15 utility (about 22 stat points) and the rarity floors push higher,
+        // so a level-2 drop could carry +21 Dexterity (owner 2026-10-23). Every line is held to what a character of the
+        // item's level can use, and the item's total to a budget that grows with level and rarity.
+        FitToLevel(item, item.Level, rarity);
+
         // Salvage looks for "Atlas ROG" in the description (Salvage.cs:708), so the rarity is appended to it; /junk reads it back (TryGetRarity).
         item.Description = $"{item.Description}{RaritySuffix}{rarity}";
         item.Name = DecorateName(rarity, item.Name);
@@ -808,6 +820,122 @@ public static class ExpeditionLoot
 
         int max = (int) Math.Ceiling(level / 3.0);
         SetBonus(item, line, eProperty.Constitution, Util.Random((int) Math.Ceiling(max / 2.0), max));
+    }
+
+    /// <summary>The player level from which a Unique roll gives a catalog unique (below it, an Epic).</summary>
+    public const int UniqueMinPlayerLevel = 10;
+
+    /// <summary>
+    /// The item's total bonus utility (stats 2/3 per point, hit points 1/4, power 2, resists 2, skills 5, all-skills 10,
+    /// as GeneratedUniqueItem counts it) allowed at an item level: about level x 0.45 for Common up to x 0.9 for Epic,
+    /// never below 1. At level 50 that is roughly 22 / 30 / 38 / 46 utility; at level 2, one or two points of stat.
+    /// </summary>
+    public static double UtilityBudget(int itemLevel, eLootRarity rarity)
+    {
+        double factor = rarity switch
+        {
+            eLootRarity.Magic => 0.6,
+            eLootRarity.Rare => 0.75,
+            eLootRarity.Epic => 0.9,
+            eLootRarity.Unique => 0.9,
+            _ => 0.45
+        };
+
+        return Math.Max(1.0, itemLevel * factor);
+    }
+
+    public static double LineUtility(eProperty property, int value)
+    {
+        if (value == 0)
+        {
+            return 0.0;
+        }
+
+        if ((property >= eProperty.Stat_First && property <= eProperty.Stat_Last) || property == eProperty.Acuity)
+        {
+            return value * 2 / 3.0;
+        }
+
+        if (property == eProperty.MaxHealth)
+        {
+            return value * 0.25;
+        }
+
+        if (property == eProperty.MaxMana || (property >= eProperty.Resist_First && property <= eProperty.Resist_Last))
+        {
+            return value * 2.0;
+        }
+
+        if (property >= eProperty.Skill_First && property <= eProperty.Skill_Last)
+        {
+            return value * 5.0;
+        }
+
+        if (property is eProperty.AllMagicSkills or eProperty.AllMeleeWeaponSkills or eProperty.AllDualWieldingSkills or eProperty.AllArcherySkills or eProperty.AllSkills)
+        {
+            return value * 10.0;
+        }
+
+        return 0.0;
+    }
+
+    /// <summary>
+    /// Holds every bonus line to the cap a character of <paramref name="itemLevel"/> can use (ExpeditionUniques.LineCap;
+    /// stat and all-stat lines included), then, while the total is over <see cref="UtilityBudget"/>, lowers the
+    /// biggest line by one point. Lines never drop below 1 and are never removed, so the rarity's promised lines stay.
+    /// </summary>
+    public static void FitToLevel(DbItemTemplate item, int itemLevel, eLootRarity rarity)
+    {
+        int level = Math.Max(1, itemLevel);
+
+        for (int i = 1; i <= 10; i++)
+        {
+            (int type, int value) = GetBonus(item, i);
+
+            if (type == 0 || value <= 0)
+            {
+                continue;
+            }
+
+            eProperty property = (eProperty) type;
+            int cap = property == eProperty.Acuity ? ExpeditionUniques.LineCap(eProperty.Strength, level) : ExpeditionUniques.LineCap(property, level);
+
+            if (cap > 0 && value > cap)
+            {
+                SetBonus(item, i, property, Math.Max(1, cap));
+            }
+        }
+
+        double budget = UtilityBudget(level, rarity);
+
+        for (int guard = 0; guard < 500; guard++)
+        {
+            double total = 0.0;
+            int biggestLine = 0;
+            double biggestUtility = 0.0;
+
+            for (int i = 1; i <= 10; i++)
+            {
+                (int type, int value) = GetBonus(item, i);
+                double utility = LineUtility((eProperty) type, value);
+                total += utility;
+
+                if (value > 1 && utility > biggestUtility)
+                {
+                    biggestUtility = utility;
+                    biggestLine = i;
+                }
+            }
+
+            if (total <= budget || biggestLine == 0)
+            {
+                return;
+            }
+
+            (int lineType, int lineValue) = GetBonus(item, biggestLine);
+            int step = (eProperty) lineType == eProperty.MaxHealth ? Math.Max(1, lineValue / 10) : 1;
+            SetBonus(item, biggestLine, (eProperty) lineType, Math.Max(1, lineValue - step));
+        }
     }
 
     /// <summary>How many bonus lines a rarity promises: Magic at least one, Rare and above at least two.</summary>
