@@ -376,6 +376,7 @@ public static class ObjectiveTracker
 
         if (objective == null)
         {
+            ExpeditionDebug.Report(player, $"kill of {target.Name} matched no open objective (zone {target.CurrentZone?.Description}).");
             TellIfWrongCamp(player, plan, target);
 
             if (dropped)
@@ -394,6 +395,18 @@ public static class ObjectiveTracker
         }
 
         FinishProgress(state, run, plan, completedNow);
+    }
+
+    private static Zone ObjectiveZone(ActObjective objective)
+    {
+        try
+        {
+            return WorldMgr.GetRegion((ushort) objective.RegionId)?.GetZone(objective.X, objective.Y);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -418,7 +431,7 @@ public static class ObjectiveTracker
             string where = loc == null ? "elsewhere" : $"at {loc}";
             int distance = (int) Math.Sqrt(Math.Pow(target.X - objective.X, 2) + Math.Pow(target.Y - objective.Y, 2));
 
-            Tell(player, $"That {target.Name} is not from the objective camp. The camp is {where}, about {distance} units from here.", false);
+            Tell(player, $"That {target.Name} is outside the objective's zone. Its camp is {where}, about {distance} units from here.", false);
 
             return;
         }
@@ -469,7 +482,21 @@ public static class ObjectiveTracker
                 return objective;
             }
 
-            // 2D radius: camps sit on slopes, and the generator's Z is a single spot height.
+            // Anywhere in the objective's zone counts: a zone often has several camps of the same monster, and the
+            // area words ("the heart of Connacht") cannot say which one the generator picked.
+            Zone objectiveZone = ObjectiveZone(objective);
+
+            if (objectiveZone != null && target.CurrentZone != null)
+            {
+                if (target.CurrentZone.ID == objectiveZone.ID)
+                {
+                    return objective;
+                }
+
+                continue;
+            }
+
+            // No world (unit tests): 2D radius around the camp; camps sit on slopes, and Z is a single spot height.
             if (target.IsWithinRadius(new Point3D(objective.X, objective.Y, objective.Z), objective.Radius, true))
             {
                 return objective;

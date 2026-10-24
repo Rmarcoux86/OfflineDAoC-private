@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: kills for a camp or named-monster objective count anywhere in the objective's zone, not only within
+  1500 units of one camp (zones often have several camps of the same monster).
 - Expedition: the journal and `/run status` show each open objective's `/loc`, and killing the right monster in the
   wrong camp tells you where the objective camp is.
 - Expedition: you earn 5x experience during a run (on top of `xp_rate`), so you keep pace with acts that span
