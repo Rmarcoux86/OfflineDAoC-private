@@ -83,7 +83,8 @@ EXPEDITION MODE
                      power), Desperation (+30% damage below half health), Glass Cannon (+25%
                      damage, -15% health), Unshakable (CC half as long), Frostbite (melee hits
                      may snare), Siphon (power per hit), Bounty Hunter (elites and bosses drop
-                     an extra item), Scavenger (20% chance of a second item per drop).
+                     an extra item), Scavenger (20% chance of a second item per drop), Glory
+                     (+50% realm points for the rest of the run).
   /run boons         show the boon offer and the boons you have.  /run boon <1-3>  take one.
   The mists          leaving the act's zone warns you, then returns you to camp after 10 seconds.
   /run journal       reopen the objective list.     /run status   one-line summary.

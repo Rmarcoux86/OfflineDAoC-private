@@ -41,6 +41,10 @@ public static class ExpeditionBoons
     public const string Siphon = "siphon";
     public const string BountyHunter = "bounty_hunter";
     public const string Scavenger = "scavenger";
+    public const string Glory = "glory";
+
+    /// <summary>Realm points added by Glory, in percent.</summary>
+    public const int GloryRealmPointPercent = 50;
 
     /// <summary>Drop chance added by Greed, in percentage points.</summary>
     public const int GreedChanceBonus = 25;
@@ -73,7 +77,8 @@ public static class ExpeditionBoons
         new(Frostbite, "Frostbite", "Your melee hits have a 25% chance to snare the target by 40% for 8 seconds.", false),
         new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
         new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
-        new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true)
+        new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true),
+        new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false)
     };
 
     public static BoonDefinition Find(string id)
@@ -344,6 +349,12 @@ public static class ExpeditionBoons
     }
 
     #endregion
+
+    /// <summary>Glory: the realm point multiplier for the run (1.5 with the boon, else 1).</summary>
+    public static double RealmPointFactor(ExpeditionRun run)
+    {
+        return run != null && Snapshot(run).Contains(Glory) ? 1.0 + GloryRealmPointPercent / 100.0 : 1.0;
+    }
 
     private static IReadOnlyList<string> Snapshot(ExpeditionRun run)
     {

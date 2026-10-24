@@ -8,6 +8,7 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- New boon Glory: +50% realm points for the rest of the run (they are kept on the account as usual).
 - Boons: Vampiric rolls on damage-over-time spell ticks again (a caster's real damage); style bleeds still roll
   nothing.
 - Boons: Vampiric, Siphon and Chain Lightning no longer roll on damage-over-time ticks (style bleeds, DoT spells),
