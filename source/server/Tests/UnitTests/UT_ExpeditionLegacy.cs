@@ -71,4 +71,12 @@ public class UT_ExpeditionLegacy
         Assert.That(offer.Count, Is.EqualTo(ExpeditionBoons.OfferSize + 1));
         Assert.That(offer.Distinct().Count(), Is.EqualTo(offer.Count));
     }
+
+    [Test]
+    public void BackfillEstimate_CountsKillsObjectivesAndBosses()
+    {
+        // 100 kills at level 10 (mob level 9: 32 each), act 1 won (2 x 250 + 1500), act 2 with one objective done (500).
+        Assert.That(ExpeditionRealm.BackfillEstimate(100, 10, 1, 2, 1), Is.EqualTo(3200 + 2000 + 500));
+        Assert.That(ExpeditionRealm.BackfillEstimate(0, 1, 0, 1, 0), Is.EqualTo(0));
+    }
 }

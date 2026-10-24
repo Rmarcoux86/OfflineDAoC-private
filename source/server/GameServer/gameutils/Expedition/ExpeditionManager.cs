@@ -134,7 +134,11 @@ public static class ExpeditionManager
 
         player.Out.SendMessage($"Expedition resumed: act {run.Act} of {ActGenerator.ActCount}, {run.CurrentAct?.ZoneName}. Type /run journal for your objectives.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
         ExpeditionBoons.RemindOffer(player, run);
-        WhenSettled(player, player.CurrentRegionID, () => ExpeditionPromotion.OnRunResumed(player));
+        WhenSettled(player, player.CurrentRegionID, () =>
+        {
+            ExpeditionPromotion.OnRunResumed(player);
+            ExpeditionRealm.Backfill(player);
+        });
     }
 
     /// <summary>

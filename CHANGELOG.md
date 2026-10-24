@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: a run started before realm points existed is given, once at login, the realm points it would have
+  earned so far (its kills, finished objectives and act bosses).
 - Expedition realm points: runs give realm points for monsters (5 + 3 per level, none for grey, 4x for elite packs),
   objectives (250 per act), act bosses (1500 per act) and winning (15000). Realm ranks buy realm abilities with
   `/train`. Server setting `expedition_rp_rate` (1.0).

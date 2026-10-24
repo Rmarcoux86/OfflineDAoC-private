@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using DOL.GS.PacketHandler;
 using DOL.GS.ServerProperties;
 
 namespace DOL.GS.Expedition;
@@ -47,6 +49,56 @@ public static class ExpeditionRealm
     public static void OnBossKilled(GamePlayer player, int act, bool wonRun)
     {
         Grant(player, BossPointsPerAct * Math.Max(1, act) + (wonRun ? VictoryPoints : 0));
+    }
+
+    /// <summary>
+    /// Realm points a run started before realm points existed would have earned: its kills at about the player's
+    /// level, two objectives and the boss of each finished act, and the current act's finished objectives.
+    /// </summary>
+    public static long BackfillEstimate(int kills, int playerLevel, int bossesKilled, int currentAct, int currentActObjectivesDone)
+    {
+        long points = (long) Math.Max(0, kills) * PointsForKill(Math.Max(1, playerLevel - 1), playerLevel, false);
+
+        for (int act = 1; act <= Math.Max(0, bossesKilled); act++)
+        {
+            points += 2L * ObjectivePointsPerAct * act + (long) BossPointsPerAct * act;
+        }
+
+        points += (long) Math.Max(0, currentActObjectivesDone) * ObjectivePointsPerAct * Math.Max(1, currentAct);
+
+        return points;
+    }
+
+    /// <summary>
+    /// A run from before realm points (it has kills but has earned none, and the character has none) gets the realm
+    /// points it would have earned so far, once: afterwards <see cref="ExpeditionRun.RealmPointsEarned"/> is above 0.
+    /// Called once the player has settled in the world after logging in.
+    /// </summary>
+    public static void Backfill(GamePlayer player)
+    {
+        ExpeditionRun run = ExpeditionManager.GetRun(player);
+
+        if (run == null || run.RealmPointsEarned > 0 || player.RealmPoints > 0 || (run.Kills <= 0 && run.BossesKilled <= 0))
+        {
+            return;
+        }
+
+        int objectivesDone = run.CurrentAct?.Objectives?.Count(objective => objective != null && objective.Done) ?? 0;
+        long estimate = BackfillEstimate(run.Kills, player.Level, run.BossesKilled, run.Act, objectivesDone);
+
+        if (estimate <= 0)
+        {
+            return;
+        }
+
+        Grant(player, (int) Math.Min(int.MaxValue, estimate));
+
+        if (run.RealmPointsEarned > 0)
+        {
+            run.AddLog($"Realm points for the run so far: {run.RealmPointsEarned}.");
+            ExpeditionManager.Save(run);
+            player.Out.SendMessage($"Your expedition's earlier deeds are counted: {run.RealmPointsEarned} realm points. Spend realm ability points with /train.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
     }
 
     /// <summary>
