@@ -233,7 +233,10 @@ public static class ExpeditionBuffs
             Uninterruptible = true
         };
 
-        ISpellHandler handler = ScriptMgr.CreateSpellHandler(player, new Spell(spell, Math.Max(1, (int) player.Level)), SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
+        // The potion line: stat buffs cast by a player scale with the caster's spec in the spell's line
+        // (SingleStatBuff.CalculateBuffDebuffEffectiveness), down to 75% for a line the player has no spec in; potion,
+        // item and style lines always count at full strength.
+        ISpellHandler handler = ScriptMgr.CreateSpellHandler(player, new Spell(spell, Math.Max(1, (int) player.Level)), SkillBase.GetSpellLine(GlobalSpellsLines.Potions_Effects));
         handler?.StartSpell(player);
     }
 
