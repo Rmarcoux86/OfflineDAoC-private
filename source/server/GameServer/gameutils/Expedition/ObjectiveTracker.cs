@@ -101,8 +101,9 @@ public static class ObjectiveTracker
         GameEventMgr.AddHandler(player, GameLivingEvent.EnemyKilled, OnPlayerEnemyKilled);
         state.Timer = new ECSGameTimer(player, _ => Tick(state), TickIntervalMs);
 
-        // The run's gloomy sky; the tick keeps it up (Detach leaves it: the run's end clears it, ExpeditionManager).
-        ExpeditionWeather.Apply(player);
+        // The run's gloomy sky is sent by the tick (Reassert sends it when none was sent yet) once the player is active in
+        // the world, never here: Attach runs right after a MoveTo, while the client may still be loading the region.
+        // Detach leaves the sky; the run's end clears it (ExpeditionManager).
 
         // A boss that was up when the player left is spawned fresh; an act whose objectives were all done but whose
         // boss never came (a crash in between) is completed now.

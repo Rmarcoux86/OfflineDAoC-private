@@ -8,6 +8,10 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: starting a run whose act-1 camp is in another region (Hibernia's Shrouded Isles, for one) could crash the
+  client, because the journal, the class question and the run's sky were sent while it was still loading the region.
+  They now wait until you have stood in the new region for 3 seconds; the same goes for the next act's journal and the
+  class question at login.
 - Expedition loot is sized to its level: each bonus line is held to what a character of the item's level can use
   (stats 1.5 x level, hit points 4 x level, resists level/2 + 1, skills level/5 + 1) and the item's total to a budget
   that grows with level and rarity (about level x 0.45 for Common up to x 0.9 for Epic). A level-2 drop no longer

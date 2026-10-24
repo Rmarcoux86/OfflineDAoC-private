@@ -133,7 +133,7 @@ public static class ExpeditionManager
 
         player.Out.SendMessage($"Expedition resumed: act {run.Act} of {ActGenerator.ActCount}, {run.CurrentAct?.ZoneName}. Type /run journal for your objectives.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
         ExpeditionBoons.RemindOffer(player, run);
-        ExpeditionPromotion.OnRunResumed(player);
+        WhenSettled(player, player.CurrentRegionID, () => ExpeditionPromotion.OnRunResumed(player));
     }
 
     /// <summary>
@@ -416,10 +416,76 @@ public static class ExpeditionManager
         }
 
         ObjectiveTracker.Attach(player);
-        player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
-        ExpeditionPromotion.OnRunStarted(player);
+
+        // The camp can be in another region (Hibernia's Shrouded Isles, for one): the client is on its loading screen
+        // right after MoveTo, and a window or dialog sent then crashed it (owner's friend, 2026-10-23).
+        WhenSettled(player, (ushort)plan.RegionId, () =>
+        {
+            player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
+            ExpeditionPromotion.OnRunStarted(player);
+        });
 
         return true;
+    }
+
+    /// <summary>How long a player must have stood in the world, after a teleport or login, before windows are sent.</summary>
+    private const int SettleDelayMs = 3000;
+
+    /// <summary>
+    /// Runs <paramref name="action"/> once the player stands in <paramref name="regionId"/> again, playing, for
+    /// <see cref="SettleDelayMs"/>: windows, dialogs and weather sent while the client is still loading a region can
+    /// crash it. Gives up after a minute (the player left or never arrived).
+    /// </summary>
+    internal static void WhenSettled(GamePlayer player, ushort regionId, Action action)
+    {
+        if (player == null || action == null)
+        {
+            return;
+        }
+
+        long started = GameLoop.GameLoopTime;
+        long settledSince = 0;
+
+        new ECSGameTimer(player, _ =>
+        {
+            GameClient client = player.Client;
+
+            if (client == null || player.ObjectState == GameObject.eObjectState.Deleted || client.ClientState is GameClient.eClientState.Disconnected or GameClient.eClientState.NotConnected)
+            {
+                return 0;
+            }
+
+            long now = GameLoop.GameLoopTime;
+            bool inWorld = player.ObjectState == GameObject.eObjectState.Active && player.CurrentRegionID == regionId && client.ClientState == GameClient.eClientState.Playing;
+
+            if (!inWorld)
+            {
+                settledSince = 0;
+
+                return now - started > 60000 ? 0 : 500;
+            }
+
+            if (settledSince == 0)
+            {
+                settledSince = now;
+            }
+
+            if (now - settledSince < SettleDelayMs)
+            {
+                return 500;
+            }
+
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[EXPEDITION] A delayed step failed for {player.Name}.", ex);
+            }
+
+            return 0;
+        }, 500);
     }
 
     public static void Save(ExpeditionRun run)
@@ -600,7 +666,7 @@ public static class ExpeditionManager
 
             ObjectiveTracker.Attach(player);
             ExpeditionBoons.ApplyAll(player, current);
-            player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList());
+            WhenSettled(player, (ushort)next.RegionId, () => player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList()));
 
             return 0;
         }, NextActTeleportDelayMilliseconds);
