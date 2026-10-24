@@ -82,6 +82,14 @@ public sealed class ActPlan
 
     // Plans saved before shrines existed have none (the initialiser is kept).
     public List<ShrineSpec> Shrines = new();
+
+    /// <summary>
+    /// The unique weapon exchanger's spot (ExpeditionExchanger), found in the world the first time the act is played
+    /// and kept: in the zone's town when it has one, else beside the camp. Coordinates are global.
+    /// </summary>
+    public bool ExchangerPlaced;
+    public bool ExchangerInTown;
+    public int ExchangerX, ExchangerY, ExchangerZ;
 }
 
 /// <summary>

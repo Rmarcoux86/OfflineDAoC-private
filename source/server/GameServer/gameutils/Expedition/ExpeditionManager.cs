@@ -864,6 +864,13 @@ public static class ExpeditionManager
             lines.AddRange(ActGenerator.DescribePlan(plan));
             lines.AddRange(ExpeditionElites.DescribeElites(plan));
             lines.AddRange(ExpeditionShrines.Describe(plan));
+
+            string exchanger = ExpeditionExchanger.Describe(plan);
+
+            if (exchanger != null)
+            {
+                lines.Add(exchanger);
+            }
         }
         else
         {

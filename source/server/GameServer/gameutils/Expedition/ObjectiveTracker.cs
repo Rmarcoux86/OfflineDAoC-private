@@ -146,6 +146,7 @@ public static class ObjectiveTracker
         }
 
         ExpeditionShrines.Despawn(player);
+        ExpeditionExchanger.Despawn(player);
 
         if (!States.TryRemove(player.ObjectId, out TrackerState state))
         {
@@ -610,6 +611,7 @@ public static class ObjectiveTracker
             {
                 ExpeditionElites.CheckCamps(player, plan, state.WokenEliteCamps);
                 ExpeditionShrines.Tick(player, run, plan);
+                ExpeditionExchanger.Tick(player, run, plan);
             }
         }
 

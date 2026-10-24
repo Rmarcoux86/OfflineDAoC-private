@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using DOL.Database;
 
 namespace DOL.GS.Expedition;
@@ -270,6 +271,11 @@ public static class ExpeditionUniques
     }
 
     /// <summary>Picks the player's unique for this drop and remembers it as found on the run.</summary>
+    public static UniqueDefinition FindByName(string name)
+    {
+        return Catalog.FirstOrDefault(definition => string.Equals(definition.Name, name, StringComparison.Ordinal));
+    }
+
     public static UniqueDefinition PickFor(GamePlayer player, ExpeditionRun run)
     {
         HashSet<string> found = FoundByRun.GetOrAdd(RunKey(run, player), _ => new HashSet<string>(StringComparer.Ordinal));
@@ -354,18 +360,25 @@ public static class ExpeditionUniques
     /// type. Name, lore and bonus lines are always the catalog's. Bonuses above the finder's current caps are clamped by
     /// the server, so the item grows with its owner.
     /// </summary>
-    public static GeneratedUniqueItem Build(GamePlayer player, UniqueDefinition definition)
+    /// <param name="weaponType">A weapon unique: this weapon type and hand instead of a random one the class uses (the exchanger).</param>
+    /// <param name="itemLevel">The item level to build at instead of the finder's (the exchanger keeps the original's).</param>
+    public static GeneratedUniqueItem Build(GamePlayer player, UniqueDefinition definition, (eObjectType Type, eInventorySlot Hand)? weaponType = null,
+        byte? itemLevel = null)
     {
         eRealm realm = player.Realm;
         eCharacterClass characterClass = (eCharacterClass) player.CharacterClass.ID;
         int min = TierMinLevel(definition.Tier);
-        byte level = (byte) (IsJewelry(definition.Slot) ? min : Math.Clamp(player.Level, min, TierCapLevel(definition.Tier)));
+        byte level = itemLevel ?? (byte) (IsJewelry(definition.Slot) ? min : Math.Clamp(player.Level, min, TierCapLevel(definition.Tier)));
         GeneratedUniqueItem item;
 
         if (IsJewelry(definition.Slot))
         {
             item = new GeneratedUniqueItem(realm, characterClass, level, eObjectType.Magical, InventorySlotFor(definition.Slot));
             item.Model = ModelFor(definition.Slot);
+        }
+        else if (definition.Slot == eUniqueSlot.Weapon && weaponType.HasValue)
+        {
+            item = new GeneratedUniqueItem(realm, characterClass, level, weaponType.Value.Type, weaponType.Value.Hand);
         }
         else if (definition.Slot == eUniqueSlot.Weapon)
         {

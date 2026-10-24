@@ -8,6 +8,9 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of
+  merchants), else beside the act camp; the journal gives its /loc. Hand it a unique weapon and pick a weapon type you
+  can use: the same unique (name, bonuses, proc, item level) is reforged as that type for 2, 15 or 75 gold by tier.
 - Runs already under way pick up act changes at login: an act planned under older rules gets its shrines, and, while
   its boss has not appeared, the extra objectives the act now has. Nothing already done is changed.
 - Removed the Expedition sky (the run player's own dark storm) and its settings `expedition_weather_intensity`,

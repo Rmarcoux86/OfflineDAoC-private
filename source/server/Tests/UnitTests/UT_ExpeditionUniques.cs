@@ -208,4 +208,30 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.IsMeleeWeapon(eObjectType.Shield), Is.False);
         Assert.That(ExpeditionUniques.IsMeleeWeapon(eObjectType.Instrument), Is.False);
     }
+
+    [Test]
+    public void Exchanger_FeesRiseByTier_AndEveryRealmHasWeapons()
+    {
+        Assert.That(ExpeditionExchanger.FeeGold(eUniqueTier.Early), Is.LessThan(ExpeditionExchanger.FeeGold(eUniqueTier.Mid)));
+        Assert.That(ExpeditionExchanger.FeeGold(eUniqueTier.Mid), Is.LessThan(ExpeditionExchanger.FeeGold(eUniqueTier.Late)));
+
+        foreach (eRealm realm in new[] { eRealm.Albion, eRealm.Midgard, eRealm.Hibernia })
+        {
+            var options = ExpeditionExchanger.RealmWeapons(realm);
+
+            Assert.That(options.Count, Is.GreaterThanOrEqualTo(6), realm.ToString());
+            Assert.That(new HashSet<string>(System.Linq.Enumerable.Select(options, o => o.Label)).Count, Is.EqualTo(options.Count), $"{realm}: labels are unique");
+        }
+    }
+
+    [Test]
+    public void FindByName_FindsEveryUnique()
+    {
+        foreach (UniqueDefinition definition in ExpeditionUniques.Catalog)
+        {
+            Assert.That(ExpeditionUniques.FindByName(definition.Name), Is.SameAs(definition));
+        }
+
+        Assert.That(ExpeditionUniques.FindByName("No Such Blade"), Is.Null);
+    }
 }

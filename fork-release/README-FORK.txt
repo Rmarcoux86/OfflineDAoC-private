@@ -114,6 +114,9 @@ EXPEDITION MODE
   Your class         at run start you pick your advanced class and are promoted right away, even
                      at level 1 (asked again at login if you never answered); /train works
                      anywhere during a run.
+  Reforger          each act has one (in the zone's town, else by the camp; see the
+                     journal). Hand it a unique weapon and pick a weapon type you can use:
+                     same unique, new type, for 2/15/75 gold by tier.
   After a death, the run's summary is shown at your next login.
 
 More commands: QUICK COMMANDS.txt and ALL SERVER COMMANDS.txt in this zip.
