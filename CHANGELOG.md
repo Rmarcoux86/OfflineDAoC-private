@@ -8,6 +8,7 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Discovering a wild shrine is announced on screen as well as in chat.
 - The act 1 boss of every run is Three Point Oh, who shouts "You want this ring? It's got…" when it appears, and
   always drops Three Point Oh's Ring (+1 to each of the eight attributes) on top of its normal drops.
 - Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of

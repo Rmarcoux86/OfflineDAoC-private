@@ -131,6 +131,9 @@ public static class ExpeditionShrines
                 {
                     shrine.Discovered = true;
                     changed = true;
+
+                    // On screen as well (owner, 2026-10-24): the journal just gained the shrine's /loc.
+                    player.Out.SendMessage($"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}! Your journal shows where it is.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
                     player.Out.SendMessage($"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}{(loc == null ? string.Empty : $" at {loc}")}. Walk up to it to receive its blessing.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
                 }
 
