@@ -27,8 +27,11 @@ public static class ExpeditionPromotion
     /// <summary>The custom-param key of the saved choice; the value is the class id (see <see cref="FormatChoice"/>).</summary>
     public const string ChoiceKey = "expedition_promote_class";
 
-    /// <summary>The level at which trainers promote (GameTrainer.CanPromotePlayer requires level 5).</summary>
-    public const int PromotionLevel = 5;
+    /// <summary>
+    /// The level from which a run promotes. Trainers wait for level 5 (GameTrainer.CanPromotePlayer); a run promotes at
+    /// once so the advanced class's specs and abilities are there from level 1 (owner 2026-10-23).
+    /// </summary>
+    public const int PromotionLevel = 1;
 
     private static readonly Logger Log = LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -123,6 +126,35 @@ public static class ExpeditionPromotion
         }
 
         public override eCharacterClass TrainedClass => _trainedClass;
+
+        /// <summary>GameTrainer.CanPromotePlayer without its level-5 rule: base class, race and gender still apply.</summary>
+        public override bool CanPromotePlayer(GamePlayer player)
+        {
+            ICharacterClass baseClass = ScriptMgr.FindCharacterBaseClass((int) TrainedClass);
+            ICharacterClass pickedClass = ScriptMgr.FindCharacterClass((int) TrainedClass);
+
+            if (baseClass == null || pickedClass == null || (eCharacterClass) baseClass.ID == TrainedClass)
+            {
+                return false;
+            }
+
+            if (player.Level < PromotionLevel || player.CharacterClass.ID != baseClass.ID)
+            {
+                return false;
+            }
+
+            if (!pickedClass.EligibleRaces.Exists(s => s.ID == (eRace) player.Race))
+            {
+                return false;
+            }
+
+            if (GlobalConstants.CLASS_GENDER_CONSTRAINTS_DICT.TryGetValue(TrainedClass, out eGender gender) && gender != player.Gender)
+            {
+                return false;
+            }
+
+            return true;
+        }
     }
 
     #region Server events
@@ -180,7 +212,11 @@ public static class ExpeditionPromotion
         if (candidates.Count == 1)
         {
             SaveChoice(player, candidates[0].ClassId);
-            player.Out.SendMessage($"At level {PromotionLevel} you will be trained as a {candidates[0].Name}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            if (player.Level >= PromotionLevel)
+            {
+                Promote(player, candidates[0].ClassId);
+            }
 
             return;
         }
@@ -250,7 +286,7 @@ public static class ExpeditionPromotion
             return;
         }
 
-        string text = $"At level {PromotionLevel}, train as a {path.Name}? (No = see the next path)";
+        string text = $"Train as a {path.Name} now? (No = see the next path)";
         CustomDialogResponse callback = null;
         callback = (responder, response) => OnAnswer(responder, response, callback, classIds, index);
         player.Out.SendCustomDialog(text, callback);

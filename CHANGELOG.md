@@ -13,8 +13,9 @@ The newest version is first. For the full detail of every earlier update, see
   that grows with level and rarity (about level x 0.45 for Common up to x 0.9 for Epic). A level-2 drop no longer
   carries +21 Dexterity. Unique rolls give an Epic until level 10.
 - Expedition: automatic class promotion. At run start a yes/no chain asks which advanced class to train (No shows the
-  next path; single-path classes such as Disciple to Necromancer are chosen without asking); at level 5 the character is
-  promoted with the trainer's own welcome and starter gift. The choice is saved per character and asked again at login
+  next path; single-path classes such as Disciple to Necromancer are chosen without asking), and the character is
+  promoted right away, from level 1, with the trainer's own welcome and starter gift, so the class's specs and abilities
+  are there from the start. The choice is saved per character and asked again at login
   if missing. `/train` works without a trainer during a run.
 - Expedition sky: while a run is active, the run player sees a still, dark storm over the whole region (rain, dark
   clouds, heavy fog); nobody else does, and the region's own weather is unchanged. It comes back after zoning or a
