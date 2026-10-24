@@ -114,11 +114,6 @@ EXPEDITION MODE
   Your class         at run start you pick your advanced class and are promoted right away, even
                      at level 1 (asked again at login if you never answered); /train works
                      anywhere during a run.
-  The sky            a run darkens your sky: rain, dark clouds and heavy fog over the whole
-                     region, for you only; it clears when the run ends. Server settings:
-                     expedition_weather_intensity (100, 0 = off, max 120),
-                     expedition_weather_fog (16000, 16000-65535),
-                     expedition_weather_speed (0 = still).
   After a death, the run's summary is shown at your next login.
 
 More commands: QUICK COMMANDS.txt and ALL SERVER COMMANDS.txt in this zip.

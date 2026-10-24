@@ -693,7 +693,6 @@ public static class ExpeditionManager
 
             Runs.TryRemove(run.CharacterId, out _);
             ObjectiveTracker.Detach(player);
-            ExpeditionWeather.Clear(player);
             ExpeditionBoons.RemoveAll(player);
             Save(run);
 
@@ -795,7 +794,6 @@ public static class ExpeditionManager
 
         player.Out.SendCustomTextWindow("Expedition over", SummaryLines(run, "RUN OVER"));
         ObjectiveTracker.Detach(player);
-        ExpeditionWeather.Clear(player);
         ExpeditionBoons.RemoveAll(player);
     }
 
@@ -822,7 +820,6 @@ public static class ExpeditionManager
 
         Runs.TryRemove(run.CharacterId, out _);
         ObjectiveTracker.Detach(player);
-        ExpeditionWeather.Clear(player);
         ExpeditionBoons.RemoveAll(player);
         Save(run);
 

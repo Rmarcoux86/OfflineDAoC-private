@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Removed the Expedition sky (the run player's own dark storm) and its settings `expedition_weather_intensity`,
+  `expedition_weather_fog` and `expedition_weather_speed`: it never showed reliably and its packets caused trouble.
 - Lesser buffs show in the effect bar with their own icons; a used shrine shows "(spent)" at once; Vampiirs (who can't
   hold stat buffs) no longer get a chat line every 2 seconds from Might, Grace or Blessed Arms.
 - Wild shrines: each act has 3 green-crystal shrines out in the zone, at monster camps, one of them beside an elite
@@ -76,11 +78,6 @@ The newest version is first. For the full detail of every earlier update, see
   promoted right away, from level 1, with the trainer's own welcome and starter gift, so the class's specs and abilities
   are there from the start. The choice is saved per character and asked again at login
   if missing. `/train` works without a trainer during a run.
-- Expedition sky: while a run is active, the run player sees a still, dark storm over the whole region (rain, dark
-  clouds, heavy fog); nobody else does, and the region's own weather is unchanged. It comes back after zoning or a
-  region storm and clears when the run ends (win, death or abandon). Server settings (category `expedition`):
-  `expedition_weather_intensity` (100; 0 = off, max 120), `expedition_weather_fog` (fog diffusion, 16000, the lowest
-  allowed; 16000-65535) and `expedition_weather_speed` (0 = a still storm).
 - New `/run` command: Expedition mode, a seeded roguelite run from level 1 to a final boss. `/run new [seed]` starts
   one on a level-1 character with no realm points: the Hardcore flag goes on, and you are taken to act 1's camp.
   Each of the five acts has objectives and then a boss; killing it takes you on to the next act, and the act-5 boss
