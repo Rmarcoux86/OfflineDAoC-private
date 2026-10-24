@@ -822,6 +822,36 @@ public static class ExpeditionLoot
         SetBonus(item, line, eProperty.Constitution, Util.Random((int) Math.Ceiling(max / 2.0), max));
     }
 
+    /// <summary>
+    /// During a run, stock gear from a monster's loot tables (anything that goes in an equipment slot: weapons, armor,
+    /// jewelry) is not dropped, so every piece of equipment found comes from Expedition loot with a rarity (owner
+    /// 2026-10-23: "loot coming through without a rarity"). Money is handled before this; quest items, crafting
+    /// materials and trophies are not equipment and still drop. The killer may be the player's pet or companion.
+    /// Off with the server setting expedition_replace_stock_gear.
+    /// </summary>
+    public static bool SuppressStockGear(GameObject killer, DbItemTemplate item)
+    {
+        if (!Properties.EXPEDITION_REPLACE_STOCK_GEAR || item == null || !IsEquipment(item))
+        {
+            return false;
+        }
+
+        GamePlayer owner = killer as GamePlayer;
+
+        if (owner == null && killer is GameNPC npc && npc.Brain is IControlledBrain brain)
+        {
+            owner = brain.GetPlayerOwner();
+        }
+
+        return owner != null && ExpeditionManager.GetRun(owner) != null;
+    }
+
+    /// <summary>True for an item that goes in an equipment slot (eInventorySlot.MinEquipable..MaxEquipable).</summary>
+    public static bool IsEquipment(DbItemTemplate item)
+    {
+        return item.Item_Type >= (int) eInventorySlot.MinEquipable && item.Item_Type <= (int) eInventorySlot.MaxEquipable;
+    }
+
     /// <summary>The player level from which a Unique roll gives a catalog unique (below it, an Epic).</summary>
     public const int UniqueMinPlayerLevel = 10;
 

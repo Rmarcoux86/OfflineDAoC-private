@@ -1668,9 +1668,13 @@ namespace DOL.GS.ServerRules
             foreach (DbItemTemplate itemTemplate in LootMgr.GetLoot(killedNpc, killer))
             {
                 if (GameMoney.IsItemMoney(itemTemplate.Name))
+                {
                     CreateMoney(killedNpc, itemTemplate, itemOwners, playersInRadius);
-                else
+                }
+                else if (!DOL.GS.Expedition.ExpeditionLoot.SuppressStockGear(killer, itemTemplate))
+                {
                     CreateItem(killedNpc, itemTemplate, itemOwners, playersInRadius);
+                }
             }
 
             static void CreateMoney(GameNPC killedNpc, DbItemTemplate itemTemplate, SortedSet<ItemOwnerTotalDamagePair> itemOwners, List<GamePlayer> playersInRadius)

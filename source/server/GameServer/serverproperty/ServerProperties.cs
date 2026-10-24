@@ -2583,6 +2583,9 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("expedition", "expedition_auto_junk", "Expedition loot: allow /junk auto to sell unwanted Common or Magic drops on the spot (merchant price).", true)]
 		public static bool EXPEDITION_AUTO_JUNK = true;
 
+		[ServerProperty("expedition", "expedition_replace_stock_gear", "Expedition loot: during a run, monsters drop no stock weapons, armor or jewelry (money, quest items and materials still drop); all gear comes from Expedition loot with a rarity.", true)]
+		public static bool EXPEDITION_REPLACE_STOCK_GEAR = true;
+
 		/// <summary>Expedition sky: rain and fog intensity of the storm the run player sees over the whole region (0 turns it off, 120 at most).</summary>
 		[ServerProperty("expedition", "expedition_weather_intensity", "Expedition sky: rain and fog intensity of the run player's own storm over the whole region (0 = off, max 120).", 100)]
 		public static int EXPEDITION_WEATHER_INTENSITY = 100;

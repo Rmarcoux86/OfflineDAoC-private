@@ -8,6 +8,9 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Expedition: during a run monsters drop no stock weapons, armor or jewelry, so every piece of equipment you find is
+  Expedition loot with a rarity. Money, quest items and crafting materials still drop. Server setting
+  `expedition_replace_stock_gear` (on).
 - Expedition: starting a run whose act-1 camp is in another region (Hibernia's Shrouded Isles, for one) could crash the
   client, because the journal, the class question and the run's sky were sent while it was still loading the region.
   They now wait until you have stood in the new region for 3 seconds; the same goes for the next act's journal and the

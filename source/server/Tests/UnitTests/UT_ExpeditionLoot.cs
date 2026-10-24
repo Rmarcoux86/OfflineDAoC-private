@@ -333,4 +333,14 @@ public class UT_ExpeditionLoot
         Assert.That(ExpeditionLoot.UtilityBudget(1, eLootRarity.Common), Is.EqualTo(1.0));
         Assert.That(ExpeditionLoot.UniqueMinPlayerLevel, Is.EqualTo(10));
     }
+
+    [Test]
+    public void IsEquipment_CoversGearSlots_NotQuestItemsOrMaterials()
+    {
+        Assert.That(ExpeditionLoot.IsEquipment(new DbItemTemplate { Item_Type = (int) eInventorySlot.RightHandWeapon }), Is.True);
+        Assert.That(ExpeditionLoot.IsEquipment(new DbItemTemplate { Item_Type = (int) eInventorySlot.TorsoArmor }), Is.True);
+        Assert.That(ExpeditionLoot.IsEquipment(new DbItemTemplate { Item_Type = (int) eInventorySlot.Neck }), Is.True);
+        Assert.That(ExpeditionLoot.IsEquipment(new DbItemTemplate { Item_Type = 0 }), Is.False, "a quest item or material has no equipment slot");
+        Assert.That(ExpeditionLoot.IsEquipment(new DbItemTemplate { Item_Type = (int) eInventorySlot.FirstBackpack }), Is.False);
+    }
 }
