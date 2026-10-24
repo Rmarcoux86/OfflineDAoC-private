@@ -1155,7 +1155,8 @@ namespace DOL.GS.Spells
 							CastState = eCastState.Cleanup;
 							DbInventoryItem stone = Caster.Inventory.GetFirstItemByName("Personal Bind Recall Stone", eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
 
-							if (stone != null)
+							// Expedition: no reuse timer during a run (the stone takes the player to the act camp).
+							if (stone != null && !(Caster is GamePlayer runner && DOL.GS.Expedition.ExpeditionManager.GetRun(runner) != null))
 								stone.CanUseAgainIn = stone.CanUseEvery;
 						}
 					}

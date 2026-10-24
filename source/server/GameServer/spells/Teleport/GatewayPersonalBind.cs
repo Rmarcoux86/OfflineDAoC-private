@@ -88,6 +88,18 @@ namespace DOL.GS.Spells
             SendEffectAnimation(player, 0, false, 1);
             UniPortalEffect effect = new(this, 1000);
             effect.Start(player);
+
+            // Expedition: on a run the stone takes you to the act's camp instead of your bind point.
+            DOL.GS.Expedition.ActPlan plan = DOL.GS.Expedition.ExpeditionManager.GetRun(player)?.CurrentAct;
+
+            if (plan != null)
+            {
+                player.MoveTo((ushort) plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading);
+                player.Out.SendMessage("The stone takes you back to your expedition camp.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+                return;
+            }
+
             player.MoveToBind();
         }
 

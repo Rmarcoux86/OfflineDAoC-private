@@ -147,6 +147,7 @@ public static class ExpeditionManager
         {
             ExpeditionPromotion.OnRunResumed(player);
             ExpeditionRealm.Backfill(player);
+            GiveRecallStone(player);
 
             if (upgraded != null)
             {
@@ -379,6 +380,32 @@ public static class ExpeditionManager
         return Math.Max(0, rate) * LevelXpFactors[index];
     }
 
+    public const string RecallStoneTemplate = "Personal_Bind_Recall_Stone";
+
+    /// <summary>
+    /// Every run character carries a Personal Bind Recall Stone: on a run it takes them to the act camp with no reuse
+    /// timer (GatewayPersonalBind, SpellHandler). Given at run start and at login when the backpack has none.
+    /// </summary>
+    private static void GiveRecallStone(GamePlayer player)
+    {
+        try
+        {
+            if (GetRun(player) == null || player.Inventory.CountItemTemplate(RecallStoneTemplate, eInventorySlot.Min_Inv, eInventorySlot.Max_Inv) > 0)
+            {
+                return;
+            }
+
+            if (player.ReceiveItem(null, RecallStoneTemplate))
+            {
+                player.Out.SendMessage("Use your Personal Bind Recall Stone to return to the act's camp at any time out of combat.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[EXPEDITION] Could not give {player.Name} a recall stone.", ex);
+        }
+    }
+
     /// <summary>Experience for a finished objective, in percent of what the player's current level needs.</summary>
     public const int ObjectiveXpPercent = 20;
 
@@ -534,6 +561,7 @@ public static class ExpeditionManager
         {
             player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
             ExpeditionPromotion.OnRunStarted(player);
+            GiveRecallStone(player);
         });
 
         return true;

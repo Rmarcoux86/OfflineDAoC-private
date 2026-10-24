@@ -114,6 +114,9 @@ EXPEDITION MODE
   Your class         at run start you pick your advanced class and are promoted right away, even
                      at level 1 (asked again at login if you never answered); /train works
                      anywhere during a run.
+  Recall stone      on a run, your Personal Bind Recall Stone takes you to the act camp, with
+                     no reuse timer (you get one if you have none). A Hastener stands at
+                     every act camp.
   Reforger          each act has one (in the zone's town, else by the camp; see the
                      journal). Hand it a unique weapon and pick a weapon type you can use:
                      same unique, new type, for 2/15/75 gold by tier.

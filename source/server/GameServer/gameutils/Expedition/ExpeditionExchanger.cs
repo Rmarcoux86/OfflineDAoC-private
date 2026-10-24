@@ -25,6 +25,9 @@ public static class ExpeditionExchanger
 
     private static readonly ConcurrentDictionary<string, ExchangerNpc> Spawned = new(StringComparer.Ordinal);
 
+    /// <summary>A Hastener beside each act camp (owner, 2026-10-24: getting around without a speed class).</summary>
+    private static readonly ConcurrentDictionary<string, GameHastener> Hasteners = new(StringComparer.Ordinal);
+
     /// <summary>The gold an exchange costs, by the unique's tier.</summary>
     public static int FeeGold(eUniqueTier tier)
     {
@@ -144,6 +147,8 @@ public static class ExpeditionExchanger
             return;
         }
 
+        SpawnHastener(player, plan);
+
         if (Spawned.TryGetValue(player.ObjectId, out ExchangerNpc existing) && existing.ObjectState == GameObject.eObjectState.Active)
         {
             return;
@@ -186,9 +191,59 @@ public static class ExpeditionExchanger
         }
     }
 
+    /// <summary>A Hastener a little to the other side of the camp from the camp exchanger; it gives speed when spoken to.</summary>
+    private static void SpawnHastener(GamePlayer player, ActPlan plan)
+    {
+        if (Hasteners.TryGetValue(player.ObjectId, out GameHastener existing) && existing.ObjectState == GameObject.eObjectState.Active)
+        {
+            return;
+        }
+
+        Region region = WorldMgr.GetRegion((ushort) plan.RegionId);
+
+        if (region == null)
+        {
+            return;
+        }
+
+        GameMerchant look = region.Merchants?.FirstOrDefault(m => m != null && m.ObjectState == GameObject.eObjectState.Active);
+        GameHastener hastener = new()
+        {
+            CurrentRegion = region,
+            X = plan.CampX - OffsetFromAnchor,
+            Y = plan.CampY,
+            Z = plan.CampZ,
+            Heading = 0,
+            Model = look?.Model ?? FallbackModel,
+            Size = look?.Size ?? (byte) 50,
+            Level = 50,
+            Realm = player.Realm,
+            Name = "Hastener",
+            GuildName = "Expedition Camp",
+            Flags = GameNPC.eFlags.PEACE
+        };
+
+        if (hastener.AddToWorld())
+        {
+            Hasteners[player.ObjectId] = hastener;
+        }
+    }
+
     /// <summary>Takes the player's exchanger out of the world (the tracker detached).</summary>
     public static void Despawn(GamePlayer player)
     {
+        if (player != null && Hasteners.TryRemove(player.ObjectId ?? string.Empty, out GameHastener hastener))
+        {
+            try
+            {
+                hastener.Delete();
+            }
+            catch (Exception)
+            {
+                // Already gone.
+            }
+        }
+
         if (player == null || !Spawned.TryRemove(player.ObjectId ?? string.Empty, out ExchangerNpc npc))
         {
             return;

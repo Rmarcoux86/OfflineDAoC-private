@@ -8,6 +8,9 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Travel on runs: the Personal Bind Recall Stone takes you to the act camp instead of your bind point, with no reuse
+  timer (still not in combat or while moving); every run character is given one at the start and at login if they
+  have none. Each act camp has a Hastener that gives speed when you talk to it.
 - Discovering a wild shrine is announced on screen as well as in chat.
 - The act 1 boss of every run is Three Point Oh, who shouts "You want this ring? It's got…" when it appears, and
   always drops Three Point Oh's Ring (+5 to each of the eight attributes) on top of its normal drops.
