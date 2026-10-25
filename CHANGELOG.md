@@ -35,6 +35,8 @@ The newest version is first. For the full detail of every earlier update, see
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.
+- Every act camp has a Supplier beside it: your realm's poisons, arrows, bolts and throwing weapons (whatever the
+  realm's merchants sell; a kind your realm has none of is left out).
 - No dungeons before act 5: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and
   Spraggon Den are no longer act zones. Darkness Falls is still act 5.
 - Gripklosa Mountains (Midgard) and Lyonesse (Albion) are act 4 only: their monsters start at 25 and 30, so in act 3

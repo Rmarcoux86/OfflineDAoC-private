@@ -1070,6 +1070,7 @@ public static class ExpeditionManager
         lines.Add(string.Empty);
         lines.Add("-- AT THE CAMP --");
         lines.Add("Hastener: beside the camp (speed)");
+        lines.Add("Supplier: beside the camp (poisons, arrows, bolts, throwing weapons)");
 
         if (plan.ExchangerPlaced)
         {

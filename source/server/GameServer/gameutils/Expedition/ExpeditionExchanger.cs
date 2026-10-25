@@ -28,6 +28,15 @@ public static class ExpeditionExchanger
     /// <summary>A Hastener beside each act camp (owner, 2026-10-24: getting around without a speed class).</summary>
     private static readonly ConcurrentDictionary<string, GameHastener> Hasteners = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// A Supplier beside each act camp (owner, 2026-10-25): the realm's poisons, arrows, bolts and throwing weapons, so a
+    /// run never has to go back to town for them.
+    /// </summary>
+    private static readonly ConcurrentDictionary<string, GameMerchant> Suppliers = new(StringComparer.Ordinal);
+
+    /// <summary>The Supplier's stock per realm, built once from the items the world's merchants sell.</summary>
+    private static readonly ConcurrentDictionary<eRealm, MerchantTradeItems> SupplyStock = new();
+
     /// <summary>The gold an exchange costs, by the unique's tier.</summary>
     public static int FeeGold(eUniqueTier tier)
     {
@@ -148,6 +157,7 @@ public static class ExpeditionExchanger
         }
 
         SpawnHastener(player, plan);
+        SpawnSupplier(player, plan);
 
         if (Spawned.TryGetValue(player.ObjectId, out ExchangerNpc existing) && existing.ObjectState == GameObject.eObjectState.Active)
         {
@@ -229,6 +239,118 @@ public static class ExpeditionExchanger
         }
     }
 
+    /// <summary>A Supplier on the far side of the camp from the Hastener; it sells the realm's poisons and ammunition.</summary>
+    private static void SpawnSupplier(GamePlayer player, ActPlan plan)
+    {
+        if (Suppliers.TryGetValue(player.ObjectId, out GameMerchant existing) && existing.ObjectState == GameObject.eObjectState.Active)
+        {
+            return;
+        }
+
+        Region region = WorldMgr.GetRegion((ushort) plan.RegionId);
+        MerchantTradeItems stock = SupplyStockFor(player.Realm);
+
+        if (region == null || stock == null)
+        {
+            return;
+        }
+
+        GameMerchant look = region.Merchants?.FirstOrDefault(m => m != null && m.ObjectState == GameObject.eObjectState.Active);
+        GameMerchant supplier = new()
+        {
+            CurrentRegion = region,
+            X = plan.CampX,
+            Y = plan.CampY + OffsetFromAnchor,
+            Z = plan.CampZ,
+            Heading = 0,
+            Model = look?.Model ?? FallbackModel,
+            Size = look?.Size ?? (byte) 50,
+            Level = 50,
+            Realm = player.Realm,
+            Name = "Supplier",
+            GuildName = "Poisons and Ammunition",
+            Flags = GameNPC.eFlags.PEACE,
+            TradeItems = stock
+        };
+
+        if (supplier.AddToWorld())
+        {
+            Suppliers[player.ObjectId] = supplier;
+        }
+    }
+
+    /// <summary>
+    /// The realm's poisons (page 1), arrows and bolts (page 2) and throwing weapons (page 3): every item of those kinds
+    /// that some merchant in the world sells, for this realm or any realm, cheapest level first. A kind the realm has
+    /// none of is left out. Null when nothing is found.
+    /// </summary>
+    private static MerchantTradeItems SupplyStockFor(eRealm realm)
+    {
+        if (SupplyStock.TryGetValue(realm, out MerchantTradeItems cached))
+        {
+            return cached;
+        }
+
+        MerchantTradeItems stock = null;
+
+        try
+        {
+            HashSet<string> sold = new(GameServer.Database.SelectAllObjects<DbMerchantItem>().Select(m => m.ItemTemplateID), StringComparer.OrdinalIgnoreCase);
+            eObjectType[][] pages =
+            [
+                [eObjectType.Poison],
+                [eObjectType.Arrow, eObjectType.Bolt],
+                [eObjectType.Thrown]
+            ];
+            int page = 0;
+
+            foreach (eObjectType[] kinds in pages)
+            {
+                List<DbItemTemplate> items = [];
+
+                foreach (eObjectType kind in kinds)
+                {
+                    items.AddRange(GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Object_Type").IsEqualTo((int) kind))
+                        .Where(t => sold.Contains(t.Id_nb) && (t.Realm == 0 || t.Realm == (int) realm)));
+                }
+
+                List<DbItemTemplate> ordered = items
+                    .GroupBy(t => t.Id_nb, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .OrderBy(t => t.Object_Type)
+                    .ThenBy(t => t.Level)
+                    .ThenBy(t => t.Name, StringComparer.Ordinal)
+                    .Take(MerchantTradeItems.MAX_ITEM_IN_TRADEWINDOWS)
+                    .ToList();
+
+                if (ordered.Count == 0)
+                {
+                    continue;
+                }
+
+                stock ??= new MerchantTradeItems(null);
+
+                for (int slot = 0; slot < ordered.Count; slot++)
+                {
+                    stock.AddTradeItem(page, (eMerchantWindowSlot) slot, ordered[slot]);
+                }
+
+                page++;
+            }
+        }
+        catch (Exception)
+        {
+            stock = null;
+        }
+
+        if (stock != null)
+        {
+            SupplyStock[realm] = stock;
+        }
+
+        return stock;
+    }
+
     /// <summary>Takes the player's exchanger out of the world (the tracker detached).</summary>
     public static void Despawn(GamePlayer player)
     {
@@ -237,6 +359,18 @@ public static class ExpeditionExchanger
             try
             {
                 hastener.Delete();
+            }
+            catch (Exception)
+            {
+                // Already gone.
+            }
+        }
+
+        if (player != null && Suppliers.TryRemove(player.ObjectId ?? string.Empty, out GameMerchant supplier))
+        {
+            try
+            {
+                supplier.Delete();
             }
             catch (Exception)
             {
