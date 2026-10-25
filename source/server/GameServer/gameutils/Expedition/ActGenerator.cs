@@ -210,6 +210,12 @@ public static class ActGenerator
 
         foreach (ZoneCandidate zone in entry.Acts.OrderBy(a => a.Act).SelectMany(a => a.Zones))
         {
+            // Darkness Falls belongs to the last act only.
+            if (zone.ZoneId == DarknessFallsZoneId && act != ActCount)
+            {
+                continue;
+            }
+
             int count = CountBandCamps(campSource, zone, minLevel, maxLevel);
 
             if (count > bestCount)
@@ -235,8 +241,9 @@ public static class ActGenerator
 
     /// <summary>
     /// The zone of each act of a run (index = act; -1 = none eligible), from the seed alone: the last act is Darkness
-    /// Falls when the realm lists it there; then acts 1 to 5 in order each draw from their eligible zones not used by
-    /// another act of the run (owner, 2026-10-24: no zone twice in a run), repeating one only when none is left.
+    /// Falls when the realm lists it there; then the other acts, the most constrained first, each draw from their
+    /// eligible zones not used by another act of the run (owner, 2026-10-24: no zone twice in a run), repeating one only
+    /// when none is left.
     /// </summary>
     public static int[] RunZonePlan(eRealm realm, int seed, IExpeditionCampSource campSource)
     {
@@ -249,14 +256,19 @@ public static class ActGenerator
             used.Add(DarknessFallsZoneId);
         }
 
-        for (int act = 1; act <= ActCount; act++)
+        // The most constrained acts choose first (fewest eligible zones, then act order), so an act with one possible
+        // zone keeps it rather than finding it taken by an act that had other choices.
+        Dictionary<int, IReadOnlyList<ZoneCandidate>> eligible = Enumerable.Range(1, ActCount)
+            .ToDictionary(act => act, act => GetEligibleCandidates(act, realm, campSource));
+
+        foreach (int act in Enumerable.Range(1, ActCount).OrderBy(a => eligible[a].Count).ThenBy(a => a))
         {
             if (zones[act] >= 0)
             {
                 continue;
             }
 
-            IReadOnlyList<ZoneCandidate> candidates = GetEligibleCandidates(act, realm, campSource);
+            IReadOnlyList<ZoneCandidate> candidates = eligible[act];
 
             if (candidates.Count == 0)
             {

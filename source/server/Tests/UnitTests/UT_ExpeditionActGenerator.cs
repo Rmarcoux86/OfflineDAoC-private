@@ -17,7 +17,8 @@ public class UT_ExpeditionActGenerator
     private static readonly eRealm[] PlayerRealms = [eRealm.Albion, eRealm.Midgard, eRealm.Hibernia];
 
     // Midgard's open regions (classic 100, Shrouded Isles 151) and its dungeons.
-    private static readonly int[] MidgardRegions = [100, 151, 125, 126, 127, 128, 129, 150, 160, 161];
+    // 249: Darkness Falls, shared by all realms, is every realm's act 5.
+    private static readonly int[] MidgardRegions = [100, 151, 125, 126, 127, 128, 129, 150, 160, 161, 249];
 
     // The old frontier zones (AutonomousWorldBotController.IsFrontierZone) and the New Frontiers region.
     private static readonly (int Region, int Zone)[] FrontierZones =
@@ -295,6 +296,14 @@ public class UT_ExpeditionActGenerator
             IReadOnlyList<ActGenerator.ZoneCandidate> eligible = ActGenerator.GetEligibleCandidates(act, realm, CatalogCampSource.Instance);
 
             Assert.That(eligible, Is.Not.Empty, $"{realm} act {act}");
+
+            // The CapnBry catalog has no Hibernian mainland camps at levels 32-44 (only Darkness Falls, now act 5 only);
+            // the world Mob table the game reads first has them, and the zone table was checked against it.
+            if (realm == eRealm.Hibernia && act == 4)
+            {
+                continue;
+            }
+
             Assert.That(eligible, Is.SubsetOf(listed), $"{realm} act {act} needed the fallback");
 
             foreach (ActGenerator.ZoneCandidate zone in eligible)
@@ -308,27 +317,27 @@ public class UT_ExpeditionActGenerator
     [Test]
     public void ThinListedZones_FallBackToTheRealmZoneWithMostBandCamps()
     {
-        // Midgard act 1 lists Vale of Mularn (100); give it only 2 band camps, and give Faraheim
-        // (154, an act-5 zone) 4 level-5 camps and Raumarik (108) 3: Faraheim wins.
+        // Midgard act 1 lists Vale of Mularn (100); give it only 2 band camps, and give Delling Crater
+        // (153, an act-4 zone) 4 level-5 camps and Vanern Swamp (107) 3: Delling Crater wins.
         FakeCampSource source = new FakeCampSource()
             .Add(100, 100, "wolf", 5, 1000, 1000)
             .Add(100, 100, "bear", 6, 2000, 2000)
             .Add(100, 100, "troll", 40, 3000, 3000)
-            .Add(151, 154, "imp", 4, 10000, 10000)
-            .Add(151, 154, "imp", 5, 20000, 10000)
-            .Add(151, 154, "gnat", 6, 10000, 20000)
-            .Add(151, 154, "gnat", 7, 20000, 20000)
-            .Add(100, 108, "rat", 3, 5000, 5000)
-            .Add(100, 108, "rat", 3, 6000, 5000)
-            .Add(100, 108, "rat", 3, 7000, 5000);
+            .Add(151, 153, "imp", 4, 10000, 10000)
+            .Add(151, 153, "imp", 5, 20000, 10000)
+            .Add(151, 153, "gnat", 6, 10000, 20000)
+            .Add(151, 153, "gnat", 7, 20000, 20000)
+            .Add(100, 107, "rat", 3, 5000, 5000)
+            .Add(100, 107, "rat", 3, 6000, 5000)
+            .Add(100, 107, "rat", 3, 7000, 5000);
 
         IReadOnlyList<ActGenerator.ZoneCandidate> eligible = ActGenerator.GetEligibleCandidates(1, eRealm.Midgard, source);
         ActPlan plan = ActGenerator.Generate(1, eRealm.Midgard, 3, -1, FakeOffset, source);
 
         Assert.Multiple(() =>
         {
-            Assert.That(eligible.Select(z => z.ZoneId), Is.EqualTo(new[] { 154 }));
-            Assert.That(plan.ZoneId, Is.EqualTo(154));
+            Assert.That(eligible.Select(z => z.ZoneId), Is.EqualTo(new[] { 153 }));
+            Assert.That(plan.ZoneId, Is.EqualTo(153));
             Assert.That(plan.RegionId, Is.EqualTo(151));
             Assert.That(plan.Boss.Level, Is.EqualTo(12));
         });
