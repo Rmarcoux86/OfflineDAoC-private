@@ -8,6 +8,9 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Hibernian runs no longer use the Shrouded Isles (Domnann, Caillte Garran, Vale of Balor, Cothrom Gorge, Vigilant
+  Rock, World's End, Allta Fearann): every act is on the mainland or in its dungeons. An act already under way keeps its
+  zone.
 - The Expedition journal is laid out in sections (objectives, boss, elite packs, shrines, camp services, the run,
   recent events), with each /loc on its own line.
 - The Heretic unblock from fork-v38 is reverted (the Heretic could not be created): `disabled_classes` is put back to
