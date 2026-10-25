@@ -397,7 +397,7 @@ public static class ExpeditionLoot
         return rarity switch
         {
             eLootRarity.Magic => new LootProfile(25, 90, 0, false, false),
-            eLootRarity.Rare => new LootProfile(35, 95, 1, false, false),
+            eLootRarity.Rare => new LootProfile(35, 97, 1, false, false),
             eLootRarity.Epic => new LootProfile(45, 99, 2, true, false),
             eLootRarity.Unique => new LootProfile(45, 100, 2, true, true),
             _ => new LootProfile(15, 0, 0, false, false)
