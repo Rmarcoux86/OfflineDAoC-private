@@ -15,8 +15,6 @@ namespace DOL.GS.Expedition;
 public static partial class BoonEffects
 {
     private const int ExecutionerThresholdPercent = 15;
-    private const ushort RuptureRadius = 500;
-    private const int RupturePercent = 15;
     private const int PhoenixTriggerPercent = 25;
     private const int PhoenixHealToPercent = 60;
     private const int SoulHarvestPercent = 8;
@@ -154,7 +152,7 @@ public static partial class BoonEffects
     #region Kills
 
     /// <summary>
-    /// A monster the player killed (credited by <see cref="ObjectiveTracker"/>): Soul Harvest, Rupture and Bounty
+    /// A monster the player killed (credited by <see cref="ObjectiveTracker"/>): Soul Harvest and Bounty
     /// Hunter's elite bonus drop.
     /// </summary>
     public static void OnKill(GamePlayer player, GameLiving target)
@@ -170,27 +168,6 @@ public static partial class BoonEffects
             {
                 player.ChangeHealth(player, eHealthChangeType.Spell, Math.Max(1, player.MaxHealth * SoulHarvestPercent / 100));
                 player.ChangeMana(player, eManaChangeType.Spell, Math.Max(1, player.MaxMana * SoulHarvestPercent / 100));
-            }
-
-            if (HasBoon(player, ExpeditionBoons.Rupture))
-            {
-                int ruptured = 0;
-
-                foreach (GameNPC other in killed.GetNPCsInRadius(RuptureRadius))
-                {
-                    if (other == killed || other is ExpeditionBoss || !IsMonster(other) || !other.IsAlive || !GameServer.ServerRules.IsAllowedToAttack(player, other, true))
-                    {
-                        continue;
-                    }
-
-                    other.TakeDamage(player, eDamageType.Body, Math.Max(1, other.MaxHealth * RupturePercent / 100), 0);
-                    ruptured++;
-                }
-
-                if (ruptured > 0)
-                {
-                    player.Out?.SendMessage($"Rupture tears into {ruptured} nearby {(ruptured == 1 ? "enemy" : "enemies")}!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
-                }
             }
 
             if (HasBoon(player, ExpeditionBoons.BountyHunter) && ExpeditionElites.IsElite(killed))

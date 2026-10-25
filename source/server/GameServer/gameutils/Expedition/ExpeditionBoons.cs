@@ -72,24 +72,20 @@ public static class ExpeditionBoons
         new(Rejuvenation, "Rejuvenation", "You regenerate 2% of your maximum health every 3 seconds, even in combat.", false),
         new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false),
         new(Executioner, "Executioner", "Any hit you land on a monster below 15% health kills it outright (not act bosses).", false),
-        new(Rupture, "Rupture", "When you kill a monster, every enemy within 500 units loses 15% of its maximum health.", false),
         new(PhoenixFeather, "Phoenix Feather", "Once per act, when your health falls below 25% you are instantly healed to 60%.", false),
         new(SoulHarvest, "Soul Harvest", "Each monster you kill restores 8% of your health and 8% of your power.", false),
         new(Desperation, "Desperation", "While below half health you deal 30% more melee and spell damage.", false),
         new(GlassCannon, "Glass Cannon", "+25% melee and spell damage, but 15% less maximum health.", false),
-        new(Unshakable, "Unshakable", "Stuns, mesmerizes and snares on you last half as long.", false),
         new(Frostbite, "Frostbite", "Your melee hits have a 25% chance to snare the target by 40% for 8 seconds.", false),
         new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
         new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
         new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true),
         new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false),
         new(BlessedArms, "Blessed Arms", "A lesser strength/constitution and dexterity/quickness buff for the rest of the run.", false),
-        new(SecondWind, "Second Wind", "A lesser endurance regeneration buff for the rest of the run.", false),
-        new(WardedHide, "Warded Hide", "A lesser armor buff for the rest of the run.", false)
     };
 
     /// <summary>Boons taken out of the catalog (owner 2026-10-25). A run that has one gets a new boon choice instead.</summary>
-    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning };
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide };
 
     /// <summary>
     /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for

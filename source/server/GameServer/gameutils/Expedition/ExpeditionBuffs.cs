@@ -97,16 +97,6 @@ public static class ExpeditionBuffs
             groups.Add(DexterityQuickness);
         }
 
-        if (boons.Contains(ExpeditionBoons.SecondWind))
-        {
-            groups.Add(Endurance);
-        }
-
-        if (boons.Contains(ExpeditionBoons.WardedHide))
-        {
-            groups.Add(Armor);
-        }
-
         foreach (ShrineSpec shrine in run.CurrentAct?.Shrines ?? [])
         {
             if (shrine != null && shrine.Used && Groups.Contains(shrine.Group))

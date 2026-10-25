@@ -49,8 +49,7 @@ public static partial class BoonEffects
         [ExpeditionBoons.Warding] = new[] { (eProperty.MagicAbsorption, 15) },
         [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) },
         [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) },
-        [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) },
-        [ExpeditionBoons.Unshakable] = new[] { (eProperty.StunDurationReduction, 50), (eProperty.MesmerizeDurationReduction, 50), (eProperty.SpeedDecreaseDurationReduction, 50) }
+        [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) }
     };
 
     private sealed class AppliedBoons
