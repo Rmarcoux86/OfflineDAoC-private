@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v60",
+    "date": "2026-10-25",
+    "items": [
+      "Closing the launcher with the X stops a running server first (it is told to save and exit, as Stop does)."
+    ]
+  },
+  {
     "tag": "fork-v59",
     "date": "2026-10-25",
     "items": [

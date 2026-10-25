@@ -136,6 +136,7 @@ internal sealed partial class MainForm : Form
     private Process? _serverProcess;
     private RollingServerLog? _serverLog;
     private bool _stoppingServer;
+    private bool _closingAfterServerStop;
     private bool _refreshing;
     private bool _refreshingExchange;
     private bool _loadingXpRates;
@@ -245,8 +246,20 @@ internal sealed partial class MainForm : Form
             _autoRefresh.Start();
             StartForkUpdateChecks();
         };
-        FormClosing += (_, _) =>
+        FormClosing += async (_, e) =>
         {
+            // Closing the launcher stops a running server first (owner 2026-10-25). The close waits for the stop,
+            // then closes again; a Windows shutdown is not held up.
+            if (!_closingAfterServerStop && e.CloseReason != CloseReason.WindowsShutDown && (_serverProcess is { HasExited: false } || IsServerRunning()))
+            {
+                e.Cancel = true;
+                _closingAfterServerStop = true;
+                await StopServerForCloseAsync();
+                Close();
+
+                return;
+            }
+
             _serverReadinessPoll.Stop();
             _serverLog?.Dispose();
         };
@@ -2788,6 +2801,48 @@ internal sealed partial class MainForm : Form
 
         // Stopping the server is when an update can be installed, so look for one now (owner 2026-10-23).
         await CheckForForkUpdateAsync();
+    }
+
+    /// <summary>
+    /// The stop when the launcher is closed: a server this launcher started is told to exit and given up to 30 seconds
+    /// (it finishes saving on its own if it needs longer); a server started elsewhere is closed, as Stop does.
+    /// </summary>
+    private async Task StopServerForCloseAsync()
+    {
+        _serverReadinessPoll.Stop();
+        ShowStoppingState();
+        _footer.Text = "Stopping the server before the launcher closes…";
+
+        try
+        {
+            if (_serverProcess is { HasExited: false })
+            {
+                TryUpdateRuntimeState("Stopping", _serverProcess.Id);
+                _serverProcess.StandardInput.WriteLine("exit");
+                _serverProcess.StandardInput.Flush();
+
+                if (!await WaitForExitWithinAsync(_serverProcess, 30_000))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                using Process? externalProcess = FindExactServerProcess();
+
+                if (externalProcess is not null)
+                {
+                    externalProcess.Kill(true);
+                    await WaitForExitWithinAsync(externalProcess, 5_000);
+                }
+            }
+
+            TryUpdateRuntimeState("Stopped", null);
+        }
+        catch
+        {
+            // Closing anyway: a failed stop must not keep the launcher open.
+        }
     }
 
     private void ShowStoppingState()
