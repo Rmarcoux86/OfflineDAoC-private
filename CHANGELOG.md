@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- The Expedition journal is laid out in sections (objectives, boss, elite packs, shrines, camp services, the run,
+  recent events), with each /loc on its own line.
 - The Heretic unblock from fork-v38 is reverted (the Heretic could not be created): `disabled_classes` is put back to
   the setup default at server start if v38 changed it.
 - Swimming: every player swims as fast as with a Greater Nereid potion (its value is read from the game database; a

@@ -880,40 +880,187 @@ public static class ExpeditionManager
 
         ActPlan plan = run.CurrentAct;
 
-        lines.Add($"Seed: {run.Seed}");
-        lines.Add($"Kills: {run.Kills}   Bosses slain: {run.BossesKilled}   Realm points: {run.RealmPointsEarned}");
-        lines.Add(run.LootSummary);
-        lines.AddRange(ExpeditionBoons.DescribeBoons(run));
-        lines.Add(string.Empty);
-
-        // DescribePlan's first line is the "Act N of 5: zone (levels a-b)" header.
-        if (plan != null)
+        // Sections with a heading each, and every /loc on its own indented line: the window is narrow, and long
+        // lines wrapped into one block were hard to read (owner, 2026-10-24).
+        if (plan == null)
         {
-            lines.AddRange(ActGenerator.DescribePlan(plan));
-            lines.AddRange(ExpeditionElites.DescribeElites(plan));
-            lines.AddRange(ExpeditionShrines.Describe(plan));
-
-            string exchanger = ExpeditionExchanger.Describe(plan);
-
-            if (exchanger != null)
-            {
-                lines.Add(exchanger);
-            }
+            lines.Add($"ACT {run.Act} OF {ActGenerator.ActCount}");
         }
         else
         {
-            lines.Add($"Act {run.Act} of {ActGenerator.ActCount}: unknown");
+            lines.Add($"ACT {plan.Act} OF {ActGenerator.ActCount}: {plan.ZoneName}");
+            lines.Add($"Levels {plan.MinLevel}-{plan.MaxLevel}");
+            AddLoc(lines, "Camp", plan.RegionId, plan.CampX, plan.CampY);
+
+            AddObjectives(lines, plan);
+            AddBoss(lines, plan);
+            AddElites(lines, plan);
+            AddShrines(lines, plan);
+            AddServices(lines, plan);
         }
 
+        AddRunSummary(lines, run);
+
         lines.Add(string.Empty);
-        lines.Add("Recent journal:");
+        lines.Add("-- RECENT --");
 
         lock (run.Log)
         {
-            lines.AddRange(run.Log.Skip(Math.Max(0, run.Log.Count - JournalLogLines)));
+            foreach (string entry in run.Log.Skip(Math.Max(0, run.Log.Count - JournalLogLines)))
+            {
+                lines.Add($"- {entry}");
+            }
         }
 
         return lines;
+    }
+
+    private const string Indent = "      ";
+
+    private static void AddLoc(List<string> lines, string label, int regionId, int x, int y)
+    {
+        string loc = ActGenerator.DescribeLoc(regionId, x, y);
+
+        if (loc != null)
+        {
+            lines.Add(label == null ? $"{Indent}{loc}" : $"{label}: {loc}");
+        }
+    }
+
+    private static void AddObjectives(List<string> lines, ActPlan plan)
+    {
+        lines.Add(string.Empty);
+        lines.Add("-- OBJECTIVES --");
+
+        foreach (ActObjective objective in plan.Objectives ?? [])
+        {
+            string mark = objective.Done ? "[done]" : "[    ]";
+            lines.Add($"{mark} {objective.Description} ({Math.Min(objective.Progress, objective.Count)}/{objective.Count})");
+
+            if (!objective.Done)
+            {
+                AddLoc(lines, null, objective.RegionId, objective.X, objective.Y);
+            }
+        }
+    }
+
+    private static void AddBoss(List<string> lines, ActPlan plan)
+    {
+        if (plan.Boss == null)
+        {
+            return;
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("-- BOSS --");
+        lines.Add($"{plan.Boss.Title}");
+        lines.Add($"{Indent}level {plan.Boss.Level} {plan.Boss.BaseMobName}");
+
+        string status = plan.BossKilled ? "slain" : plan.BossSpawned ? "has appeared" : "appears when every objective is done";
+        lines.Add($"{Indent}{status}");
+
+        if (!plan.BossKilled && plan.BossSpawned)
+        {
+            AddLoc(lines, null, plan.Boss.RegionId, plan.Boss.X, plan.Boss.Y);
+        }
+    }
+
+    private static void AddElites(List<string> lines, ActPlan plan)
+    {
+        if (plan.Elites == null || plan.Elites.Count == 0)
+        {
+            return;
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("-- ELITE PACKS (optional) --");
+
+        foreach (EliteCamp camp in plan.Elites)
+        {
+            if (camp == null)
+            {
+                continue;
+            }
+
+            lines.Add(ExpeditionElites.EliteName(camp.Affix, camp.MobName));
+            lines.Add($"{Indent}{ActGenerator.DescribeFromCamp(plan.CampX, plan.CampY, camp.X, camp.Y)}");
+            AddLoc(lines, null, camp.RegionId, camp.X, camp.Y);
+        }
+    }
+
+    private static void AddShrines(List<string> lines, ActPlan plan)
+    {
+        if (plan.Shrines == null || plan.Shrines.Count == 0)
+        {
+            return;
+        }
+
+        lines.Add(string.Empty);
+        lines.Add("-- SHRINES --");
+
+        foreach (ShrineSpec shrine in plan.Shrines)
+        {
+            if (shrine == null)
+            {
+                continue;
+            }
+
+            string guarded = shrine.Guarded ? " (guarded by an elite pack)" : string.Empty;
+
+            if (!shrine.Discovered)
+            {
+                lines.Add($"Undiscovered shrine{guarded}");
+                lines.Add($"{Indent}something glimmers {shrine.Direction}");
+
+                continue;
+            }
+
+            lines.Add($"{ExpeditionBuffs.ShrineName(shrine.Group)}{guarded}");
+            lines.Add($"{Indent}{(shrine.Used ? "blessing received" : "not yet used")}");
+            AddLoc(lines, null, shrine.RegionId, shrine.X, shrine.Y);
+        }
+    }
+
+    private static void AddServices(List<string> lines, ActPlan plan)
+    {
+        lines.Add(string.Empty);
+        lines.Add("-- AT THE CAMP --");
+        lines.Add("Hastener: beside the camp (speed)");
+
+        if (plan.ExchangerPlaced)
+        {
+            lines.Add($"Reforger: {(plan.ExchangerInTown ? "in the zone's town" : "beside the camp")}");
+            lines.Add($"{Indent}reforges unique weapons");
+            AddLoc(lines, null, plan.RegionId, plan.ExchangerX, plan.ExchangerY);
+        }
+
+        lines.Add("Recall stone: brings you back here");
+    }
+
+    private static void AddRunSummary(List<string> lines, ExpeditionRun run)
+    {
+        lines.Add(string.Empty);
+        lines.Add("-- THIS RUN --");
+        lines.Add($"Seed {run.Seed}");
+        lines.Add($"Kills {run.Kills:N0}   Bosses {run.BossesKilled}");
+        lines.Add($"Realm points {run.RealmPointsEarned:N0}");
+        lines.Add(run.LootSummary);
+
+        List<string> boons;
+        bool offerWaiting;
+
+        lock (run.Boons)
+        {
+            boons = run.Boons.Select(id => ExpeditionBoons.Find(id)?.Name ?? id).ToList();
+            offerWaiting = run.PendingBoonOffer.Count > 0;
+        }
+
+        lines.Add(boons.Count == 0 ? "Boons: none yet" : $"Boons: {string.Join(", ", boons)}");
+
+        if (offerWaiting)
+        {
+            lines.Add($"{Indent}a boon offer is waiting: /run boons");
+        }
     }
 
     #endregion
