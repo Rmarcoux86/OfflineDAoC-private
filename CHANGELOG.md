@@ -61,6 +61,10 @@ The newest version is first. For the full detail of every earlier update, see
   combat).
 - The three realm dragons (Golestandt, Gjalpinulva, Cuuldurach) still fly their patrol route, but don't glare at or
   aggro anyone while flying; attacking one still starts the fight.
+- Swimming: a permanent Nereid's Blessing (water breathing and the default swim speed, as a buff icon) at login and
+  after every death. Water breathing potions work again (their effect was written for the old effect system).
+- Unique ToA bonuses rotate between melee damage, style damage and melee speed (spell damage, casting speed and spell
+  duration for casters), and higher tiers carry more: early 1, mid 2, late 3, weapons one more.
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.

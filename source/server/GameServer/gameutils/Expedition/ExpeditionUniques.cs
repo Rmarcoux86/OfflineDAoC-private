@@ -513,8 +513,8 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// Trials of Atlantis style percentage bonuses on every unique (owner 2026-10-25), on the lines after the unique's
-    /// own: melee classes get melee/style damage and melee speed, list casters spell damage and casting speed. The
-    /// server caps each of these at 10% from items.
+    /// own: melee classes get melee damage, style damage or melee speed, list casters spell damage, casting speed or
+    /// spell duration. The server caps each of these at 10% from items (spell duration at 25%).
     /// </summary>
     public static int ToaPercentFor(eUniqueTier tier)
     {
@@ -526,16 +526,51 @@ public static class ExpeditionUniques
         };
     }
 
-    /// <summary>The ToA properties a unique in this slot carries for a melee class or a caster (one or two).</summary>
-    public static eProperty[] ToaPropertiesFor(eUniqueSlot slot, bool caster)
+    /// <summary>The ToA bonuses a unique can carry: melee classes, list casters.</summary>
+    private static readonly eProperty[] MeleeToa = [eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed];
+    private static readonly eProperty[] CasterToa = [eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration];
+
+    /// <summary>
+    /// The ToA properties this unique carries (owner 2026-10-25: not the same one on every unique, and more on higher
+    /// tiers). Each unique starts at its own place in the three by its place in the catalog.
+    /// </summary>
+    public static eProperty[] ToaPropertiesFor(UniqueDefinition definition, bool caster)
     {
-        return slot switch
+        eProperty[] pool = caster ? CasterToa : MeleeToa;
+        int index = 0;
+
+        for (int i = 0; i < Catalog.Count; i++)
         {
-            eUniqueSlot.Weapon => caster ? [eProperty.SpellDamage, eProperty.CastingSpeed] : [eProperty.MeleeDamage, eProperty.StyleDamage],
-            eUniqueSlot.Chest or eUniqueSlot.Necklace or eUniqueSlot.Jewel => caster ? [eProperty.SpellDamage] : [eProperty.MeleeDamage],
-            eUniqueSlot.Cloak => caster ? [eProperty.SpellDamage] : [eProperty.StyleDamage],
-            _ => caster ? [eProperty.CastingSpeed] : [eProperty.MeleeSpeed]
+            if (ReferenceEquals(Catalog[i], definition) || Catalog[i].Name == definition.Name)
+            {
+                index = i;
+
+                break;
+            }
+        }
+
+        // Higher tiers carry more of them (owner 2026-10-25): early 1, mid 2, late all 3; a weapon one more, up to 3.
+        int count = definition.Tier switch
+        {
+            eUniqueTier.Early => 1,
+            eUniqueTier.Mid => 2,
+            _ => 3
         };
+
+        if (definition.Slot == eUniqueSlot.Weapon)
+        {
+            count++;
+        }
+
+        count = Math.Min(count, pool.Length);
+        eProperty[] properties = new eProperty[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            properties[i] = pool[(index + i) % pool.Length];
+        }
+
+        return properties;
     }
 
     /// <summary>A list caster (wizards, druids, healers...) gets the caster bonuses; every other class the melee ones.</summary>
@@ -550,7 +585,7 @@ public static class ExpeditionUniques
     /// </summary>
     public static bool ApplyToaLines(DbItemTemplate item, UniqueDefinition definition, bool caster)
     {
-        eProperty[] properties = ToaPropertiesFor(definition.Slot, caster);
+        eProperty[] properties = ToaPropertiesFor(definition, caster);
         int value = ToaPercentFor(definition.Tier);
         bool changed = false;
 
