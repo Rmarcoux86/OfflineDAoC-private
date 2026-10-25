@@ -82,7 +82,10 @@ public static class ExpeditionArrival
 
             if (region == null || zone == null)
             {
-                Log.Warn($"[EXPEDITION] The act {plan.Act} camp could not be checked: region {plan.RegionId} or zone {plan.ZoneId} is not loaded.");
+                if (Log.IsWarnEnabled)
+                {
+                    Log.Warn($"[EXPEDITION] The act {plan.Act} camp could not be checked: region {plan.RegionId} or zone {plan.ZoneId} is not loaded.");
+                }
 
                 return false;
             }
@@ -106,7 +109,10 @@ public static class ExpeditionArrival
                 }
                 else
                 {
-                    Log.Warn($"[EXPEDITION] No entrance into region {plan.RegionId} was found for the act {plan.Act} camp in {plan.ZoneName}; its own spot is checked.");
+                    if (Log.IsWarnEnabled)
+                    {
+                        Log.Warn($"[EXPEDITION] No entrance into region {plan.RegionId} was found for the act {plan.Act} camp in {plan.ZoneName}; its own spot is checked.");
+                    }
                 }
             }
 
@@ -148,12 +154,18 @@ public static class ExpeditionArrival
             {
                 chosen = origin;
                 reason = "the dungeon entrance (no clear spot was found near it)";
-                Log.Warn($"[EXPEDITION] No spot clear of aggressive monsters near the entrance of {plan.ZoneName}; the act {plan.Act} camp is the entrance itself.");
+                if (Log.IsWarnEnabled)
+                {
+                    Log.Warn($"[EXPEDITION] No spot clear of aggressive monsters near the entrance of {plan.ZoneName}; the act {plan.Act} camp is the entrance itself.");
+                }
             }
             else
             {
                 // Monsters may move or die later: the check runs again next time.
-                Log.Warn($"[EXPEDITION] No spot clear of aggressive monsters within {MaxSearchRadius} of the act {plan.Act} camp in {plan.ZoneName} ({plan.CampX}, {plan.CampY}, {plan.CampZ}); the camp is left as it is.");
+                if (Log.IsWarnEnabled)
+                {
+                    Log.Warn($"[EXPEDITION] No spot clear of aggressive monsters within {MaxSearchRadius} of the act {plan.Act} camp in {plan.ZoneName} ({plan.CampX}, {plan.CampY}, {plan.CampZ}); the camp is left as it is.");
+                }
 
                 return false;
             }
@@ -173,7 +185,10 @@ public static class ExpeditionArrival
                     }
                 }
 
-                Log.Info($"[EXPEDITION] The act {plan.Act} camp in {plan.ZoneName} moved from ({plan.CampX}, {plan.CampY}, {plan.CampZ}) to ({spot.X}, {spot.Y}, {spot.Z}): {reason}.");
+                if (Log.IsInfoEnabled)
+                {
+                    Log.Info($"[EXPEDITION] The act {plan.Act} camp in {plan.ZoneName} moved from ({plan.CampX}, {plan.CampY}, {plan.CampZ}) to ({spot.X}, {spot.Y}, {spot.Z}): {reason}.");
+                }
                 MoveCamp(plan, spot.X, spot.Y, spot.Z, heading);
                 campMoved = true;
             }
@@ -184,7 +199,10 @@ public static class ExpeditionArrival
         }
         catch (Exception ex)
         {
-            Log.Error($"[EXPEDITION] The act {plan.Act} camp in {plan.ZoneName} could not be checked.", ex);
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[EXPEDITION] The act {plan.Act} camp in {plan.ZoneName} could not be checked.", ex);
+            }
 
             return false;
         }
