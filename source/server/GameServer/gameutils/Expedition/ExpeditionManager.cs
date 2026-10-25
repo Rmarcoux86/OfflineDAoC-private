@@ -147,6 +147,11 @@ public static class ExpeditionManager
             player.Out.SendMessage($"Your act's zone is no longer used for act {run.Act}; the act now takes place in {run.CurrentAct.ZoneName}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
         }
 
+        if (UpdateBossTitle(run, run.CurrentAct))
+        {
+            Save(run);
+        }
+
         // An act planned under older rules gets what the act would get now (shrines; objectives while its boss is away).
         string upgraded = ActGenerator.UpgradeInProgress(run.CurrentAct, player.Realm, run.Seed);
 
@@ -816,6 +821,9 @@ public static class ExpeditionManager
             return;
         }
 
+        // A run started under the earlier boss rules may have met this name already (the log holds each slain boss).
+        UpdateBossTitle(run, next);
+
         // The boon offer is drawn for the act just won (ExpeditionBoons.RollOffer) and waits for /run boon <n>.
         bool boonOffered = ExpeditionBoons.OfferAtActBreak(run, run.Act, out bool replacedUnclaimedBoon, ExpeditionBoons.UsesPower(player));
 
@@ -867,6 +875,45 @@ public static class ExpeditionManager
     /// The run is over. Called from the Dying event, before GamePlayer.ProcessDeath reaches the hardcore deletion,
     /// so the flag is left on: the character is deleted as the hardcore rules say.
     /// </summary>
+    /// <summary>
+    /// Brings the current act's boss in line with the boss rules (owner 2026-10-25: the boss update applies to runs
+    /// already under way): a boss that has not appeared yet takes the name the run should have now, never one the run
+    /// already slew. Returns true when it changed (the caller saves).
+    /// </summary>
+    public static bool UpdateBossTitle(ExpeditionRun run, ActPlan plan)
+    {
+        if (run == null || plan?.Boss == null || plan.BossSpawned || plan.BossKilled)
+        {
+            return false;
+        }
+
+        HashSet<string> faced = new(StringComparer.Ordinal);
+
+        lock (run.Log)
+        {
+            foreach (string line in run.Log)
+            {
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(line ?? string.Empty, @"^Act \d+: (.+) is slain\.$");
+
+                if (match.Success)
+                {
+                    faced.Add(match.Groups[1].Value);
+                }
+            }
+        }
+
+        string title = ActGenerator.BossTitle(plan.Act, run.Seed, plan.ZoneName, faced);
+
+        if (string.Equals(plan.Boss.Title, title, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        plan.Boss.Title = title;
+
+        return true;
+    }
+
     public static void OnPlayerDied(GamePlayer player)
     {
         ExpeditionRun run = GetRun(player);

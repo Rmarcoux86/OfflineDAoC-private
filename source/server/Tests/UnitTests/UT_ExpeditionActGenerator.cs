@@ -478,6 +478,19 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
+    public void BossTitle_SkipsBossesTheRunAlreadyFaced()
+    {
+        for (int seed = 0; seed < 200; seed++)
+        {
+            string seeded = ActGenerator.BossTitle(3, seed, "x");
+            string other = ActGenerator.BossTitle(3, seed, "x", new HashSet<string> { seeded });
+
+            Assert.That(other, Is.Not.EqualTo(seeded), $"seed {seed}");
+            Assert.That(ActGenerator.NamedBosses, Does.Contain(other), $"seed {seed}");
+        }
+    }
+
+    [Test]
     public void BossTitle_ThreePointOhThenNamedBossesWithoutRepeatsThenPreesh()
     {
         for (int seed = 0; seed < 500; seed++)

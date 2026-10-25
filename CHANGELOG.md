@@ -43,7 +43,8 @@ The newest version is first. For the full detail of every earlier update, see
   where it stops, and a chat line tells you when it grows. Uniques you already own catch up at your next login.
 - Act bosses: Three Point Oh in act 1, then Drunkstains, Ios, Toothmouth and Gwyraan in random order for acts 2-4
   (never the same one twice in a run), and Preesh as the final boss of act 5. Scob Mahob and the "Warden of" act 2
-  boss are gone. Acts already planned keep their boss.
+  boss are gone. A run already under way gets the new bosses too: a boss that hasn't appeared yet takes its new
+  name at the next login, never one the run already slew.
 - The named act bosses look like their race and class: Toothmouth a Firbolg battle bard, Ios a Celtic valewalker,
   Drunkstains a Half Ogre armsman, Gwyraan a Celtic druid and Preesh a Firbolg blademaster. They still fight as
   ordinary monsters: no styles, spells or pets, and their gear is for looks only.

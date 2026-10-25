@@ -658,6 +658,15 @@ public static class ActGenerator
     /// </summary>
     public static string BossTitle(int act, int seed, string zoneName)
     {
+        return BossTitle(act, seed, zoneName, null);
+    }
+
+    /// <summary>
+    /// As above, skipping the bosses this run has already faced (<paramref name="faced"/>): a run started under the
+    /// earlier boss rules may have met one of the named bosses already (owner 2026-10-25: no boss twice in a run).
+    /// </summary>
+    public static string BossTitle(int act, int seed, string zoneName, IReadOnlyCollection<string> faced)
+    {
         if (act <= 1)
         {
             return FirstActBoss;
@@ -682,7 +691,15 @@ public static class ActGenerator
             (order[i], order[j]) = (order[j], order[i]);
         }
 
-        return order[(act - FirstNamedBossAct) % order.Count];
+        string pick = order[(act - FirstNamedBossAct) % order.Count];
+
+        if (faced == null || !faced.Contains(pick))
+        {
+            return pick;
+        }
+
+        // The first in the run's order that this run has not met; all met: the seeded one.
+        return order.FirstOrDefault(name => !faced.Contains(name)) ?? pick;
     }
 
     /// <summary>Objectives per act: 2, 3, 3-4, 4, 4-5.</summary>
