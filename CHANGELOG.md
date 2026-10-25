@@ -38,6 +38,8 @@ The newest version is first. For the full detail of every earlier update, see
 - Gripklosa Mountains (Midgard) and Lyonesse (Albion) are act 4 only: their monsters start at 25 and 30, so in act 3
   everything conned purple. An act 3 already planned there that has not begun (no objective progress, boss not up)
   moves to another act 3 zone at the next login, and you are taken to its camp.
+- `/run shrines`: the direction and rough distance of each shrine from where you stand now (undiscovered ones too), so
+  you can tell when you have walked past one.
 - New `/recover` command: lists the deleted characters of your account and restores one with its items (`/recover
   <name>`). A character whose death ended an Expedition run gets its run back: it stays hardcore, is taken to the
   act's camp at its next login (an act in a removed dungeon is planned again in another zone), and the boon choice it

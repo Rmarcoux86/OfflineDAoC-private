@@ -12,6 +12,7 @@ namespace DOL.GS.Commands;
     "/run new [seed]",
     "/run status",
     "/run journal",
+    "/run shrines",
     "/run boons",
     "/run boon <1-3>",
     "/run reroll",
@@ -112,6 +113,53 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                 }
 
                 client.Out.SendCustomTextWindow("Expedition journal", ExpeditionManager.JournalLines(run).ToList());
+
+                return;
+            }
+
+            case "shrines":
+            {
+                // Fork (owner 2026-10-25): which way each shrine lies from where you stand now, so passing one shows.
+                ActPlan plan = run?.CurrentAct;
+
+                if (plan == null)
+                {
+                    client.Out.SendMessage("You are not on an expedition. Type /run new to start one at level 1.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                if (plan.Shrines == null || plan.Shrines.Count == 0)
+                {
+                    client.Out.SendMessage("This act has no shrines.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                foreach (ShrineSpec shrine in plan.Shrines.Where(s => s != null))
+                {
+                    string name = shrine.Discovered ? ExpeditionBuffs.ShrineName(shrine.Group) : "Undiscovered shrine";
+
+                    if (shrine.Used)
+                    {
+                        client.Out.SendMessage($"{name}: blessing received.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+                        continue;
+                    }
+
+                    if (shrine.RegionId != player.CurrentRegionID)
+                    {
+                        client.Out.SendMessage($"{name}: in {plan.ZoneName}, not in this region.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+                        continue;
+                    }
+
+                    double distance = System.Math.Sqrt((double) (shrine.X - player.X) * (shrine.X - player.X) + (double) (shrine.Y - player.Y) * (shrine.Y - player.Y));
+                    string howFar = distance < 1500 ? "very close" : distance < 4000 ? "close" : distance < 10000 ? "some way off" : "far off";
+                    string where = distance < 500 ? "right here" : $"{ActGenerator.CompassDirection(player.X, player.Y, shrine.X, shrine.Y)} of you, {howFar} (about {(int) distance} units)";
+                    string guarded = shrine.Guarded ? ", guarded" : string.Empty;
+                    client.Out.SendMessage($"{name}{guarded}: {where}.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                }
 
                 return;
             }

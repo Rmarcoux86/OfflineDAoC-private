@@ -857,6 +857,14 @@ public static class ActGenerator
         return string.Join(" and ", parts);
     }
 
+    /// <summary>The 8-point compass direction ("north-east") from one global point to another.</summary>
+    public static string CompassDirection(int fromX, int fromY, int x, int y)
+    {
+        int heading = new Point2D(fromX, fromY).GetHeading(x, y) % 4096;
+
+        return CompassAreas[(heading + 256) / 512 % 8];
+    }
+
     public static string DescribeFromCamp(int campX, int campY, int x, int y)
     {
         if (DistanceSquared(campX, campY, x, y) <= (long)EliteNearCampDistance * EliteNearCampDistance)

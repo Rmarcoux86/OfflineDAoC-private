@@ -1039,6 +1039,7 @@ public static class ExpeditionManager
 
         lines.Add(string.Empty);
         lines.Add("-- SHRINES --");
+        lines.Add("(/run shrines: which way each lies from where you stand)");
 
         foreach (ShrineSpec shrine in plan.Shrines)
         {
