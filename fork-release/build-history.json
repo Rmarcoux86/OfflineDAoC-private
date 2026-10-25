@@ -4,8 +4,6 @@
     "date": "2026-10-25",
     "items": [
       "Faster swimming fixed: when the game database has no Nereid potion to copy, everyone swims with the strongest water breathing spell's speed bonus, or +100% if there is none.",
-      "Act bosses: Three Point Oh in act 1; Drunkstains, Ios, Toothmouth and Gwyraan in random order for acts 2-4, never the same one twice in a run; Preesh is the final boss of act 5.",
-      "The named bosses look like their race and class (Toothmouth a Firbolg battle bard, Ios a Celtic valewalker, Drunkstains a Half Ogre armsman, Gwyraan a Celtic druid, Preesh a Firbolg blademaster). They still fight as ordinary monsters.",
       "Act objectives fit your level when the act begins: camps from one level below you to four above, the named monster two to six above."
     ]
   },
