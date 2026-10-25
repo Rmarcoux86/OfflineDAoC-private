@@ -147,15 +147,6 @@
               "bossCandidates": []
             },
             {
-              "zoneId": 10,
-              "zoneName": "Lyonesse",
-              "regionId": 1,
-              "minLevel": 20,
-              "maxLevel": 32,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
               "zoneId": 53,
               "zoneName": "Dales of Devwy",
               "regionId": 51,
@@ -347,15 +338,6 @@
             {
               "zoneId": 155,
               "zoneName": "Munin Sound",
-              "regionId": 151,
-              "minLevel": 20,
-              "maxLevel": 32,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 152,
-              "zoneName": "Gripklosa Mountains",
               "regionId": 151,
               "minLevel": 20,
               "maxLevel": 32,

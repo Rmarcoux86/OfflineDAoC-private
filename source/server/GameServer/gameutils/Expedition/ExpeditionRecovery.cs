@@ -61,8 +61,8 @@ public static class ExpeditionRecovery
 
     /// <summary>
     /// Called by the login resume for a run that was <see cref="StatusRecovered"/>, before the act is tracked again:
-    /// makes the run active, plans the act again when its zone is no longer an expedition zone (the dungeons taken out
-    /// on 2026-10-25), and offers the boon the act break owes if none is waiting. Saves the run.
+    /// makes the run active, plans the act again when its zone is no longer an expedition zone, and offers the boon
+    /// the act break owes if none is waiting. Saves the run.
     /// </summary>
     public static void PrepareRecoveredRun(GamePlayer player, ExpeditionRun run)
     {
@@ -75,23 +75,7 @@ public static class ExpeditionRecovery
         run.EndedUtc = null;
         run.AddLog($"Act {run.Act}: {run.CharacterName} was restored after a death and carries on.");
 
-        if (run.CurrentAct == null || !ActGenerator.GetCandidates(run.Act, player.Realm).Any(z => z.ZoneId == run.CurrentAct.ZoneId))
-        {
-            try
-            {
-                ActPlan replanned = ActGenerator.Generate(run.Act, player.Realm, run.Seed, -1);
-
-                if (replanned != null)
-                {
-                    run.AddLog($"Act {run.Act}: {run.CurrentAct?.ZoneName ?? "the old zone"} is no longer an expedition zone; the act moves to {replanned.ZoneName}.");
-                    run.CurrentAct = replanned;
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Error($"[EXPEDITION] Act {run.Act} of {run.CharacterName} could not be planned again after a recovery.", ex);
-            }
-        }
+        ReplanIfZoneRemoved(player, run, true);
 
         // One boon per act won. A death at the start of an act can come before the choice was made; the offer is
         // saved with the run, so it is normally still waiting. Only when it is gone is it drawn again (same seed, same act).
@@ -109,5 +93,52 @@ public static class ExpeditionRecovery
 
         // The login resume then makes the camp safe (ExpeditionArrival) and takes the player there once settled.
         ExpeditionManager.Save(run);
+    }
+
+    /// <summary>
+    /// Plans the current act again when its zone is no longer one of that act's expedition zones (zones taken out on
+    /// 2026-10-25: the dungeons, and Gripklosa Mountains and Lyonesse from act 3). Without <paramref name="force"/> an
+    /// act that has begun (any objective progress, or its boss up) keeps its zone. The caller saves the run.
+    /// Returns true when the act was planned again.
+    /// </summary>
+    public static bool ReplanIfZoneRemoved(GamePlayer player, ExpeditionRun run, bool force)
+    {
+        ActPlan plan = run?.CurrentAct;
+
+        if (player == null || run == null)
+        {
+            return false;
+        }
+
+        if (plan != null && ActGenerator.GetCandidates(run.Act, player.Realm).Any(z => z.ZoneId == plan.ZoneId))
+        {
+            return false;
+        }
+
+        if (!force && plan != null && (plan.BossSpawned || plan.Objectives.Any(o => o.Progress > 0)))
+        {
+            return false;
+        }
+
+        try
+        {
+            ActPlan replanned = ActGenerator.Generate(run.Act, player.Realm, run.Seed, -1);
+
+            if (replanned == null)
+            {
+                return false;
+            }
+
+            run.AddLog($"Act {run.Act}: {plan?.ZoneName ?? "the old zone"} is no longer an act {run.Act} zone; the act moves to {replanned.ZoneName}.");
+            run.CurrentAct = replanned;
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            log.Error($"[EXPEDITION] Act {run.Act} of {run.CharacterName} could not be planned again.", ex);
+
+            return false;
+        }
     }
 }

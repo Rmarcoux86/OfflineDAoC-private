@@ -39,6 +39,7 @@ FRONTIER_REGIONS = {163, 246, 248, 276, 277}
 # Act 5 is Darkness Falls for every realm, and Darkness Falls is in no other act (owner, 2026-10-24).
 # No other dungeons (owner, 2026-10-25: a hardcore character died arriving in Cursed Tomb): Stonehenge Barrows, Nisse's
 # Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and Spraggon Den were taken out of acts 1-4.
+# Gripklosa Mountains (mobs from 25) and Lyonesse (from 30) are act 4 only: in act 3 (20-32) everything conned purple.
 # (zone id, region id, boss candidates checked against the catalog). Classic level ranges decide the act; the server
 # drops any zone the world doesn't populate in the act's band.
 REALMS = {
@@ -47,7 +48,7 @@ REALMS = {
             (9, 1, ["giant wolf", "bogman trapper", "shambler", "marsh scrag"]), (51, 51, [])],
         2: [(1, 1, []), (3, 1, ["forest chief"]), (8, 1, []), (51, 51, []), (7, 1, [])],
         3: [(6, 1, ["giant rooter"]), (52, 51, ["dread disciple", "drakoran thaumaturge", "sea hound", "caer caddug baille"]),
-            (7, 1, []), (10, 1, []), (53, 51, [])],
+            (7, 1, []), (53, 51, [])],
         4: [(52, 51, ["caer caddug priest", "caer caddug knight"]),
             (10, 1, []), (4, 1, []), (53, 51, []), (54, 51, []), (55, 51, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
@@ -55,7 +56,7 @@ REALMS = {
     "Midgard": {
         1: [(100, 100, []), (101, 100, []), (103, 100, []), (151, 151, [])],
         2: [(102, 100, []), (105, 100, []), (151, 151, [])],
-        3: [(104, 100, []), (106, 100, []), (155, 151, []), (152, 151, [])],
+        3: [(104, 100, []), (106, 100, []), (155, 151, [])],
         4: [(107, 100, []), (116, 100, []), (153, 151, []), (152, 151, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
     },

@@ -135,6 +135,15 @@ public static class ExpeditionManager
             return;
         }
 
+        // Fork (owner 2026-10-25): an act not yet begun in a zone since taken out of that act moves to one of its zones.
+        bool replanned = !recovered && ExpeditionRecovery.ReplanIfZoneRemoved(player, run, false);
+
+        if (replanned)
+        {
+            Save(run);
+            player.Out.SendMessage($"Your act's zone is no longer used for act {run.Act}; the act now takes place in {run.CurrentAct.ZoneName}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
+
         // An act planned under older rules gets what the act would get now (shrines; objectives while its boss is away).
         string upgraded = ActGenerator.UpgradeInProgress(run.CurrentAct, player.Realm, run.Seed);
 
@@ -172,6 +181,11 @@ public static class ExpeditionManager
             if (upgraded != null)
             {
                 player.Out.SendMessage($"Your act has been updated to the latest rules: {upgraded}. Type /run journal to see them.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+
+            if (replanned)
+            {
+                ExpeditionArrival.MoveToCamp(player, run, run.CurrentAct);
             }
 
             if (recovered)

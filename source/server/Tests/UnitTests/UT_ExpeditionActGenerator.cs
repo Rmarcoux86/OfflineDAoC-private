@@ -596,6 +596,10 @@ public class UT_ExpeditionActGenerator
                 Assert.That(dungeonRegions, Does.Not.Contain(regionId), $"{realm} act {act}");
             }
         }
+
+        // Zones whose mobs start well above act 3's band are act 4 only (owner, 2026-10-25).
+        int[] actThree = ActGenerator.GetCandidates(3, realm).Select(z => z.ZoneId).ToArray();
+        Assert.That(actThree, Does.Not.Contain(realm == eRealm.Midgard ? 152 : realm == eRealm.Albion ? 10 : -1), $"{realm} act 3");
     }
 
     [Test]
