@@ -775,7 +775,15 @@ namespace DOL.GS.ServerRules
                     otherCheck = new string[] { Abilities.Weapon_Longbows, Abilities.Weapon_Archery };
                     break;
                 case eObjectType.Crossbow: abilityCheck = Abilities.Weapon_Crossbow; break;
-                case eObjectType.Flexible: abilityCheck = Abilities.Weapon_Flexible; break;
+                case eObjectType.Flexible:
+                    // Fork (owner 2026-10-25): a Reaver can wield flexible weapons from level 1, not only once it trains them.
+                    if (playerLike != null && playerLike.CharacterClass.ID == (int) eCharacterClass.Reaver)
+                    {
+                        return true;
+                    }
+
+                    abilityCheck = Abilities.Weapon_Flexible;
+                    break;
                 //TODO: case 5: abilityCheck = Abilities.Weapon_Thrown;break;
 
                 //mid
