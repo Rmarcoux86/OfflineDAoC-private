@@ -511,8 +511,91 @@ public static class ExpeditionUniques
     }
 
     /// <summary>
-    /// Gives uniques found before the new looks their look at login: weapons their glow, chest pieces and helms the
-    /// Dragonslayer model, the cloaks their special model. The item is re-sent so the bag shows it at once.
+    /// Trials of Atlantis style percentage bonuses on every unique (owner 2026-10-25), on the lines after the unique's
+    /// own: melee classes get melee/style damage and melee speed, list casters spell damage and casting speed. The
+    /// server caps each of these at 10% from items.
+    /// </summary>
+    public static int ToaPercentFor(eUniqueTier tier)
+    {
+        return tier switch
+        {
+            eUniqueTier.Early => 3,
+            eUniqueTier.Mid => 5,
+            _ => 7
+        };
+    }
+
+    /// <summary>The ToA properties a unique in this slot carries for a melee class or a caster (one or two).</summary>
+    public static eProperty[] ToaPropertiesFor(eUniqueSlot slot, bool caster)
+    {
+        return slot switch
+        {
+            eUniqueSlot.Weapon => caster ? [eProperty.SpellDamage, eProperty.CastingSpeed] : [eProperty.MeleeDamage, eProperty.StyleDamage],
+            eUniqueSlot.Chest or eUniqueSlot.Necklace or eUniqueSlot.Jewel => caster ? [eProperty.SpellDamage] : [eProperty.MeleeDamage],
+            eUniqueSlot.Cloak => caster ? [eProperty.SpellDamage] : [eProperty.StyleDamage],
+            _ => caster ? [eProperty.CastingSpeed] : [eProperty.MeleeSpeed]
+        };
+    }
+
+    /// <summary>A list caster (wizards, druids, healers...) gets the caster bonuses; every other class the melee ones.</summary>
+    public static bool IsCaster(GamePlayer player)
+    {
+        return player?.CharacterClass?.ClassType == eClassType.ListCaster;
+    }
+
+    /// <summary>
+    /// Writes the unique's ToA lines after its own lines. Returns true when a line changed (the caller re-applies a worn
+    /// item's bonuses and saves).
+    /// </summary>
+    public static bool ApplyToaLines(DbItemTemplate item, UniqueDefinition definition, bool caster)
+    {
+        eProperty[] properties = ToaPropertiesFor(definition.Slot, caster);
+        int value = ToaPercentFor(definition.Tier);
+        bool changed = false;
+
+        for (int i = 0; i < properties.Length; i++)
+        {
+            int line = Math.Min(definition.Lines.Length, 8) + i + 1;
+
+            if (line > 10)
+            {
+                break;
+            }
+
+            (int type, int amount) = BonusLine(item, line);
+
+            if (type == (int) properties[i] && amount == value)
+            {
+                continue;
+            }
+
+            ExpeditionLoot.SetBonus(item, line, properties[i], value);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static (int Type, int Amount) BonusLine(DbItemTemplate item, int line)
+    {
+        return line switch
+        {
+            1 => (item.Bonus1Type, item.Bonus1),
+            2 => (item.Bonus2Type, item.Bonus2),
+            3 => (item.Bonus3Type, item.Bonus3),
+            4 => (item.Bonus4Type, item.Bonus4),
+            5 => (item.Bonus5Type, item.Bonus5),
+            6 => (item.Bonus6Type, item.Bonus6),
+            7 => (item.Bonus7Type, item.Bonus7),
+            8 => (item.Bonus8Type, item.Bonus8),
+            9 => (item.Bonus9Type, item.Bonus9),
+            _ => (item.Bonus10Type, item.Bonus10)
+        };
+    }
+
+    /// <summary>
+    /// Brings uniques found before the latest changes up to date at login: their look (artifact, special or
+    /// Dragonslayer model; weapon glow) and their ToA percentage lines. The item is re-sent so the bag shows it at once.
     /// </summary>
     public static void UpdateOldUniqueLooks(GamePlayer player)
     {
@@ -530,23 +613,42 @@ public static class ExpeditionUniques
                 continue;
             }
 
-            int epicModel = SpecialLooks.TryGetValue(definition.Name, out int specialModel) ? specialModel : DragonslayerModelFor((eObjectType) item.Object_Type, player.Realm, definition.Slot);
-            bool glowMissing = definition.Slot == eUniqueSlot.Weapon && item.Effect == 0;
-            bool lookMissing = epicModel > 0 && item.Model != epicModel;
+            int lookModel = LookModelFor(item, definition, player.Realm);
+            int glow = definition.Slot == eUniqueSlot.Weapon ? WeaponGlowFor(definition.Name) : item.Effect;
+            bool lookChanged = (lookModel > 0 && item.Model != lookModel) || item.Effect != glow;
+            bool worn = item.SlotPosition >= (int) eInventorySlot.MinEquipable && item.SlotPosition <= (int) eInventorySlot.MaxEquipable;
+            eInventorySlot slot = (eInventorySlot) item.SlotPosition;
 
-            if (!glowMissing && !lookMissing)
+            // The ToA lines change the item's bonuses: a worn item is taken off and put back on around the change.
+            DbItemTemplate preview = new();
+            CopyBonusLines(item.Template, preview);
+            bool bonusChanged = ApplyToaLines(preview, definition, IsCaster(player));
+
+            if (!lookChanged && !bonusChanged)
             {
                 continue;
             }
 
-            if (glowMissing)
+            if (bonusChanged && worn)
             {
-                item.Template.Effect = WeaponGlowFor(definition.Name);
+                player.OnItemUnequipped(item, slot);
             }
 
-            if (lookMissing)
+            if (bonusChanged)
             {
-                item.Template.Model = epicModel;
+                ApplyToaLines(item.Template, definition, IsCaster(player));
+            }
+
+            if (lookModel > 0)
+            {
+                item.Template.Model = lookModel;
+            }
+
+            item.Template.Effect = glow;
+
+            if (bonusChanged && worn)
+            {
+                player.OnItemEquipped(item, slot);
             }
 
             try
@@ -560,10 +662,132 @@ public static class ExpeditionUniques
             }
             catch (Exception ex)
             {
-                log.Error($"[EXPEDITION] Could not save the look of {item.Name} for {player.Name}.", ex);
+                log.Error($"[EXPEDITION] Could not save the update of {item.Name} for {player.Name}.", ex);
             }
 
             player.Out.SendInventoryItemsUpdate(new[] { item });
+        }
+    }
+
+    /// <summary>
+    /// Trials of Atlantis artifact looks for uniques (owner 2026-10-25: "make every unique look like an artifact"),
+    /// from the artifact models the model changer offers (scripts/customnpc/ItemModel.cs). A unique picks one of the
+    /// fitting models by its name, so each unique always has the same look. Jewelry has no look in the world.
+    /// Armor models are Albion / Hibernia / Midgard.
+    /// </summary>
+    private static readonly int[][] ArtifactChests =
+    [
+        [2226, 2228, 2227],  // Eirene's Chest
+        [2475, 2476, 2477],  // Guard of Valor
+        [2187, 2189, 2188]   // Golden Scarab Vest
+    ];
+
+    private static readonly int[] NaliahsRobe = [2516, 2517, 2518];
+
+    private static readonly int[][] ArtifactHelms =
+    [
+        [1839, 1840, 1841],  // Crown of Zahur
+        [1842, 1843, 1844],  // Crown of Zahur (variant)
+        [2223, 2225, 2224]   // Winged Helm
+    ];
+
+    /// <summary>The artifact model for this unique (by its type, hand and damage type, or armor slot), or 0 for none.</summary>
+    public static int ArtifactModelFor(DbItemTemplate item, UniqueDefinition definition, eRealm realm)
+    {
+        int realmIndex = realm switch
+        {
+            eRealm.Hibernia => 1,
+            eRealm.Midgard => 2,
+            _ => 0
+        };
+
+        if (definition.Slot == eUniqueSlot.Chest)
+        {
+            return (eObjectType) item.Object_Type == eObjectType.Cloth ? NaliahsRobe[realmIndex] : Pick(ArtifactChests, definition.Name)[realmIndex];
+        }
+
+        if (definition.Slot == eUniqueSlot.Helm)
+        {
+            return Pick(ArtifactHelms, definition.Name)[realmIndex];
+        }
+
+        if (definition.Slot != eUniqueSlot.Weapon)
+        {
+            return 0;
+        }
+
+        int[] models = (eObjectType) item.Object_Type switch
+        {
+            eObjectType.Flexible => [2119],                                   // Snakecharmer's Whip
+            eObjectType.HandToHand or eObjectType.FistWraps => [2469],        // Snakecharmer's Fist
+            eObjectType.Staff => [1659, 1660, 1658],                          // Traldor's Oracle, Trident of the Gods, Tartaros Gift
+            eObjectType.Scythe => [3450, 2111],                               // Scythe of Kings, Snakecharmer's Scythe
+            eObjectType.PolearmWeapon => [1661, 1662],                        // Pole of Kings, Golden Pole
+            eObjectType.Spear or eObjectType.CelticSpear => [1662],           // Golden Spear
+            eObjectType.Shield => [1663, 1664, 1665],                         // Aten's Shield, Cyclop's Eye, Shield of Khaos
+            eObjectType.CompositeBow or eObjectType.Longbow or eObjectType.RecurvedBow or eObjectType.Fired => [1666, 1667], // Fool's Bow, Braggart's Bow
+            _ => null
+        };
+
+        if (models == null && item.Item_Type == Slot.TWOHAND)
+        {
+            models = (eDamageType) item.Type_Damage switch
+            {
+                eDamageType.Slash => [2110, 1670],                            // Malice Axe, Battler Sword
+                eDamageType.Crush => [2113, 3448, 3449],                      // Bruiser, Battler and Malice Hammers
+                _ => null
+            };
+        }
+        else if (models == null && item.Item_Type is Slot.RIGHTHAND or Slot.LEFTHAND)
+        {
+            models = (eDamageType) item.Type_Damage switch
+            {
+                eDamageType.Thrust => [1668, 1669, 1807],                     // Traitor's Dagger, Croc Tooth Dagger, Golden Spear
+                eDamageType.Slash => [3452, 3451, 2109, 2112],                // Traitor's Axe, Croc Tooth Axe, Malice Axe, Battler Sword
+                eDamageType.Crush => [3447, 1671, 3453, 1672],                // Malice, Bruiser and Battler Hammers, Scepter of the Meritorious
+                _ => null
+            };
+        }
+
+        return models == null ? 0 : Pick(models, definition.Name);
+    }
+
+    private static T Pick<T>(T[] options, string name)
+    {
+        int sum = 0;
+
+        foreach (char c in name ?? string.Empty)
+        {
+            sum = unchecked(sum * 31 + c);
+        }
+
+        return options[(sum & int.MaxValue) % options.Length];
+    }
+
+    /// <summary>The model a unique should wear: its special model, an artifact model, else Dragonslayer armor (0: keep).</summary>
+    public static int LookModelFor(DbItemTemplate item, UniqueDefinition definition, eRealm realm)
+    {
+        if (SpecialLooks.TryGetValue(definition.Name, out int special))
+        {
+            return special;
+        }
+
+        int artifact = ArtifactModelFor(item, definition, realm);
+
+        if (artifact > 0)
+        {
+            return artifact;
+        }
+
+        return DragonslayerModelFor((eObjectType) item.Object_Type, realm, definition.Slot);
+    }
+
+    private static void CopyBonusLines(DbItemTemplate from, DbItemTemplate to)
+    {
+        for (int line = 1; line <= 10; line++)
+        {
+            (int type, int amount) = BonusLine(from, line);
+            ExpeditionLoot.SetBonus(to, line, (eProperty) type, amount);
         }
     }
 
@@ -694,6 +918,8 @@ public static class ExpeditionUniques
             ExpeditionLoot.SetBonus(item, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
         }
 
+        ApplyToaLines(item, definition, IsCaster(player));
+
         if (definition.Proc != eUniqueProc.None)
         {
             item.ProcSpellID = ProcSpellFor(definition.Proc, item.Level);
@@ -707,16 +933,11 @@ public static class ExpeditionUniques
             item.Effect = WeaponGlowFor(definition.Name);
         }
 
-        int dragonslayerModel = DragonslayerModelFor((eObjectType) item.Object_Type, realm, definition.Slot);
+        int lookModel = LookModelFor(item, definition, realm);
 
-        if (dragonslayerModel > 0)
+        if (lookModel > 0)
         {
-            item.Model = dragonslayerModel;
-        }
-
-        if (SpecialLooks.TryGetValue(definition.Name, out int specialModel))
-        {
-            item.Model = specialModel;
+            item.Model = lookModel;
         }
 
         // Salvage caps "Atlas ROG" items (Salvage.cs:708); the suffix marks the rarity for /junk (ExpeditionLoot.TryGetRarity).

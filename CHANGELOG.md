@@ -34,6 +34,9 @@ The newest version is first. For the full detail of every earlier update, see
   always 99% and Unique 100%.
 - A monster that has just spawned (or respawned) waits 3 seconds before it can aggro on its own; attacking it still
   starts the fight at once.
+- Uniques carry Trials of Atlantis percentage bonuses on top of their own: 3% (early), 5% (mid) or 7% (late) melee
+  damage, style damage or melee speed for melee classes, spell damage or casting speed for list casters, by slot.
+  Uniques you already own get them at your next login.
 - `/junk epic` clears Epic drops (and lower) from your backpack. Uniques are never junked.
 - Boons removed: Hunter's Eye, Chain Lightning, Rupture, Unshakable, Second Wind and Warded Hide. A run that had one
   taken loses it and gets a new boon choice.
@@ -48,7 +51,7 @@ The newest version is first. For the full detail of every earlier update, see
 - Every act camp has a Supplier beside it: your realm's poisons, arrows, bolts and throwing weapons (whatever the
   realm's merchants sell; a kind your realm has none of is left out).
 - Uniques look the part: unique weapons glow (red glow, fire or sparkling fire, always the same one for a given
-  unique), unique chest pieces and helms are Dragonslayer armor (matching their armor type and your realm), and the unique cloaks use artifact
+  unique), every unique weapon, chest piece and helm wears a Trials of Atlantis artifact's look (a fixed one per unique), and the unique cloaks use artifact
   cloaks (Mantle of the Grey Lough: Shades of Mist; Shroud of the Pale Tide: Oceanus). Uniques you already have are
   updated at your next login.
 - No dungeons before act 5: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and

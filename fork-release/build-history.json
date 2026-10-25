@@ -1,5 +1,14 @@
 [
   {
+    "tag": "fork-v54",
+    "date": "2026-10-25",
+    "items": [
+      "Every unique weapon, shield, bow, chest piece and helm now wears a Trials of Atlantis artifact's look (each unique always the same one), on top of the weapon glow.",
+      "Uniques carry ToA percentage bonuses: melee classes get melee damage, style damage or melee speed; list casters get spell damage or casting speed. 3% on early uniques, 5% mid, 7% late (the game caps each at 10% from items).",
+      "Uniques you already own get the new look and bonuses at your next login (worn items are refreshed automatically)."
+    ]
+  },
+  {
     "tag": "fork-v53",
     "date": "2026-10-25",
     "items": [
