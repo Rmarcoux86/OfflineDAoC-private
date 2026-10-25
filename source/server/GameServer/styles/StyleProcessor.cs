@@ -762,6 +762,10 @@ namespace DOL.GS.Styles
 
 			delveInfo.Add(temp);
 
+			// Fork (owner 2026-10-25): the exact growth rate next to the damage word.
+			delveInfo.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture, "Growth Rate: {0:0.00}{1}", style.GrowthRate,
+				style.GrowthOffset != 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, " (offset {0:0.##})", style.GrowthOffset) : string.Empty));
+
 			temp = LanguageMgr.GetTranslation(player.Client.Account.Language, "DetailDisplayHandler.HandlePacket.ToHit") + " ";
 
 			if (style.BonusToHit <= -20)
