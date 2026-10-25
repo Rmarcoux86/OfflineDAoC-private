@@ -3480,6 +3480,18 @@ namespace DOL.GS
                     }
                 }
             }
+
+            // Fork (owner 2026-10-25): a Reaver wields flexible weapons from level 1, not only once the Flexible line
+            // grants the ability. Having the ability also lets the client show whips and flails as usable.
+            if (CharacterClass?.ID == (int) eCharacterClass.Reaver && !HasAbility(Abilities.Weapon_Flexible))
+            {
+                Ability flexible = SkillBase.GetAbility(Abilities.Weapon_Flexible);
+
+                if (flexible != null)
+                {
+                    AddAbility(flexible, false);
+                }
+            }
         }
 
         /// <summary>

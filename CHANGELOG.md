@@ -43,7 +43,8 @@ The newest version is first. For the full detail of every earlier update, see
 - Drops are always something you can use at your current level: the item generator chose from everything your class
   can use by level 50, so a level 2 Reaver could find a whip it could not equip yet. Weapon uniques follow the same
   rule.
-- Reavers can equip flexible weapons (whips and flails) from level 1, everywhere, not only on runs.
+- Reavers can equip flexible weapons (whips and flails) from level 1, everywhere, not only on runs: they get the
+  Weaponry: Flexible ability from the start, so the game shows whips as usable.
 - New `/recover` command: lists the deleted characters of your account and restores one with its items (`/recover
   <name>`). A character whose death ended an Expedition run gets its run back: it stays hardcore, is taken to the
   act's camp at its next login (an act in a removed dungeon is planned again in another zone), and the boon choice it
