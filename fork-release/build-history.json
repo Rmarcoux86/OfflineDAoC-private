@@ -3,7 +3,8 @@
     "tag": "fork-v58",
     "date": "2026-10-25",
     "items": [
-      "The launcher's Build history link (and What's new, when an update is waiting) now sits next to the version number; under the buttons it was cut off."
+      "The launcher opens on a new Build History tab (first, next to Active Population): every fork build and what it changed, newest first, with yours marked (installed).",
+      "When an update is waiting, a What's new link next to the version number lists what it brings."
     ]
   },
   {

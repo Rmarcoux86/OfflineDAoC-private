@@ -11,18 +11,7 @@ internal sealed class ForkNotesForm : Form
     private readonly IReadOnlyList<ForkUpdater.ForkBuild>? _builds;
     private readonly string _missingText;
     private readonly string? _installedTag;
-    private readonly RichTextBox _notes = new()
-    {
-        Dock = DockStyle.Fill,
-        ReadOnly = true,
-        BorderStyle = BorderStyle.None,
-        BackColor = DaocTheme.Panel,
-        ForeColor = DaocTheme.Text,
-        Font = new Font("Georgia", 10f),
-        DetectUrls = false,
-        ScrollBars = RichTextBoxScrollBars.Vertical,
-        WordWrap = true,
-    };
+    private readonly ForkNotesView _notes = new();
     private readonly Label _status = new()
     {
         Dock = DockStyle.Fill,
@@ -30,9 +19,6 @@ internal sealed class ForkNotesForm : Form
         Font = new Font("Georgia", 8.5f, FontStyle.Italic),
         TextAlign = ContentAlignment.MiddleLeft,
     };
-    private Font? _headingFont;
-    private Font? _detailFont;
-
     /// <param name="builds">The builds to show, newest first; null when there are none to read.</param>
     /// <param name="missingText">Shown instead of the notes when <paramref name="builds"/> is null or empty.</param>
     public ForkNotesForm(string title, string intro, IReadOnlyList<ForkUpdater.ForkBuild>? builds, string missingText, string? installedTag)
@@ -87,6 +73,35 @@ internal sealed class ForkNotesForm : Form
         UiScale.Apply(this);
     }
 
+    private void ShowNotes()
+    {
+        _status.Text = _builds is null || _builds.Count <= 1 ? string.Empty : $"{_builds.Count} builds, newest first.";
+        _notes.ShowNotes(_builds, _missingText, _installedTag);
+    }
+}
+
+/// <summary>
+/// The formatted notes themselves (owner 2026-10-25: shared by the notes window and the Build History tab): each build
+/// a bold gold tag (and "(installed)"), its date, then its "What's new" items as bullets, newest first.
+/// </summary>
+internal sealed class ForkNotesView : RichTextBox
+{
+    private Font? _headingFont;
+    private Font? _detailFont;
+
+    public ForkNotesView()
+    {
+        Dock = DockStyle.Fill;
+        ReadOnly = true;
+        BorderStyle = BorderStyle.None;
+        BackColor = DaocTheme.Panel;
+        ForeColor = DaocTheme.Text;
+        Font = new Font("Georgia", 10f);
+        DetectUrls = false;
+        ScrollBars = RichTextBoxScrollBars.Vertical;
+        WordWrap = true;
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -98,29 +113,23 @@ internal sealed class ForkNotesForm : Form
         base.Dispose(disposing);
     }
 
-    private void ShowNotes()
+    /// <summary>Writes the builds (or <paramref name="missingText"/> when there are none). Needs the control's handle.</summary>
+    public void ShowNotes(IReadOnlyList<ForkUpdater.ForkBuild>? builds, string missingText, string? installedTag)
     {
-        if (_builds is null || _builds.Count == 0)
+        if (builds is null || builds.Count == 0)
         {
-            _notes.Clear();
-            Append(_missingText, _notes.Font, DaocTheme.Muted, false);
+            Clear();
+            Append(missingText, Font, DaocTheme.Muted, false);
 
             return;
         }
 
-        _status.Text = _builds.Count == 1 ? string.Empty : $"{_builds.Count} builds, newest first.";
-        ShowBuilds(_builds);
-    }
-
-    // Each build: a bold gold tag (and "(installed)"), its date, then its "What's new" items as bullets.
-    private void ShowBuilds(IReadOnlyList<ForkUpdater.ForkBuild> builds)
-    {
-        // Derived from the already scaled notes font, so UiScale's text size applies to the headings too.
-        Font body = _notes.Font;
+        // Derived from the already scaled font, so UiScale's text size applies to the headings too.
+        Font body = Font;
         _headingFont ??= new Font(body.FontFamily, body.Size * 1.2f, FontStyle.Bold);
         _detailFont ??= new Font(body.FontFamily, body.Size * 0.85f, FontStyle.Italic);
-        _notes.BulletIndent = UiScale.Px(_notes, 14);
-        _notes.Clear();
+        BulletIndent = UiScale.Px(this, 14);
+        Clear();
 
         for (int index = 0; index < builds.Count; index++)
         {
@@ -133,7 +142,7 @@ internal sealed class ForkNotesForm : Form
 
             Append(build.Tag, _headingFont, DaocTheme.GoldLight, false);
 
-            if (string.Equals(build.Tag, _installedTag, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(build.Tag, installedTag, StringComparison.OrdinalIgnoreCase))
             {
                 Append("  (installed)", _headingFont, DaocTheme.Success, false);
             }
@@ -161,19 +170,19 @@ internal sealed class ForkNotesForm : Form
 
         // The empty paragraph after the last item would otherwise keep its bullet.
         Append(string.Empty, body, DaocTheme.Text, false);
-        _notes.SelectionStart = 0;
-        _notes.SelectionLength = 0;
-        _notes.ScrollToCaret();
+        SelectionStart = 0;
+        SelectionLength = 0;
+        ScrollToCaret();
     }
 
     // Appends at the end with this font, colour and bullet (the bullet applies to the paragraph the text starts).
     private void Append(string text, Font font, Color color, bool bullet)
     {
-        _notes.SelectionStart = _notes.TextLength;
-        _notes.SelectionLength = 0;
-        _notes.SelectionFont = font;
-        _notes.SelectionColor = color;
-        _notes.SelectionBullet = bullet;
-        _notes.AppendText(text);
+        SelectionStart = TextLength;
+        SelectionLength = 0;
+        SelectionFont = font;
+        SelectionColor = color;
+        SelectionBullet = bullet;
+        AppendText(text);
     }
 }

@@ -20,8 +20,6 @@ internal sealed partial class MainForm
     private bool _startButtonOffersUpdate;
     // Under the header buttons: the offered update's notes (only while it has some) and the installed build history.
     private readonly LinkLabel _whatsNewLink = NotesLink("What's new");
-    private readonly LinkLabel _historyLink = NotesLink("Build history");
-    private ForkNotesForm? _buildHistory;
 
     // The playable folder: the parent of the server's runtime folder (in new-client mode that is ..\..\runtime).
     private string GameFolder => Path.GetFullPath(Path.Combine(_root, ".."));
@@ -51,7 +49,7 @@ internal sealed partial class MainForm
         Margin = Padding.Empty,
     };
 
-    // Beside the version label: "Build history", then "What's new" while an update with notes is offered.
+    // Beside the version label: "What's new" while an update with notes is offered (the history is the Build History tab).
     private Control BuildForkNotesLinks(Point location)
     {
         var row = new FlowLayoutPanel
@@ -65,11 +63,7 @@ internal sealed partial class MainForm
             BackColor = Color.Transparent
         };
         _whatsNewLink.Visible = false;
-        _whatsNewLink.Margin = new Padding(14, 0, 0, 0);
         _whatsNewLink.LinkClicked += (_, _) => ShowOfferedUpdateNotes();
-        _historyLink.LinkClicked += (_, _) => ShowBuildHistory();
-        _helpTip.SetToolTip(_historyLink, "Every installed fork build and what it changed.");
-        row.Controls.Add(_historyLink);
         row.Controls.Add(_whatsNewLink);
 
         return row;
@@ -88,21 +82,39 @@ internal sealed partial class MainForm
         notes.ShowDialog(this);
     }
 
-    // Read from runtime\build-history.json each time it opens (installed with every update); no network.
-    private void ShowBuildHistory()
+    // The first tab (owner 2026-10-25): every fork build and what it changed, from runtime\build-history.json (installed
+    // with every update; no network). Written again each time the tab is opened.
+    private TabPage BuildHistoryTab()
     {
-        if (_buildHistory is { IsDisposed: false })
+        var page = new TabPage("Build History") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(8) };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.Controls.Add(new Label
         {
-            _buildHistory.WindowState = FormWindowState.Normal;
-            _buildHistory.Activate();
+            Dock = DockStyle.Fill,
+            Text = "FORK BUILDS, NEWEST FIRST  ·  what each update changed",
+            ForeColor = DaocTheme.GoldLight,
+            Font = new Font("Georgia", 9.5f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+        }, 0, 0);
 
-            return;
+        var frame = new InsetPanel { Dock = DockStyle.Fill, Accent = DaocTheme.Gold, Padding = new Padding(14, 10, 4, 8) };
+        var view = new ForkNotesView();
+        frame.Controls.Add(view);
+        layout.Controls.Add(frame, 0, 1);
+        page.Controls.Add(layout);
+
+        void Render()
+        {
+            view.ShowNotes(ForkUpdater.ReadBuildHistory(_root), "No build history is available. It comes with the next fork update.",
+                ForkUpdater.ReadInstalledVersion(_root));
         }
 
-        string? installed = ForkUpdater.ReadInstalledVersion(_root);
-        _buildHistory = new ForkNotesForm("Build history", "Fork builds, newest first. What each update changed:",
-            ForkUpdater.ReadBuildHistory(_root), "No build history is available. It comes with the next fork update.", installed);
-        _buildHistory.Show(this);
+        view.HandleCreated += (_, _) => Render();
+        page.Enter += (_, _) => Render();
+
+        return page;
     }
 
     // The first start on a newly installed fork build shows once what it changed (the tag is remembered in the runtime folder).
