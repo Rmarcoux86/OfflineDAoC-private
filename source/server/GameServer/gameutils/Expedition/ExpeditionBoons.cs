@@ -67,13 +67,11 @@ public static class ExpeditionBoons
         new(Ironhide, "Ironhide", "+10% maximum health and 10% less physical damage taken.", false),
         new(Warding, "Warding", "15% less damage taken from spells.", false),
         new(Bloodlust, "Bloodlust", "+15% melee critical hit chance (the 50% cap still applies).", false),
-        new(HuntersEye, "Hunter's Eye", "Named monsters within 2000 units are announced to you.", false),
         new(Thornmail, "Thornmail", "Monsters that hit you in melee take heat damage (3 + your level) on every hit.", false),
         new(Vampiric, "Vampiric", "Each hit you land (melee or spell) has a 25% chance to heal you for half its damage.", false),
         new(Rejuvenation, "Rejuvenation", "You regenerate 2% of your maximum health every 3 seconds, even in combat.", false),
         new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false),
         new(Executioner, "Executioner", "Any hit you land on a monster below 15% health kills it outright (not act bosses).", false),
-        new(ChainLightning, "Chain Lightning", "Every 4th hit you land arcs to up to 3 other enemies within 400 units for half its damage.", false),
         new(Rupture, "Rupture", "When you kill a monster, every enemy within 500 units loses 15% of its maximum health.", false),
         new(PhoenixFeather, "Phoenix Feather", "Once per act, when your health falls below 25% you are instantly healed to 60%.", false),
         new(SoulHarvest, "Soul Harvest", "Each monster you kill restores 8% of your health and 8% of your power.", false),
@@ -89,6 +87,51 @@ public static class ExpeditionBoons
         new(SecondWind, "Second Wind", "A lesser endurance regeneration buff for the rest of the run.", false),
         new(WardedHide, "Warded Hide", "A lesser armor buff for the rest of the run.", false)
     };
+
+    /// <summary>Boons taken out of the catalog (owner 2026-10-25). A run that has one gets a new boon choice instead.</summary>
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning };
+
+    /// <summary>
+    /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for
+    /// the last act won (if none is waiting); an offer that lists one is drawn again. The caller saves when true.
+    /// </summary>
+    public static bool RemoveRetired(GamePlayer player, ExpeditionRun run)
+    {
+        if (run == null)
+        {
+            return false;
+        }
+
+        bool hadTaken;
+        bool offerHadRetired;
+
+        lock (run.Boons)
+        {
+            hadTaken = run.Boons.RemoveAll(Retired.Contains) > 0;
+            offerHadRetired = run.PendingBoonOffer.Any(Retired.Contains);
+        }
+
+        if (!hadTaken && !offerHadRetired)
+        {
+            return false;
+        }
+
+        bool offerWaiting;
+
+        lock (run.Boons)
+        {
+            offerWaiting = run.PendingBoonOffer.Count > 0 && !offerHadRetired;
+        }
+
+        if (!offerWaiting && run.Act > 1)
+        {
+            OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player));
+        }
+
+        run.AddLog($"Act {run.Act}: a removed boon was taken off the run{(hadTaken ? "; a new boon choice is offered" : "; the offer was drawn again")}.");
+
+        return true;
+    }
 
     /// <summary>
     /// Boons that only help a class with power (spells): never offered to a pure melee class (one with no power stat,

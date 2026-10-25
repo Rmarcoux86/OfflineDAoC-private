@@ -15,9 +15,6 @@ namespace DOL.GS.Expedition;
 public static partial class BoonEffects
 {
     private const int ExecutionerThresholdPercent = 15;
-    private const int ChainLightningEveryNthHit = 4;
-    private const ushort ChainLightningRadius = 400;
-    private const int ChainLightningTargets = 3;
     private const ushort RuptureRadius = 500;
     private const int RupturePercent = 15;
     private const int PhoenixTriggerPercent = 25;
@@ -39,7 +36,7 @@ public static partial class BoonEffects
     #region Hits the player lands
 
     /// <summary>
-    /// A hit the player lands, before its damage is applied: Executioner, Chain Lightning, Frostbite, Siphon and
+    /// A hit the player lands, before its damage is applied: Executioner, Frostbite, Siphon and
     /// Vampiric. <paramref name="ad"/>.Target still has its pre-hit health.
     /// </summary>
     private static void OnPlayerLandsHit(GamePlayer striker, AttackData ad)
@@ -51,19 +48,17 @@ public static partial class BoonEffects
             return;
         }
 
-        // Damage-over-time ticks are not hits for Siphon or Chain Lightning's count. A style bleed is a small melee
+        // Damage-over-time ticks are not hits for Siphon. A style bleed is a small melee
         // side effect and rolls nothing (owner, 2026-10-24: Vampiric "procced on the bleed" for 1 health), but a DoT
         // spell is a caster's real damage, so Vampiric rolls on its ticks (owner, same day). Executioner sees both,
         // so a tick can finish a monster off.
         bool styleBleed = ad.SpellHandler?.Spell?.SpellType is eSpellType.StyleBleeding;
         bool dotTick = styleBleed || ad.SpellHandler?.Spell?.SpellType is eSpellType.DamageOverTime or eSpellType.HereticDamageOverTime;
         HashSet<string> boons;
-        int hitNumber;
 
         lock (state)
         {
             boons = new HashSet<string>(state.Ids);
-            hitNumber = dotTick ? 0 : ++state.HitCount;
         }
 
         GameLiving target = ad.Target;
@@ -82,34 +77,6 @@ public static partial class BoonEffects
         if (dealt <= 0 || styleBleed)
         {
             return;
-        }
-
-        // Chain Lightning: every Nth hit arcs to nearby enemies for half its damage.
-        if (boons.Contains(ExpeditionBoons.ChainLightning) && hitNumber > 0 && hitNumber % ChainLightningEveryNthHit == 0 && target != null)
-        {
-            int arc = Math.Max(1, dealt / 2);
-            int arcs = 0;
-
-            foreach (GameNPC other in target.GetNPCsInRadius(ChainLightningRadius))
-            {
-                if (other == target || !IsMonster(other) || !other.IsAlive || !GameServer.ServerRules.IsAllowedToAttack(striker, other, true))
-                {
-                    continue;
-                }
-
-                other.TakeDamage(striker, eDamageType.Energy, arc, 0);
-                arcs++;
-
-                if (arcs >= ChainLightningTargets)
-                {
-                    break;
-                }
-            }
-
-            if (arcs > 0)
-            {
-                striker.Out?.SendMessage($"Chain Lightning arcs to {arcs} {(arcs == 1 ? "enemy" : "enemies")} for {arc} damage!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
-            }
         }
 
         // Frostbite: a melee hit may snare the target.

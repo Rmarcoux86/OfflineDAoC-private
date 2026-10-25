@@ -169,6 +169,11 @@ public static class ExpeditionManager
         Runs[run.CharacterId] = run;
         ObjectiveTracker.Attach(player);
 
+        if (ExpeditionBoons.RemoveRetired(player, run))
+        {
+            Save(run);
+        }
+
         // Boon effects live on the GamePlayer object only, so each login applies them again.
         ExpeditionBoons.ApplyAll(player, run);
 

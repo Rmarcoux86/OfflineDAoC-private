@@ -17,10 +17,6 @@ public static partial class BoonEffects
 {
     private const string StateKey = "EXPEDITION_BOONS_APPLIED";
 
-    private const ushort HuntersEyeRadius = 2000;
-    private const int HuntersEyeIntervalMilliseconds = 3000;
-    private const long HuntersEyeRepeatMilliseconds = 60_000;
-
     private const int RejuvenationIntervalMilliseconds = 3000;
     private const int RejuvenationPercent = 2;
     private const int VampiricChancePercent = 25;
@@ -29,7 +25,7 @@ public static partial class BoonEffects
     /// <summary>Boons that act on hits (the global AttackedByEnemy handler).</summary>
     private static readonly HashSet<string> HitBoons = new()
     {
-        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.ChainLightning,
+        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner,
         ExpeditionBoons.Frostbite, ExpeditionBoons.Siphon
     };
 
@@ -60,13 +56,10 @@ public static partial class BoonEffects
     private sealed class AppliedBoons
     {
         public readonly HashSet<string> Ids = new();
-        public readonly Dictionary<GameNPC, long> Announced = new();
-        public ECSGameTimer HuntersEyeTimer;
         public ECSGameTimer RejuvenationTimer;
 
         // Combat boons (BoonEffects.Combat.cs).
         public ECSGameTimer PulseTimer;
-        public int HitCount;
         public int PhoenixUsedAct;
         public bool DesperationOn;
         public long NextFrostbiteAt;
@@ -112,11 +105,6 @@ public static partial class BoonEffects
                     }
 
                     statsChanged = true;
-                }
-
-                if (id == ExpeditionBoons.HuntersEye && state.HuntersEyeTimer == null)
-                {
-                    state.HuntersEyeTimer = new ECSGameTimer(player, timer => HuntersEyeTick(player, state), HuntersEyeIntervalMilliseconds);
                 }
 
                 if (id == ExpeditionBoons.Rejuvenation && state.RejuvenationTimer == null)
@@ -178,9 +166,6 @@ public static partial class BoonEffects
             }
 
             state.Ids.Clear();
-            state.Announced.Clear();
-            state.HuntersEyeTimer?.Stop();
-            state.HuntersEyeTimer = null;
             state.RejuvenationTimer?.Stop();
             state.RejuvenationTimer = null;
             state.PulseTimer?.Stop();
@@ -230,60 +215,6 @@ public static partial class BoonEffects
         player.Out.SendCharStatsUpdate();
         player.Out.SendUpdateWeaponAndArmorStats();
         player.UpdatePlayerStatus();
-    }
-
-    /// <summary>
-    /// Every 3 seconds: named monsters (name starting with a capital letter, realm none, not a pet, bot or peaceful
-    /// or hidden NPC) within 2000 units are announced, each at most once a minute. Stops itself when the run is over
-    /// or the boon is gone; skips a tick while the player is dead or between regions.
-    /// </summary>
-    private static int HuntersEyeTick(GamePlayer player, AppliedBoons state)
-    {
-        ExpeditionRun run = ExpeditionManager.GetRun(player);
-
-        lock (state)
-        {
-            if (run == null || state.HuntersEyeTimer == null || !state.Ids.Contains(ExpeditionBoons.HuntersEye))
-            {
-                state.HuntersEyeTimer = null;
-
-                return 0;
-            }
-        }
-
-        if (!player.IsAlive || player.CurrentRegion == null)
-        {
-            return HuntersEyeIntervalMilliseconds;
-        }
-
-        long now = GameLoop.GameLoopTime;
-        var announce = new List<GameNPC>();
-
-        lock (state)
-        {
-            foreach (GameNPC stale in state.Announced.Where(entry => now - entry.Value >= HuntersEyeRepeatMilliseconds).Select(entry => entry.Key).ToList())
-            {
-                state.Announced.Remove(stale);
-            }
-
-            foreach (GameNPC npc in player.GetNPCsInRadius(HuntersEyeRadius))
-            {
-                if (!IsNamedMonster(npc) || state.Announced.ContainsKey(npc))
-                {
-                    continue;
-                }
-
-                state.Announced[npc] = now;
-                announce.Add(npc);
-            }
-        }
-
-        foreach (GameNPC npc in announce)
-        {
-            player.Out.SendMessage($"Hunter's Eye: {npc.Name} (level {npc.Level}) is nearby.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-        }
-
-        return HuntersEyeIntervalMilliseconds;
     }
 
     /// <summary>True when the boon is applied to this player object (cheap: no run lookup).</summary>
@@ -390,22 +321,5 @@ public static partial class BoonEffects
             attacker.TakeDamage(defender, eDamageType.Heat, thorns, 0);
             defender.Out?.SendMessage($"Thornmail burns {attacker.GetName(0, false)} for {thorns} damage!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
         }
-    }
-
-    private static bool IsNamedMonster(GameNPC npc)
-    {
-        if (npc == null || !npc.IsAlive || npc is GameBot || npc.Brain is IControlledBrain || npc.Realm != eRealm.None)
-        {
-            return false;
-        }
-
-        if ((npc.Flags & (GameNPC.eFlags.PEACE | GameNPC.eFlags.CANTTARGET | GameNPC.eFlags.DONTSHOWNAME)) != 0)
-        {
-            return false;
-        }
-
-        string name = npc.Name;
-
-        return !string.IsNullOrEmpty(name) && char.IsUpper(name[0]);
     }
 }

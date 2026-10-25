@@ -9,7 +9,7 @@ namespace DOL.GS.Commands;
 /// <summary>
 /// /junk: clears unwanted Expedition drops from the backpack for what a merchant would pay, or sells them as they drop.
 /// Only Expedition items (description ending in " | Expedition {rarity}", <see cref="ExpeditionLoot.TryGetRarity"/>)
-/// are ever touched, never Epic or Unique ones, and never equipped items or the vault.
+/// are ever touched, never Unique ones (Epic only with /junk epic), and never equipped items or the vault.
 /// </summary>
 [CmdAttribute(
     "&junk",
@@ -18,6 +18,7 @@ namespace DOL.GS.Commands;
     "/junk common",
     "/junk magic",
     "/junk rare",
+    "/junk epic",
     "/junk auto off",
     "/junk auto common",
     "/junk auto magic",
@@ -57,6 +58,12 @@ public class JunkCommandHandler : AbstractCommandHandler, ICommandHandler
             case "rare":
             {
                 AskToJunk(player, eLootRarity.Rare);
+
+                break;
+            }
+            case "epic":
+            {
+                AskToJunk(player, eLootRarity.Epic);
 
                 break;
             }

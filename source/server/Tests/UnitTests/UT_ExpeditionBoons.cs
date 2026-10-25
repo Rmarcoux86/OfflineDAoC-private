@@ -178,7 +178,7 @@ public class UT_ExpeditionBoons
 
         run.Boons.Add(ExpeditionBoons.Ironhide);
         run.Boons.Add(ExpeditionBoons.Fortune);
-        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Greed, ExpeditionBoons.Warding, ExpeditionBoons.HuntersEye };
+        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Greed, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
 
         List<string> lines = ExpeditionBoons.DescribeBoons(run).ToList();
         string taken = lines.Single(line => line.StartsWith("Boons:", StringComparison.Ordinal));
@@ -188,7 +188,7 @@ public class UT_ExpeditionBoons
         Assert.That(taken, Does.Contain("Fortune"));
         Assert.That(offer, Does.Contain("Greed"));
         Assert.That(offer, Does.Contain("Warding"));
-        Assert.That(offer, Does.Contain("Hunter's Eye"));
+        Assert.That(offer, Does.Contain("Bloodlust"));
     }
 
     [Test]

@@ -34,6 +34,8 @@ The newest version is first. For the full detail of every earlier update, see
   always 99% and Unique 100%.
 - A monster that has just spawned (or respawned) waits 3 seconds before it can aggro on its own; attacking it still
   starts the fight at once.
+- `/junk epic` clears Epic drops (and lower) from your backpack. Uniques are never junked.
+- The Hunter's Eye and Chain Lightning boons are gone. A run that had one taken loses it and gets a new boon choice.
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.

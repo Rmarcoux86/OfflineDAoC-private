@@ -505,10 +505,11 @@ public static class ExpeditionLoot
         return Math.Max(0, value);
     }
 
-    /// <summary>/junk &lt;rarity&gt;: an item of that rarity or below is junk. Only Common, Magic and Rare can be junked; Epic and Unique never.</summary>
+    /// <summary>/junk &lt;rarity&gt;: an item of that rarity or below is junk. Common, Magic, Rare and Epic can be junked; Unique never.</summary>
     public static bool IsJunk(eLootRarity itemRarity, eLootRarity threshold)
     {
-        return threshold <= eLootRarity.Rare && itemRarity <= threshold;
+        // Fork (owner 2026-10-25): Epic can be junked too (/junk epic); a Unique never.
+        return threshold <= eLootRarity.Epic && itemRarity <= threshold;
     }
 
     /// <summary>/junk auto: a drop at or below the setting (Common or Magic only) is sold instead of bagged. No setting: never.</summary>

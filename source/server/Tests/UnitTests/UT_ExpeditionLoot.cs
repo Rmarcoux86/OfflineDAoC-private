@@ -202,7 +202,8 @@ public class UT_ExpeditionLoot
         Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Rare, eLootRarity.Magic), Is.False);
         Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Rare, eLootRarity.Rare), Is.True);
         Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Epic, eLootRarity.Rare), Is.False);
-        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Epic, eLootRarity.Epic), Is.False);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Epic, eLootRarity.Epic), Is.True);
+        Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Unique, eLootRarity.Epic), Is.False);
         Assert.That(ExpeditionLoot.IsJunk(eLootRarity.Unique, eLootRarity.Unique), Is.False);
     }
 
