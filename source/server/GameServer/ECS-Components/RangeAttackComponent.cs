@@ -203,10 +203,16 @@ namespace DOL.GS
 
         public void RemoveEnduranceAndAmmoOnShot()
         {
-            int arrowRecoveryChance = _owner.GetModified(eProperty.ArrowRecovery);
+            // Fork (owner 2026-10-24): arrows, bolts and throwing weapons are never used up, for players as for bots.
+            if (_owner is not GameBot && _owner is not GamePlayer)
+            {
+                int arrowRecoveryChance = _owner.GetModified(eProperty.ArrowRecovery);
 
-            if (_owner is not GameBot && (arrowRecoveryChance == 0 || Util.Chance(100 - arrowRecoveryChance)))
-                _owner.Inventory.RemoveCountFromStack(Ammo, 1);
+                if (arrowRecoveryChance == 0 || Util.Chance(100 - arrowRecoveryChance))
+                {
+                    _owner.Inventory.RemoveCountFromStack(Ammo, 1);
+                }
+            }
 
             _owner.Endurance -= ShotEnduranceCost;
         }

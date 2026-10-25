@@ -28,6 +28,7 @@ The newest version is first. For the full detail of every earlier update, see
   worn) on top of its normal drops. Rings already picked up are updated to this at the owner's next login.
 - Rare drops are at least 97% quality (was 95%, the same as any drop). Common and Magic drops roll 95–99%, Epic is
   always 99% and Unique 100%.
+- Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of
   merchants), else beside the act camp; the journal gives its /loc. Hand it a unique weapon and pick a weapon type you
   can use: the same unique (name, bonuses, proc, item level) is reforged as that type for 2, 15 or 75 gold by tier.
