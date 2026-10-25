@@ -8,9 +8,6 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
-- The Heretic is playable: at server start the Heretic (class 33) is taken out of `disabled_classes`, so Acolytes can
-  become Heretics at creation, trainers and Expedition promotion. Server setting `allow_heretic` (on); to block it
-  again, turn it off and put 33 back in `disabled_classes`.
 - Swimming: every player swims as fast as with a Greater Nereid potion (its value is read from the game database; a
   stronger potion or ability still wins). Server setting `player_default_swim_speed` (-1 = the potion's value, 0 = off).
 - Travel on runs: the Personal Bind Recall Stone takes you to the act camp instead of your bind point, with no reuse

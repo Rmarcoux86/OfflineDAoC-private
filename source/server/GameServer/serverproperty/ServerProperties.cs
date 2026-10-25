@@ -613,9 +613,6 @@ namespace DOL.GS.ServerProperties
 
 		[ServerProperty("server", "player_default_swim_speed", "Offline fork: water speed bonus every player has (percent). -1 uses the Greater Nereid potion's value from the database; 0 turns it off. A higher potion or ability still wins.", -1)]
 		public static int PLAYER_DEFAULT_SWIM_SPEED = -1;
-
-		[ServerProperty("classes", "allow_heretic", "Offline fork: at server start, take the Heretic (class 33) out of disabled_classes so it can be created and trained. Off leaves disabled_classes as it is.", true)]
-		public static bool ALLOW_HERETIC = true;
 		#endregion
 
 		#region WORLD
