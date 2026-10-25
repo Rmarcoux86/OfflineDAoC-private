@@ -236,6 +236,12 @@ public static class ActGenerator
         return populated.Count > 0 ? populated : listed;
     }
 
+    /// <summary>Objective levels around the entry level (owner 2026-10-25): camps from 1 below to 4 above, named 2 to 6 above.</summary>
+    public const int EntryLevelBelow = 1;
+    public const int EntryLevelCampAbove = 4;
+    public const int EntryLevelNamedFrom = 2;
+    public const int EntryLevelNamedAbove = 6;
+
     /// <summary>Darkness Falls: the last act's zone for every realm, and in no other act (expedition-zones.json; owner, 2026-10-24).</summary>
     public const int DarknessFallsZoneId = 249;
 
@@ -304,9 +310,10 @@ public static class ActGenerator
     }
 
     /// <param name="previousZoneId">The previous act's zone, which is avoided; negative means none (zone 0 is Camelot Hills).</param>
-    public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId)
+    /// <param name="entryLevel">The player's level as the act begins: objectives are picked around it (0: the whole band).</param>
+    public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, int entryLevel = 0)
     {
-        return Generate(act, realm, seed, previousZoneId, WorldZoneOffset, WorldThenCatalogCampSource.Instance);
+        return Generate(act, realm, seed, previousZoneId, WorldZoneOffset, WorldThenCatalogCampSource.Instance, -1, entryLevel);
     }
 
     /// <summary>The default camp source (world, then catalog) with an injected zone offset lookup.</summary>
@@ -316,7 +323,7 @@ public static class ActGenerator
     }
 
     public static ActPlan Generate(int act, eRealm realm, int seed, int previousZoneId, Func<int, (int ox, int oy)> zoneOffset, IExpeditionCampSource campSource,
-        int forcedZoneId = -1)
+        int forcedZoneId = -1, int entryLevel = 0)
     {
         ArgumentNullException.ThrowIfNull(zoneOffset);
         ArgumentNullException.ThrowIfNull(campSource);
@@ -419,12 +426,21 @@ public static class ActGenerator
             campZ = campGoal.Z;
         }
 
-        // ClearCamp: a band camp, preferring ones seen at least twice.
-        List<AutonomousCapnBryGoalCatalog.Entry> clearPool = inBand.Where(e => e.Sightings >= 2).ToList();
+        // Fork (owner 2026-10-25): objectives fit the player as the act begins, not grey to them and not the act's
+        // last levels. With the entry level known, camps are within a level below to four above it and the named
+        // monster two to six above it; a zone with nothing there keeps the band rule below.
+        bool Overlaps(AutonomousCapnBryGoalCatalog.Entry e, int low, int high) => e.Levels.Min() <= high && e.Levels.Max() >= low;
+        List<AutonomousCapnBryGoalCatalog.Entry> fitting = entryLevel > 0
+            ? inBand.Where(e => Overlaps(e, entryLevel - EntryLevelBelow, entryLevel + EntryLevelCampAbove)).ToList()
+            : new List<AutonomousCapnBryGoalCatalog.Entry>();
+
+        // ClearCamp: a band camp (one fitting the entry level when known), preferring ones seen at least twice.
+        List<AutonomousCapnBryGoalCatalog.Entry> campGoals = fitting.Count > 0 ? fitting : inBand;
+        List<AutonomousCapnBryGoalCatalog.Entry> clearPool = campGoals.Where(e => e.Sightings >= 2).ToList();
 
         if (clearPool.Count == 0)
         {
-            clearPool = inBand;
+            clearPool = campGoals;
         }
 
         AutonomousCapnBryGoalCatalog.Entry clearGoal = clearPool[rng.Next(clearPool.Count)];
@@ -439,7 +455,14 @@ public static class ActGenerator
             otherMobs = inBand;
         }
 
-        List<AutonomousCapnBryGoalCatalog.Entry> namedPool = otherMobs.Where(e => e.Levels.Max() >= namedThreshold).ToList();
+        List<AutonomousCapnBryGoalCatalog.Entry> namedPool = entryLevel > 0
+            ? otherMobs.Where(e => Overlaps(e, entryLevel + EntryLevelNamedFrom, entryLevel + EntryLevelNamedAbove)).ToList()
+            : new List<AutonomousCapnBryGoalCatalog.Entry>();
+
+        if (namedPool.Count == 0)
+        {
+            namedPool = otherMobs.Where(e => e.Levels.Max() >= namedThreshold).ToList();
+        }
 
         if (namedPool.Count == 0)
         {
@@ -599,7 +622,11 @@ public static class ActGenerator
     }
 
     /// <summary>The named final bosses of acts 3 to 5 (owner, 2026-10-24). A run draws three of them, none twice.</summary>
-    public static readonly IReadOnlyList<string> NamedBosses = ["Drunkstains", "Scob Mahob", "Ios", "Toothmouth", "Gwyraan"];
+    /// <summary>The bosses of acts 2-4, in random order per run, none twice (owner 2026-10-25).</summary>
+    public static readonly IReadOnlyList<string> NamedBosses = ["Drunkstains", "Ios", "Toothmouth", "Gwyraan"];
+
+    /// <summary>The boss of the last act of every run (owner 2026-10-25).</summary>
+    public const string FinalBoss = "Preesh";
 
     /// <summary>What a named boss shouts when it appears; null for one with no line.</summary>
     public static string BossQuote(string title)
@@ -612,20 +639,26 @@ public static class ActGenerator
     }
 
     /// <summary>The first act whose boss is one of <see cref="NamedBosses"/>.</summary>
-    public const int FirstNamedBossAct = 3;
+    public const int FirstNamedBossAct = 2;
 
     /// <summary>The act 1 boss of every run (owner, 2026-10-24).</summary>
     public const string FirstActBoss = "Three Point Oh";
 
     /// <summary>
-    /// The act boss's name: <see cref="FirstActBoss"/> in act 1, "Warden of {zone}" in act 2; from act 3 a named boss,
-    /// picked by a shuffle of <see cref="NamedBosses"/> seeded by the run alone, so the acts of one run never repeat a name.
+    /// The act boss's name: <see cref="FirstActBoss"/> in act 1, <see cref="FinalBoss"/> in the last act, and in between
+    /// a named boss picked by a shuffle of <see cref="NamedBosses"/> seeded by the run alone, so the acts of one run
+    /// never repeat a name.
     /// </summary>
     public static string BossTitle(int act, int seed, string zoneName)
     {
         if (act <= 1)
         {
             return FirstActBoss;
+        }
+
+        if (act >= ActCount)
+        {
+            return FinalBoss;
         }
 
         if (act < FirstNamedBossAct || NamedBosses.Count == 0)

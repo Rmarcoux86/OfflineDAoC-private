@@ -122,7 +122,7 @@ public static class ExpeditionRecovery
 
         try
         {
-            ActPlan replanned = ActGenerator.Generate(run.Act, player.Realm, run.Seed, -1);
+            ActPlan replanned = ActGenerator.Generate(run.Act, player.Realm, run.Seed, -1, player.Level);
 
             if (replanned == null)
             {

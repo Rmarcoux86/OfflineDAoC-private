@@ -41,9 +41,15 @@ The newest version is first. For the full detail of every earlier update, see
 - Uniques level with you: each level up raises every unique you carry to your level (item level, weapon DPS or
   armor AF, proc strength) until its tier's cap: early uniques stop at 20, mid at 40, late at 50. The description says
   where it stops, and a chat line tells you when it grows. Uniques you already own catch up at your next login.
+- Act bosses: Three Point Oh in act 1, then Drunkstains, Ios, Toothmouth and Gwyraan in random order for acts 2-4
+  (never the same one twice in a run), and Preesh as the final boss of act 5. Scob Mahob and the "Warden of" act 2
+  boss are gone. Acts already planned keep their boss.
 - The named act bosses look like their race and class: Toothmouth a Firbolg battle bard, Ios a Celtic valewalker,
-  Drunkstains a Half Ogre armsman, Gwyraan a Celtic druid (and Preesh a Firbolg blademaster). They still fight as
+  Drunkstains a Half Ogre armsman, Gwyraan a Celtic druid and Preesh a Firbolg blademaster. They still fight as
   ordinary monsters: no styles, spells or pets, and their gear is for looks only.
+- Objectives fit your level when the act begins: the camps to clear are from a level below you to four above, the
+  named monster two to six above (not grey on arrival, not the act's last levels). A zone with nothing in that range
+  keeps the old rule.
 - `/junk epic` clears Epic drops (and lower) from your backpack. Uniques are never junked.
 - Boons removed: Hunter's Eye, Chain Lightning, Rupture, Unshakable, Second Wind and Warded Hide. A run that had one
   taken loses it and gets a new boon choice.

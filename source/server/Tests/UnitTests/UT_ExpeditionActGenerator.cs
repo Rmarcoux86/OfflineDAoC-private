@@ -478,18 +478,19 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
-    public void BossTitle_ThreePointOhThenWardenThenNamedBossesWithoutRepeats()
+    public void BossTitle_ThreePointOhThenNamedBossesWithoutRepeatsThenPreesh()
     {
         for (int seed = 0; seed < 500; seed++)
         {
             Assert.That(ActGenerator.BossTitle(1, seed, "Connacht"), Is.EqualTo("Three Point Oh"));
-            Assert.That(ActGenerator.BossTitle(2, seed, "Lough Gur"), Is.EqualTo("Warden of Lough Gur"));
+            Assert.That(ActGenerator.BossTitle(5, seed, "Darkness Falls"), Is.EqualTo("Preesh"));
 
-            List<string> named = new() { ActGenerator.BossTitle(3, seed, "a"), ActGenerator.BossTitle(4, seed, "b"), ActGenerator.BossTitle(5, seed, "c") };
+            List<string> named = new() { ActGenerator.BossTitle(2, seed, "a"), ActGenerator.BossTitle(3, seed, "b"), ActGenerator.BossTitle(4, seed, "c") };
 
             Assert.That(named, Is.All.Matches<string>(name => ActGenerator.NamedBosses.Contains(name)), $"seed {seed}");
             Assert.That(named.Distinct().Count(), Is.EqualTo(3), $"seed {seed}: no name twice in a run");
-            Assert.That(ActGenerator.BossTitle(4, seed, "x"), Is.EqualTo(named[1]), $"seed {seed}: the same seed gives the same boss");
+            Assert.That(named, Does.Not.Contain("Preesh"), $"seed {seed}");
+            Assert.That(ActGenerator.BossTitle(3, seed, "x"), Is.EqualTo(named[1]), $"seed {seed}: the same seed gives the same boss");
         }
     }
 

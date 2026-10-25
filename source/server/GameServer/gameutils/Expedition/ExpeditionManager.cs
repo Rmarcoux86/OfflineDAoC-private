@@ -545,7 +545,7 @@ public static class ExpeditionManager
 
         try
         {
-            plan = ActGenerator.Generate(1, player.Realm, runSeed, NoPreviousZone);
+            plan = ActGenerator.Generate(1, player.Realm, runSeed, NoPreviousZone, player.Level);
         }
         catch (Exception ex)
         {
@@ -799,7 +799,7 @@ public static class ExpeditionManager
 
         try
         {
-            next = ActGenerator.Generate(nextAct, player.Realm, run.Seed, finished?.ZoneId ?? NoPreviousZone);
+            next = ActGenerator.Generate(nextAct, player.Realm, run.Seed, finished?.ZoneId ?? NoPreviousZone, player.Level);
         }
         catch (Exception ex)
         {
@@ -1199,7 +1199,7 @@ public static class ExpeditionManager
             // Same seed and act give the same plan except for the previous-zone rule, which is not saved separately.
             try
             {
-                run.CurrentAct = ActGenerator.Generate(run.Act, player.Realm, run.Seed, NoPreviousZone);
+                run.CurrentAct = ActGenerator.Generate(run.Act, player.Realm, run.Seed, NoPreviousZone, player.Level);
                 run.AddLog($"Act {run.Act}: the saved act could not be read and was planned again.");
             }
             catch (Exception ex)
