@@ -465,6 +465,17 @@ public static class ExpeditionUniques
         [eCharacterClass.Valewalker] = (1003, 1292)
     };
 
+    /// <summary>
+    /// Special models for unique cloaks (owner 2026-10-25: uniques should look the part), from the artifact cloaks the
+    /// model changer offers (scripts/customnpc/ItemModel.cs): Shades of Mist for the lake-mist mantle, Oceanus for the
+    /// sea shroud.
+    /// </summary>
+    private static readonly Dictionary<string, int> SpecialLooks = new(StringComparer.Ordinal)
+    {
+        ["Mantle of the Grey Lough"] = 1726,
+        ["Shroud of the Pale Tide"] = 1722
+    };
+
     /// <summary>The epic model for a unique chest piece or helm of this class, or 0 to keep the generated one.</summary>
     public static int EpicModelFor(eCharacterClass characterClass, eUniqueSlot slot)
     {
@@ -502,7 +513,7 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// Gives uniques found before the new looks their look at login: weapons their glow, chest pieces and helms the
-    /// class's epic model. The item is re-sent so the bag shows it at once.
+    /// class's epic model, the cloaks their special model. The item is re-sent so the bag shows it at once.
     /// </summary>
     public static void UpdateOldUniqueLooks(GamePlayer player)
     {
@@ -520,7 +531,7 @@ public static class ExpeditionUniques
                 continue;
             }
 
-            int epicModel = EpicModelFor((eCharacterClass) player.CharacterClass.ID, definition.Slot);
+            int epicModel = SpecialLooks.TryGetValue(definition.Name, out int specialModel) ? specialModel : EpicModelFor((eCharacterClass) player.CharacterClass.ID, definition.Slot);
             bool glowMissing = definition.Slot == eUniqueSlot.Weapon && item.Effect == 0;
             bool lookMissing = epicModel > 0 && item.Model != epicModel;
 
@@ -702,6 +713,11 @@ public static class ExpeditionUniques
         if (epicModel > 0)
         {
             item.Model = epicModel;
+        }
+
+        if (SpecialLooks.TryGetValue(definition.Name, out int specialModel))
+        {
+            item.Model = specialModel;
         }
 
         // Salvage caps "Atlas ROG" items (Salvage.cs:708); the suffix marks the rarity for /junk (ExpeditionLoot.TryGetRarity).
