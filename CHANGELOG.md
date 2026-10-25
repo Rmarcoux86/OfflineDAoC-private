@@ -8,6 +8,8 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- The Heretic unblock from fork-v38 is reverted (the Heretic could not be created): `disabled_classes` is put back to
+  the setup default at server start if v38 changed it.
 - Swimming: every player swims as fast as with a Greater Nereid potion (its value is read from the game database; a
   stronger potion or ability still wins). Server setting `player_default_swim_speed` (-1 = the potion's value, 0 = off).
 - Travel on runs: the Personal Bind Recall Stone takes you to the act camp instead of your bind point, with no reuse
