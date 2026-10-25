@@ -294,7 +294,7 @@ public static class ExpeditionUniques
     private static readonly string ThreePointOhRingLore = $"\"You want this ring? It's got...\" +{ThreePointOhRingResistBonus} to all resistances while worn";
 
     /// <summary>The ring's full description, as the drop and the login update write it.</summary>
-    public static readonly string ThreePointOhRingDescription = ThreePointOhRingDescription;
+    public static readonly string ThreePointOhRingDescription = $"{ThreePointOhRingLore} | Atlas ROG | Expedition {eLootRarity.Unique}";
 
     public static bool IsThreePointOhRing(DbInventoryItem item)
     {
