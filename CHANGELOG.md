@@ -37,6 +37,9 @@ The newest version is first. For the full detail of every earlier update, see
   charges and has to be applied again.
 - Every act camp has a Supplier beside it: your realm's poisons, arrows, bolts and throwing weapons (whatever the
   realm's merchants sell; a kind your realm has none of is left out).
+- Uniques look the part: unique weapons glow (red glow, fire or sparkling fire, always the same one for a given
+  unique), and unique chest pieces and helms take your class's epic armor look. Uniques you already have are updated
+  at your next login.
 - No dungeons before act 5: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and
   Spraggon Den are no longer act zones. Darkness Falls is still act 5.
 - Gripklosa Mountains (Midgard) and Lyonesse (Albion) are act 4 only: their monsters start at 25 and 30, so in act 3

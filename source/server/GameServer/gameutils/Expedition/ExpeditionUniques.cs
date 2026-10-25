@@ -442,6 +442,121 @@ public static class ExpeditionUniques
         return item;
     }
 
+    /// <summary>
+    /// Each class's epic armor look for unique chest pieces and helms (owner 2026-10-25: uniques should look upper tier):
+    /// the models of the level-50 epic sets (scripts/quests/*/epic/*50.cs). Cosmetic only; stats come from the unique.
+    /// Classes after 1.65 are left out (their models are not in the classic client).
+    /// </summary>
+    private static readonly Dictionary<eCharacterClass, (int Torso, int Helm)> EpicLooks = new()
+    {
+        [eCharacterClass.Minstrel] = (723, 1290), [eCharacterClass.Wizard] = (798, 1290), [eCharacterClass.Sorcerer] = (804, 1290),
+        [eCharacterClass.Cleric] = (713, 1290), [eCharacterClass.Paladin] = (693, 1290), [eCharacterClass.Scout] = (728, 1290),
+        [eCharacterClass.Armsman] = (688, 1290), [eCharacterClass.Friar] = (797, 1290), [eCharacterClass.Theurgist] = (733, 1290),
+        [eCharacterClass.Mercenary] = (718, 1290), [eCharacterClass.Reaver] = (1267, 1290), [eCharacterClass.Infiltrator] = (792, 1290),
+        [eCharacterClass.Cabalist] = (682, 1290), [eCharacterClass.Necromancer] = (1266, 1290),
+        [eCharacterClass.Hunter] = (756, 829), [eCharacterClass.Shadowblade] = (761, 335), [eCharacterClass.Spiritmaster] = (799, 825),
+        [eCharacterClass.Runemaster] = (703, 825), [eCharacterClass.Bonedancer] = (1187, 825), [eCharacterClass.Healer] = (698, 1291),
+        [eCharacterClass.Shaman] = (766, 63), [eCharacterClass.Warrior] = (776, 832), [eCharacterClass.Berserker] = (751, 829),
+        [eCharacterClass.Thane] = (787, 834), [eCharacterClass.Skald] = (771, 832), [eCharacterClass.Savage] = (1192, 831),
+        [eCharacterClass.Bard] = (734, 1292), [eCharacterClass.Champion] = (810, 1292), [eCharacterClass.Nightshade] = (746, 1292),
+        [eCharacterClass.Enchanter] = (781, 1298), [eCharacterClass.Ranger] = (815, 1292), [eCharacterClass.Hero] = (708, 1292),
+        [eCharacterClass.Warden] = (805, 1292), [eCharacterClass.Eldritch] = (744, 1298), [eCharacterClass.Druid] = (739, 1292),
+        [eCharacterClass.Blademaster] = (782, 1292), [eCharacterClass.Animist] = (1186, 1292), [eCharacterClass.Mentalist] = (745, 1298),
+        [eCharacterClass.Valewalker] = (1003, 1292)
+    };
+
+    /// <summary>The epic model for a unique chest piece or helm of this class, or 0 to keep the generated one.</summary>
+    public static int EpicModelFor(eCharacterClass characterClass, eUniqueSlot slot)
+    {
+        if (!EpicLooks.TryGetValue(characterClass, out (int Torso, int Helm) look))
+        {
+            return 0;
+        }
+
+        return slot switch
+        {
+            eUniqueSlot.Chest => look.Torso,
+            eUniqueSlot.Helm => look.Helm,
+            _ => 0
+        };
+    }
+
+    /// <summary>
+    /// The weapon glows a unique weapon wears (owner 2026-10-25: uniques should look the part): the item effect numbers
+    /// the server already uses, 30 white core with a red glow, 48 fire, 49 sparkling fire (GeneratedUniqueItem).
+    /// </summary>
+    public static readonly int[] WeaponGlows = [30, 48, 49];
+
+    /// <summary>The same glow for a unique every time: picked from its name, so each unique has its own look.</summary>
+    public static int WeaponGlowFor(string name)
+    {
+        int sum = 0;
+
+        foreach (char c in name ?? string.Empty)
+        {
+            sum = unchecked(sum * 31 + c);
+        }
+
+        return WeaponGlows[(sum & int.MaxValue) % WeaponGlows.Length];
+    }
+
+    /// <summary>
+    /// Gives uniques found before the new looks their look at login: weapons their glow, chest pieces and helms the
+    /// class's epic model. The item is re-sent so the bag shows it at once.
+    /// </summary>
+    public static void UpdateOldUniqueLooks(GamePlayer player)
+    {
+        if (player?.Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
+        {
+            UniqueDefinition definition = item == null ? null : FindByName(item.Name);
+
+            if (definition == null)
+            {
+                continue;
+            }
+
+            int epicModel = EpicModelFor((eCharacterClass) player.CharacterClass.ID, definition.Slot);
+            bool glowMissing = definition.Slot == eUniqueSlot.Weapon && item.Effect == 0;
+            bool lookMissing = epicModel > 0 && item.Model != epicModel;
+
+            if (!glowMissing && !lookMissing)
+            {
+                continue;
+            }
+
+            if (glowMissing)
+            {
+                item.Template.Effect = WeaponGlowFor(definition.Name);
+            }
+
+            if (lookMissing)
+            {
+                item.Template.Model = epicModel;
+            }
+
+            try
+            {
+                GameInventoryObjectExtensions.SaveItem(item);
+
+                if (item.Template is DbItemUnique unique)
+                {
+                    GameServer.Database.SaveObject(unique);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"[EXPEDITION] Could not save the look of {item.Name} for {player.Name}.", ex);
+            }
+
+            player.Out.SendInventoryItemsUpdate(new[] { item });
+        }
+    }
+
     public static UniqueDefinition FindByName(string name)
     {
         return Catalog.FirstOrDefault(definition => string.Equals(definition.Name, name, StringComparison.Ordinal));
@@ -576,6 +691,18 @@ public static class ExpeditionUniques
         }
 
         item.Name = definition.Name;
+
+        if (definition.Slot == eUniqueSlot.Weapon)
+        {
+            item.Effect = WeaponGlowFor(definition.Name);
+        }
+
+        int epicModel = EpicModelFor(characterClass, definition.Slot);
+
+        if (epicModel > 0)
+        {
+            item.Model = epicModel;
+        }
 
         // Salvage caps "Atlas ROG" items (Salvage.cs:708); the suffix marks the rarity for /junk (ExpeditionLoot.TryGetRarity).
         item.Description = $"{definition.Lore} | Atlas ROG | Expedition {eLootRarity.Unique}";
