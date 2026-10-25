@@ -5,7 +5,8 @@
     "items": [
       "Swimming: everyone gets a permanent Nereid's Blessing buff (it shows in your buff bar) at login and after every death: breathe under water and swim faster.",
       "Water breathing potions (Nereid potions) work again: their effect did nothing on this server before.",
-      "Unique ToA bonuses vary from unique to unique instead of every ring, bracer, belt and helm giving melee speed, and higher tiers carry more: early uniques 1 bonus (3%), mid 2 (5% each), late 3 (7% each); weapons one more. Your uniques update at your next login."
+      "Unique ToA bonuses vary from unique to unique instead of every ring, bracer, belt and helm giving melee speed, and higher tiers carry more: early uniques 1 bonus (3%), mid 2 (5% each), late 3 (7% each); weapons one more. Your uniques update at your next login.",
+      "Act objectives no longer pick monster camps on a zone's border, where they could sit behind the zone wall (like Myrkwood's wind wisps at 5598, 271)."
     ]
   },
   {

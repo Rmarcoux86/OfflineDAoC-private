@@ -14,6 +14,20 @@ public interface IExpeditionCampSource
     IReadOnlyList<CampEntry> GetZoneCamps(int regionId, int zoneId);
 }
 
+public static class ExpeditionCampEdges
+{
+    /// <summary>
+    /// Fork (owner 2026-10-25): camps this close to a zone's border are left out; they sit on or behind the zone wall
+    /// (Myrkwood's wind wisps at /loc 5598, 271 could not be reached). Zones are 65536 units across.
+    /// </summary>
+    public const int Margin = 500;
+
+    public static bool OnZoneEdge(CampEntry e)
+    {
+        return e.LocalX < Margin || e.LocalY < Margin || e.LocalX > 65536 - Margin || e.LocalY > 65536 - Margin;
+    }
+}
+
 /// <summary>The CapnBry bestiary snapshot (<see cref="AutonomousCapnBryGoalCatalog"/>), in catalog order.</summary>
 public sealed class CatalogCampSource : IExpeditionCampSource
 {
@@ -26,7 +40,7 @@ public sealed class CatalogCampSource : IExpeditionCampSource
     public IReadOnlyList<CampEntry> GetZoneCamps(int regionId, int zoneId)
     {
         return AutonomousCapnBryGoalCatalog.Entries
-            .Where(e => e.ZoneId == zoneId && e.RegionId == regionId)
+            .Where(e => e.ZoneId == zoneId && e.RegionId == regionId && !ExpeditionCampEdges.OnZoneEdge(e))
             .ToList();
     }
 }
@@ -46,7 +60,7 @@ public sealed class WorldThenCatalogCampSource : IExpeditionCampSource
 
     public IReadOnlyList<CampEntry> GetZoneCamps(int regionId, int zoneId)
     {
-        IReadOnlyList<CampEntry> world = WorldCampSource.Instance.GetZoneCamps(regionId, zoneId);
+        IReadOnlyList<CampEntry> world = WorldCampSource.Instance.GetZoneCamps(regionId, zoneId).Where(e => !ExpeditionCampEdges.OnZoneEdge(e)).ToList();
 
         if (world.Count > 0)
         {
