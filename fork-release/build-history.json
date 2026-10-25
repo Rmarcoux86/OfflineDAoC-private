@@ -1,5 +1,19 @@
 [
   {
+    "tag": "fork-v53",
+    "date": "2026-10-25",
+    "items": [
+      "Unique chest pieces and helms are now Dragonslayer armor, matched to their armor type and your realm.",
+      "The two unique cloaks use artifact cloak looks: Mantle of the Grey Lough is Shades of Mist, Shroud of the Pale Tide is Oceanus.",
+      "Uniques you already own get their new look at your next login.",
+      "/junk epic clears Epic drops (and lower) from your backpack. Uniques are never junked.",
+      "New boons: Marked Prey (+20% damage to elites and act bosses), Evasion (10% chance to evade any melee attack), Treasure Sense (Uniques twice as likely) and Swiftfoot (+20% run speed out of combat).",
+      "Boons removed: Hunter's Eye, Chain Lightning, Rupture, Unshakable, Second Wind and Warded Hide. A run that had one gets a new boon choice instead.",
+      "Style delves (Shift+I) show the style's exact growth rate.",
+      "The launcher shows what's new: in the GET UPDATE tooltip, a What's new link, a Build history window, and a one-time note after each update."
+    ]
+  },
+  {
     "tag": "fork-v52",
     "date": "2026-10-25",
     "items": [

@@ -386,6 +386,7 @@ internal sealed partial class MainForm : Form
         actions.Controls.Add(_startButton);
         actions.Controls.Add(_stopButton);
         actions.Controls.Add(_playButton);
+        actions.Controls.Add(BuildForkNotesLinks());
         header.Controls.Add(actions, 1, 0);
         banner.Controls.Add(header);
         return banner;

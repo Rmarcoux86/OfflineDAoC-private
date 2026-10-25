@@ -443,43 +443,31 @@ public static class ExpeditionUniques
     }
 
     /// <summary>
-    /// Each class's epic armor look for unique chest pieces and helms (owner 2026-10-25: uniques should look upper tier):
-    /// the models of the level-50 epic sets (scripts/quests/*/epic/*50.cs). Cosmetic only; stats come from the unique.
-    /// Classes after 1.65 are left out (their models are not in the classic client).
+    /// Dragonslayer armor for unique chest pieces and helms (owner 2026-10-25: "make all armor pieces dragon slayer"), by
+    /// armor type and realm, from the model changer (scripts/customnpc/ItemModel.cs). Plate and scale have one model
+    /// for every realm. Cosmetic only; stats come from the unique.
     /// </summary>
-    private static readonly Dictionary<eCharacterClass, (int Torso, int Helm)> EpicLooks = new()
+    private static readonly Dictionary<(eObjectType Type, eRealm Realm), (int Torso, int Helm)> DragonslayerLooks = new()
     {
-        [eCharacterClass.Minstrel] = (723, 1290), [eCharacterClass.Wizard] = (798, 1290), [eCharacterClass.Sorcerer] = (804, 1290),
-        [eCharacterClass.Cleric] = (713, 1290), [eCharacterClass.Paladin] = (693, 1290), [eCharacterClass.Scout] = (728, 1290),
-        [eCharacterClass.Armsman] = (688, 1290), [eCharacterClass.Friar] = (797, 1290), [eCharacterClass.Theurgist] = (733, 1290),
-        [eCharacterClass.Mercenary] = (718, 1290), [eCharacterClass.Reaver] = (1267, 1290), [eCharacterClass.Infiltrator] = (792, 1290),
-        [eCharacterClass.Cabalist] = (682, 1290), [eCharacterClass.Necromancer] = (1266, 1290),
-        [eCharacterClass.Hunter] = (756, 829), [eCharacterClass.Shadowblade] = (761, 335), [eCharacterClass.Spiritmaster] = (799, 825),
-        [eCharacterClass.Runemaster] = (703, 825), [eCharacterClass.Bonedancer] = (1187, 825), [eCharacterClass.Healer] = (698, 1291),
-        [eCharacterClass.Shaman] = (766, 63), [eCharacterClass.Warrior] = (776, 832), [eCharacterClass.Berserker] = (751, 829),
-        [eCharacterClass.Thane] = (787, 834), [eCharacterClass.Skald] = (771, 832), [eCharacterClass.Savage] = (1192, 831),
-        [eCharacterClass.Bard] = (734, 1292), [eCharacterClass.Champion] = (810, 1292), [eCharacterClass.Nightshade] = (746, 1292),
-        [eCharacterClass.Enchanter] = (781, 1298), [eCharacterClass.Ranger] = (815, 1292), [eCharacterClass.Hero] = (708, 1292),
-        [eCharacterClass.Warden] = (805, 1292), [eCharacterClass.Eldritch] = (744, 1298), [eCharacterClass.Druid] = (739, 1292),
-        [eCharacterClass.Blademaster] = (782, 1292), [eCharacterClass.Animist] = (1186, 1292), [eCharacterClass.Mentalist] = (745, 1298),
-        [eCharacterClass.Valewalker] = (1003, 1292)
+        [(eObjectType.Cloth, eRealm.Albion)] = (4015, 4056),
+        [(eObjectType.Cloth, eRealm.Midgard)] = (4046, 4070),
+        [(eObjectType.Cloth, eRealm.Hibernia)] = (4099, 4063),
+        [(eObjectType.Leather, eRealm.Albion)] = (3990, 4054),
+        [(eObjectType.Leather, eRealm.Midgard)] = (4021, 4068),
+        [(eObjectType.Leather, eRealm.Hibernia)] = (4074, 4061),
+        [(eObjectType.Studded, eRealm.Albion)] = (4010, 4055),
+        [(eObjectType.Studded, eRealm.Midgard)] = (4041, 4069),
+        [(eObjectType.Reinforced, eRealm.Hibernia)] = (4094, 4062),
+        [(eObjectType.Chain, eRealm.Albion)] = (3995, 4057),
+        [(eObjectType.Chain, eRealm.Midgard)] = (4026, 4072),
+        [(eObjectType.Scale, eRealm.Hibernia)] = (4089, 4066),
+        [(eObjectType.Plate, eRealm.Albion)] = (4000, 4053)
     };
 
-    /// <summary>
-    /// Special models for unique cloaks (owner 2026-10-25: uniques should look the part), from the artifact cloaks the
-    /// model changer offers (scripts/customnpc/ItemModel.cs): Shades of Mist for the lake-mist mantle, Oceanus for the
-    /// sea shroud.
-    /// </summary>
-    private static readonly Dictionary<string, int> SpecialLooks = new(StringComparer.Ordinal)
+    /// <summary>The Dragonslayer model for a unique chest piece or helm of this armor type and realm, or 0 to keep the generated one.</summary>
+    public static int DragonslayerModelFor(eObjectType armorType, eRealm realm, eUniqueSlot slot)
     {
-        ["Mantle of the Grey Lough"] = 1726,
-        ["Shroud of the Pale Tide"] = 1722
-    };
-
-    /// <summary>The epic model for a unique chest piece or helm of this class, or 0 to keep the generated one.</summary>
-    public static int EpicModelFor(eCharacterClass characterClass, eUniqueSlot slot)
-    {
-        if (!EpicLooks.TryGetValue(characterClass, out (int Torso, int Helm) look))
+        if (!DragonslayerLooks.TryGetValue((armorType, realm), out (int Torso, int Helm) look))
         {
             return 0;
         }
@@ -491,6 +479,17 @@ public static class ExpeditionUniques
             _ => 0
         };
     }
+
+    /// <summary>
+    /// Special models for unique cloaks (owner 2026-10-25: uniques should look the part), from the artifact cloaks the
+    /// model changer offers (scripts/customnpc/ItemModel.cs): Shades of Mist for the lake-mist mantle, Oceanus for the
+    /// sea shroud.
+    /// </summary>
+    private static readonly Dictionary<string, int> SpecialLooks = new(StringComparer.Ordinal)
+    {
+        ["Mantle of the Grey Lough"] = 1726,
+        ["Shroud of the Pale Tide"] = 1722
+    };
 
     /// <summary>
     /// The weapon glows a unique weapon wears (owner 2026-10-25: uniques should look the part): the item effect numbers
@@ -513,7 +512,7 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// Gives uniques found before the new looks their look at login: weapons their glow, chest pieces and helms the
-    /// class's epic model, the cloaks their special model. The item is re-sent so the bag shows it at once.
+    /// Dragonslayer model, the cloaks their special model. The item is re-sent so the bag shows it at once.
     /// </summary>
     public static void UpdateOldUniqueLooks(GamePlayer player)
     {
@@ -531,7 +530,7 @@ public static class ExpeditionUniques
                 continue;
             }
 
-            int epicModel = SpecialLooks.TryGetValue(definition.Name, out int specialModel) ? specialModel : EpicModelFor((eCharacterClass) player.CharacterClass.ID, definition.Slot);
+            int epicModel = SpecialLooks.TryGetValue(definition.Name, out int specialModel) ? specialModel : DragonslayerModelFor((eObjectType) item.Object_Type, player.Realm, definition.Slot);
             bool glowMissing = definition.Slot == eUniqueSlot.Weapon && item.Effect == 0;
             bool lookMissing = epicModel > 0 && item.Model != epicModel;
 
@@ -708,11 +707,11 @@ public static class ExpeditionUniques
             item.Effect = WeaponGlowFor(definition.Name);
         }
 
-        int epicModel = EpicModelFor(characterClass, definition.Slot);
+        int dragonslayerModel = DragonslayerModelFor((eObjectType) item.Object_Type, realm, definition.Slot);
 
-        if (epicModel > 0)
+        if (dragonslayerModel > 0)
         {
-            item.Model = epicModel;
+            item.Model = dragonslayerModel;
         }
 
         if (SpecialLooks.TryGetValue(definition.Name, out int specialModel))

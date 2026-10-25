@@ -43,10 +43,12 @@ The newest version is first. For the full detail of every earlier update, see
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.
+- The launcher shows what's new: the GET UPDATE tooltip and a "What's new" link list the update's changes, "Build
+  history" opens every fork build with its changes, and the first start after an update shows what it brought.
 - Every act camp has a Supplier beside it: your realm's poisons, arrows, bolts and throwing weapons (whatever the
   realm's merchants sell; a kind your realm has none of is left out).
 - Uniques look the part: unique weapons glow (red glow, fire or sparkling fire, always the same one for a given
-  unique), unique chest pieces and helms take your class's epic armor look, and the unique cloaks use artifact
+  unique), unique chest pieces and helms are Dragonslayer armor (matching their armor type and your realm), and the unique cloaks use artifact
   cloaks (Mantle of the Grey Lough: Shades of Mist; Shroud of the Pale Tide: Oceanus). Uniques you already have are
   updated at your next login.
 - No dungeons before act 5: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and

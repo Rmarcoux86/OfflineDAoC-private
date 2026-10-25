@@ -7,6 +7,8 @@ internal sealed partial class MainForm
 {
     private static readonly Color StartServerAccent = Color.FromArgb(110, 128, 70);
     private static readonly Color GetUpdateAccent = Color.FromArgb(214, 162, 52);
+    // The GET UPDATE tooltip lists at most this many "What's new" items; the What's new link shows them all.
+    private const int UpdateTipNoteLimit = 5;
 
     // No timer of its own (the launcher keeps to its three timers): the one-second display clock checks this deadline.
     private DateTime _nextForkUpdateCheckUtc = DateTime.MaxValue;
@@ -16,6 +18,10 @@ internal sealed partial class MainForm
     private bool _forkUpdateChecking;
     private bool _forkUpdateBusy;
     private bool _startButtonOffersUpdate;
+    // Under the header buttons: the offered update's notes (only while it has some) and the installed build history.
+    private readonly LinkLabel _whatsNewLink = NotesLink("What's new");
+    private readonly LinkLabel _historyLink = NotesLink("Build history");
+    private ForkNotesForm? _buildHistory;
 
     // The playable folder: the parent of the server's runtime folder (in new-client mode that is ..\..\runtime).
     private string GameFolder => Path.GetFullPath(Path.Combine(_root, ".."));
@@ -32,6 +38,93 @@ internal sealed partial class MainForm
         StartServer();
     }
 
+    private static LinkLabel NotesLink(string text) => new()
+    {
+        Text = text,
+        AutoSize = true,
+        Font = new Font("Georgia", 8f),
+        LinkColor = DaocTheme.GoldLight,
+        ActiveLinkColor = Color.White,
+        VisitedLinkColor = DaocTheme.GoldLight,
+        LinkBehavior = LinkBehavior.HoverUnderline,
+        BackColor = Color.Transparent,
+        Margin = Padding.Empty,
+    };
+
+    // A row as wide as the header buttons: "What's new" on the left, "Build history" on the right.
+    private Control BuildForkNotesLinks()
+    {
+        var row = new TableLayoutPanel { ColumnCount = 2, RowCount = 1, Width = 132, Height = 18, Margin = new Padding(2, 1, 2, 0), BackColor = Color.Transparent };
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        _whatsNewLink.Anchor = AnchorStyles.Left;
+        _whatsNewLink.Visible = false;
+        _historyLink.Anchor = AnchorStyles.Right;
+        _whatsNewLink.LinkClicked += (_, _) => ShowOfferedUpdateNotes();
+        _historyLink.LinkClicked += (_, _) => ShowBuildHistory();
+        _helpTip.SetToolTip(_historyLink, "Every installed fork build and what it changed.");
+        row.Controls.Add(_whatsNewLink, 0, 0);
+        row.Controls.Add(_historyLink, 1, 0);
+
+        return row;
+    }
+
+    private void ShowOfferedUpdateNotes()
+    {
+        if (_forkUpdate is not { } offer || offer.Release.Notes.Count == 0)
+        {
+            return;
+        }
+
+        var build = new ForkUpdater.ForkBuild(offer.Release.Tag, null, offer.Release.Notes);
+        string intro = $"Fork update {offer.Release.Tag} is available. Click GET UPDATE while the server is stopped to install it.";
+        using var notes = new ForkNotesForm($"What's new in {offer.Release.Tag}", intro, [build], ForkUpdater.NoNotesText, offer.InstalledTag);
+        notes.ShowDialog(this);
+    }
+
+    // Read from runtime\build-history.json each time it opens (installed with every update); no network.
+    private void ShowBuildHistory()
+    {
+        if (_buildHistory is { IsDisposed: false })
+        {
+            _buildHistory.WindowState = FormWindowState.Normal;
+            _buildHistory.Activate();
+
+            return;
+        }
+
+        string? installed = ForkUpdater.ReadInstalledVersion(_root);
+        _buildHistory = new ForkNotesForm("Build history", "Fork builds, newest first. What each update changed:",
+            ForkUpdater.ReadBuildHistory(_root), "No build history is available. It comes with the next fork update.", installed);
+        _buildHistory.Show(this);
+    }
+
+    // The first start on a newly installed fork build shows once what it changed (the tag is remembered in the runtime folder).
+    private void ShowUpdatedNoticeOnce()
+    {
+        string? installed = ForkUpdater.ReadInstalledVersion(_root);
+        ForkUpdater.UpdatedNotice notice = ForkUpdater.DecideUpdatedNotice(installed, ForkUpdater.ReadNoticeTag(_root));
+
+        if (notice == ForkUpdater.UpdatedNotice.None)
+        {
+            return;
+        }
+
+        // An unwritable record would show the notice on every start: then it is not shown at all.
+        if (!ForkUpdater.WriteNoticeTag(_root, installed!, _logsDirectory) || notice == ForkUpdater.UpdatedNotice.RecordOnly)
+        {
+            return;
+        }
+
+        ForkUpdater.ForkBuild build = ForkUpdater.ReadBuildHistory(_root)?
+            .FirstOrDefault(entry => string.Equals(entry.Tag, installed, StringComparison.OrdinalIgnoreCase))
+            ?? new ForkUpdater.ForkBuild(installed!, null, []);
+        using var notes = new ForkNotesForm($"Updated to {installed}", $"Offline DAoC was updated to {installed}. What's new in this build:",
+            [build], ForkUpdater.NoNotesText, installed);
+        notes.ShowDialog(this);
+    }
+
     private void StartForkUpdateChecks()
     {
         _displayClock.Tick += async (_, _) =>
@@ -45,6 +138,7 @@ internal sealed partial class MainForm
         };
 
         _ = CheckForForkUpdateAsync();
+        ShowUpdatedNoticeOnce();
     }
 
     private async Task CheckForForkUpdateAsync()
@@ -104,11 +198,40 @@ internal sealed partial class MainForm
 
         if (offerUpdate)
         {
-            string installed = _forkUpdate!.InstalledTag ?? "an unversioned server";
-            tip = $"{_forkUpdate.Release.Tag} available (you have {installed}). Downloads and installs it, then restarts the launcher.";
+            tip = UpdateTip(_forkUpdate!.Release.Tag, _forkUpdate.InstalledTag, _forkUpdate.Release.Notes);
         }
 
         _helpTip.SetToolTip(_startButton, tip);
+
+        // Shown with any offered update that has notes, also while the server runs (GET UPDATE then waits for a stop).
+        bool hasNotes = _forkUpdate is { Release.Notes.Count: > 0 };
+        _whatsNewLink.Visible = hasNotes;
+        _helpTip.SetToolTip(_whatsNewLink, hasNotes ? $"What {_forkUpdate!.Release.Tag} changes." : null);
+    }
+
+    /// <summary>The GET UPDATE tooltip: the offer, then up to <see cref="UpdateTipNoteLimit"/> of its "What's new" items.</summary>
+    internal static string UpdateTip(string latestTag, string? installedTag, IReadOnlyList<string> notes)
+    {
+        string tip = $"{latestTag} available (you have {installedTag ?? "an unversioned server"}). Downloads and installs it, then restarts the launcher.";
+
+        if (notes.Count == 0)
+        {
+            return tip;
+        }
+
+        tip += Environment.NewLine + Environment.NewLine + "What's new:";
+
+        foreach (string note in notes.Take(UpdateTipNoteLimit))
+        {
+            tip += Environment.NewLine + "• " + (note.Length > 100 ? note[..99] + "…" : note);
+        }
+
+        if (notes.Count > UpdateTipNoteLimit)
+        {
+            tip += Environment.NewLine + $"…and {notes.Count - UpdateTipNoteLimit} more (click What's new).";
+        }
+
+        return tip;
     }
 
     private async Task GetUpdateAsync()
