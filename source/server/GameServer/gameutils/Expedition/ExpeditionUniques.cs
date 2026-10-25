@@ -588,6 +588,9 @@ public static class ExpeditionUniques
         item.Price = Money.SetAutoPrice(TierCapLevel(definition.Tier), 100);
         item.AllowAdd = true;
 
+        // Fork (owner 2026-10-25): its proc fires for the finder from the start (ExpeditionLoot.Generate has the reason).
+        item.LevelRequirement = Math.Max(1, Math.Min((int) item.Level, (int) player.Level));
+
         return item;
     }
 

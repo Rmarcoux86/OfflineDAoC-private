@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using DOL.AI.Brain;
@@ -792,7 +793,48 @@ public static class ExpeditionLoot
         item.Description = $"{item.Description}{RaritySuffix}{rarity}";
         item.Name = DecorateName(rarity, item.Name);
 
+        // Fork (owner 2026-10-25): a proc only fires for a wielder at or above the item's required level, which is its
+        // item level when none is set (GameLiving.StartWeaponMagicalEffect). Drops run a level or two above the finder,
+        // so their procs never fired until the finder caught up. The finder's level is the requirement instead.
+        item.LevelRequirement = Math.Max(1, Math.Min((int) item.Level, (int) player.Level));
+
         return item;
+    }
+
+    /// <summary>
+    /// Brings Expedition items found before the fix above up to date at login: an item with no required level gets
+    /// two below its item level (the most any rarity adds), so its proc fires for the level that found it.
+    /// </summary>
+    public static void FixOldLevelRequirements(GamePlayer player)
+    {
+        if (player?.Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
+        {
+            if (item?.Template == null || item.LevelRequirement > 0 || item.Level <= 1 || !TryGetRarity(item, out _))
+            {
+                continue;
+            }
+
+            item.LevelRequirement = Math.Max(1, item.Level - 2);
+
+            try
+            {
+                GameInventoryObjectExtensions.SaveItem(item);
+
+                if (item.Template is DbItemUnique unique)
+                {
+                    GameServer.Database.SaveObject(unique);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"[EXPEDITION] Could not save the required level of {item.Name} for {player.Name}.", ex);
+            }
+        }
     }
 
     /// <summary>

@@ -81,6 +81,7 @@ public static class ExpeditionManager
 
         ShowPendingSummary(player);
         ExpeditionUniques.UpdateOldThreePointOhRings(player);
+        ExpeditionLoot.FixOldLevelRequirements(player);
 
         OfflineExpeditionRecord record;
 
