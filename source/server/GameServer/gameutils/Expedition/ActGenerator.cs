@@ -230,7 +230,7 @@ public static class ActGenerator
         return populated.Count > 0 ? populated : listed;
     }
 
-    /// <summary>Darkness Falls: the last act's zone whenever the realm lists it for that act (owner, 2026-10-24).</summary>
+    /// <summary>Darkness Falls: the last act's zone for every realm, and in no other act (expedition-zones.json; owner, 2026-10-24).</summary>
     public const int DarknessFallsZoneId = 249;
 
     /// <summary>

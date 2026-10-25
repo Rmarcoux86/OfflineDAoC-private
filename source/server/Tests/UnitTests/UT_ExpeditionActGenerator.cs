@@ -577,8 +577,14 @@ public class UT_ExpeditionActGenerator
     [Test]
     public void RunZonePlan_NoZoneTwiceAndDarknessFallsLast([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
-        bool dfListed = ActGenerator.GetEligibleCandidates(ActGenerator.ActCount, realm, CatalogCampSource.Instance)
-            .Any(z => z.ZoneId == ActGenerator.DarknessFallsZoneId);
+        bool dfListed = true;
+
+        for (int act = 1; act < ActGenerator.ActCount; act++)
+        {
+            Assert.That(ActGenerator.GetCandidates(act, realm).Select(z => z.ZoneId), Has.No.Member(ActGenerator.DarknessFallsZoneId), $"{realm} act {act}");
+        }
+
+        Assert.That(ActGenerator.GetCandidates(ActGenerator.ActCount, realm).Select(z => z.ZoneId), Is.EqualTo(new[] { ActGenerator.DarknessFallsZoneId }), $"{realm} act 5");
 
         for (int seed = 0; seed < 200; seed++)
         {

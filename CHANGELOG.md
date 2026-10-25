@@ -9,7 +9,7 @@ The newest version is first. For the full detail of every earlier update, see
 
 **Expedition mode**
 - No zone twice in a run: a run's five zones are drawn together from the seed, each act from zones no other act of
-  the run uses. The last act is always Darkness Falls where the realm lists it there (Albion and Hibernia).
+  the run uses. Act 5 is always Darkness Falls, for every realm, and Darkness Falls is in no other act.
 - Hibernian runs no longer use the Shrouded Isles (Domnann, Caillte Garran, Vale of Balor, Cothrom Gorge, Vigilant
   Rock, World's End, Allta Fearann): every act is on the mainland or in its dungeons. An act already under way keeps its
   zone.

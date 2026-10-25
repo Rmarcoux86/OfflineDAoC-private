@@ -196,18 +196,6 @@
               ]
             },
             {
-              "zoneId": 249,
-              "zoneName": "Darkness Falls",
-              "regionId": 249,
-              "minLevel": 32,
-              "maxLevel": 44,
-              "camp": null,
-              "bossCandidates": [
-                "naburite drinker",
-                "cursed necyomancer"
-              ]
-            },
-            {
               "zoneId": 10,
               "zoneName": "Lyonesse",
               "regionId": 1,
@@ -258,61 +246,16 @@
           "act": 5,
           "zones": [
             {
-              "zoneId": 19,
-              "zoneName": "Stonehenge Barrows",
-              "regionId": 20,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": [
-                "stone sentinel",
-                "spectral essence"
-              ]
-            },
-            {
               "zoneId": 249,
               "zoneName": "Darkness Falls",
               "regionId": 249,
               "minLevel": 44,
               "maxLevel": 50,
               "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 4,
-              "zoneName": "Dartmoor",
-              "regionId": 1,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 54,
-              "zoneName": "Caldey",
-              "regionId": 51,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 56,
-              "zoneName": "Aldland",
-              "regionId": 51,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 57,
-              "zoneName": "Inishail Island",
-              "regionId": 51,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
+              "bossCandidates": [
+                "naburite drinker",
+                "cursed necyomancer"
+              ]
             }
           ]
         }
@@ -516,67 +459,16 @@
           "act": 5,
           "zones": [
             {
-              "zoneId": 108,
-              "zoneName": "Raumarik",
-              "regionId": 100,
+              "zoneId": 249,
+              "zoneName": "Darkness Falls",
+              "regionId": 249,
               "minLevel": 44,
               "maxLevel": 50,
               "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 116,
-              "zoneName": "Malmohus",
-              "regionId": 100,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 154,
-              "zoneName": "Faraheim",
-              "regionId": 151,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 156,
-              "zoneName": "Iarnwood",
-              "regionId": 151,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 158,
-              "zoneName": "Modernagrav",
-              "regionId": 151,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 150,
-              "zoneName": "Trollheim",
-              "regionId": 150,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 161,
-              "zoneName": "Iarnvidiur's Lair",
-              "regionId": 161,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
+              "bossCandidates": [
+                "naburite drinker",
+                "cursed necyomancer"
+              ]
             }
           ]
         }
@@ -738,18 +630,6 @@
           "act": 4,
           "zones": [
             {
-              "zoneId": 249,
-              "zoneName": "Darkness Falls",
-              "regionId": 249,
-              "minLevel": 32,
-              "maxLevel": 44,
-              "camp": null,
-              "bossCandidates": [
-                "naburite drinker",
-                "cursed necyomancer"
-              ]
-            },
-            {
               "zoneId": 203,
               "zoneName": "Cliffs of Moher",
               "regionId": 200,
@@ -797,25 +677,10 @@
               "minLevel": 44,
               "maxLevel": 50,
               "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 203,
-              "zoneName": "Cliffs of Moher",
-              "regionId": 200,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 205,
-              "zoneName": "Bog of Cullen",
-              "regionId": 200,
-              "minLevel": 44,
-              "maxLevel": 50,
-              "camp": null,
-              "bossCandidates": []
+              "bossCandidates": [
+                "naburite drinker",
+                "cursed necyomancer"
+              ]
             }
           ]
         }
