@@ -366,14 +366,18 @@ internal sealed partial class MainForm : Form
             ForeColor = Color.FromArgb(196, 145, 70),
             Location = new Point(97, 57),
         });
-        titlePanel.Controls.Add(new Label
+        var versionLabel = new Label
         {
             AutoSize = true,
             Text = _newClient ? $"VERSION {DisplayVersion}c" : VersionLabel(InstalledEditionHasCustomClass(_database)),
             Font = new Font("Georgia", 12f, FontStyle.Bold),
             ForeColor = DaocTheme.GoldLight,
             Location = new Point(97, 79),
-        });
+        };
+        titlePanel.Controls.Add(versionLabel);
+
+        // Beside the version (owner 2026-10-25: under the header buttons the row was cut off at higher display scaling).
+        titlePanel.Controls.Add(BuildForkNotesLinks(new Point(97 + TextRenderer.MeasureText(versionLabel.Text, versionLabel.Font).Width + 14, 84)));
         header.Controls.Add(titlePanel, 0, 0);
 
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(3, 5, 0, 0), BackColor = Color.Transparent };
@@ -386,7 +390,6 @@ internal sealed partial class MainForm : Form
         actions.Controls.Add(_startButton);
         actions.Controls.Add(_stopButton);
         actions.Controls.Add(_playButton);
-        actions.Controls.Add(BuildForkNotesLinks());
         header.Controls.Add(actions, 1, 0);
         banner.Controls.Add(header);
         return banner;

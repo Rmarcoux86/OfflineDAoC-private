@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v58",
+    "date": "2026-10-25",
+    "items": [
+      "The launcher's Build history link (and What's new, when an update is waiting) now sits next to the version number; under the buttons it was cut off."
+    ]
+  },
+  {
     "tag": "fork-v57",
     "date": "2026-10-25",
     "items": [

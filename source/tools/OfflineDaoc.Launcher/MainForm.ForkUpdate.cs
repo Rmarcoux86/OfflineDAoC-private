@@ -42,30 +42,35 @@ internal sealed partial class MainForm
     {
         Text = text,
         AutoSize = true,
-        Font = new Font("Georgia", 8f),
+        Font = new Font("Georgia", 9f),
         LinkColor = DaocTheme.GoldLight,
         ActiveLinkColor = Color.White,
         VisitedLinkColor = DaocTheme.GoldLight,
-        LinkBehavior = LinkBehavior.HoverUnderline,
+        LinkBehavior = LinkBehavior.AlwaysUnderline,
         BackColor = Color.Transparent,
         Margin = Padding.Empty,
     };
 
-    // A row as wide as the header buttons: "What's new" on the left, "Build history" on the right.
-    private Control BuildForkNotesLinks()
+    // Beside the version label: "Build history", then "What's new" while an update with notes is offered.
+    private Control BuildForkNotesLinks(Point location)
     {
-        var row = new TableLayoutPanel { ColumnCount = 2, RowCount = 1, Width = 132, Height = 18, Margin = new Padding(2, 1, 2, 0), BackColor = Color.Transparent };
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _whatsNewLink.Anchor = AnchorStyles.Left;
+        var row = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            WrapContents = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            Location = location,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            BackColor = Color.Transparent
+        };
         _whatsNewLink.Visible = false;
-        _historyLink.Anchor = AnchorStyles.Right;
+        _whatsNewLink.Margin = new Padding(14, 0, 0, 0);
         _whatsNewLink.LinkClicked += (_, _) => ShowOfferedUpdateNotes();
         _historyLink.LinkClicked += (_, _) => ShowBuildHistory();
         _helpTip.SetToolTip(_historyLink, "Every installed fork build and what it changed.");
-        row.Controls.Add(_whatsNewLink, 0, 0);
-        row.Controls.Add(_historyLink, 1, 0);
+        row.Controls.Add(_historyLink);
+        row.Controls.Add(_whatsNewLink);
 
         return row;
     }
