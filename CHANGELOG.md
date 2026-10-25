@@ -23,6 +23,7 @@ The newest version is first. For the full detail of every earlier update, see
   the setup default at server start if v38 changed it.
 - Swimming: every player swims as fast as with a Greater Nereid potion (its value is read from the game database; a
   stronger potion or ability still wins). Server setting `player_default_swim_speed` (-1 = the potion's value, 0 = off).
+  A database without the potion uses its strongest water breathing spell, else +100% (it was off before).
 - Travel on runs: the Personal Bind Recall Stone takes you to the act camp instead of your bind point, with no reuse
   timer (still not in combat or while moving); every run character is given one at the start and at login if they
   have none. Each act camp has a Hastener that gives speed when you talk to it.

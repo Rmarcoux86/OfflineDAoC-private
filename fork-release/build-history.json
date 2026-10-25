@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v55",
+    "date": "2026-10-25",
+    "items": [
+      "Faster swimming fixed: when the game database has no Nereid potion to copy, everyone swims with the strongest water breathing spell's speed bonus, or +100% if there is none."
+    ]
+  },
+  {
     "tag": "fork-v54",
     "date": "2026-10-25",
     "items": [

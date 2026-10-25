@@ -19,6 +19,9 @@ public static class DefaultSwimSpeed
     private static readonly object Sync = new();
     private static int? _potionValue;
 
+    /// <summary>The swim speed bonus (percent) when the database has no potion or spell to read it from.</summary>
+    public const int FallbackValue = 100;
+
     public static int Value
     {
         get
@@ -61,13 +64,29 @@ public static class DefaultSwimSpeed
                 }
             }
 
-            Log.Warn("[FORK] No Nereid potion with a water breathing spell was found; default swim speed is off. Set player_default_swim_speed to turn it on.");
+            // No Nereid potion in this database (owner 2026-10-25: swimming was still slow): the strongest water
+            // breathing spell the database has, else a fixed value.
+            double strongest = GameServer.Database.SelectObjects<DbSpell>(DB.Column("Type").IsEqualTo(eSpellType.WaterBreathing.ToString()))
+                .Select(spell => spell.Value)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            if (strongest > 0)
+            {
+                Log.Info($"[FORK] Default swim speed: {(int) strongest}% (no Nereid potion found; the strongest water breathing spell).");
+
+                return (int) strongest;
+            }
+
+            Log.Warn($"[FORK] No water breathing spell was found; default swim speed is {FallbackValue}%. Set player_default_swim_speed to change it.");
+
+            return FallbackValue;
         }
         catch (Exception ex)
         {
             Log.Error("[FORK] The Nereid potion could not be read for the default swim speed.", ex);
         }
 
-        return 0;
+        return FallbackValue;
     }
 }
