@@ -584,6 +584,21 @@ public class UT_ExpeditionActGenerator
     }
 
     [Test]
+    public void Candidates_NoDungeonsBeforeActFive([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
+    {
+        // Owner, 2026-10-25: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb, Spraggon Den.
+        int[] dungeonRegions = [20, 129, 128, 125, 127, 221, 222];
+
+        for (int act = 1; act < ActGenerator.ActCount; act++)
+        {
+            foreach (int regionId in ActGenerator.GetCandidates(act, realm).Select(z => z.RegionId))
+            {
+                Assert.That(dungeonRegions, Does.Not.Contain(regionId), $"{realm} act {act}");
+            }
+        }
+    }
+
+    [Test]
     public void RunZonePlan_NoZoneTwiceAndDarknessFallsLast([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
     {
         bool dfListed = true;

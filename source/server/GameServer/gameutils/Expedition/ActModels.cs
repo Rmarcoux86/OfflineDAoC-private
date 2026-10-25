@@ -72,6 +72,13 @@ public sealed class ActPlan
     public int RegionId;
     public int CampX, CampY, CampZ;
     public ushort CampHeading;
+
+    /// <summary>
+    /// The camp-safety rules (<see cref="ExpeditionArrival.CampSafetyRules"/>) this camp was last checked under. Plans
+    /// saved before the check existed have no member and read as 0, so they are checked once at their next use.
+    /// </summary>
+    public int CampSafetyVersion;
+
     public List<ActObjective> Objectives = new();
     public BossSpec Boss;
     public bool BossSpawned;

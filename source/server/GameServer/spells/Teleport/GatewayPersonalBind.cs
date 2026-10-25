@@ -90,11 +90,13 @@ namespace DOL.GS.Spells
             effect.Start(player);
 
             // Expedition: on a run the stone takes you to the act's camp instead of your bind point.
-            DOL.GS.Expedition.ActPlan plan = DOL.GS.Expedition.ExpeditionManager.GetRun(player)?.CurrentAct;
+            // Fork (owner 2026-10-25): through ExpeditionArrival, which makes the camp safe and gives an arrival grace.
+            DOL.GS.Expedition.ExpeditionRun run = DOL.GS.Expedition.ExpeditionManager.GetRun(player);
+            DOL.GS.Expedition.ActPlan plan = run?.CurrentAct;
 
             if (plan != null)
             {
-                player.MoveTo((ushort) plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading);
+                DOL.GS.Expedition.ExpeditionArrival.MoveToCamp(player, run, plan);
                 player.Out.SendMessage("The stone takes you back to your expedition camp.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
                 return;

@@ -726,7 +726,7 @@ public static class ObjectiveTracker
         state.MistsWarned = false;
         state.GraceUntil = now + GraceMs;
 
-        if (!player.MoveTo((ushort) plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading))
+        if (!ExpeditionArrival.MoveToCamp(player, ExpeditionManager.GetRun(player), plan))
         {
             log.Warn($"[EXPEDITION] The mists could not move {player.Name} to the act {plan.Act} camp in region {plan.RegionId} ({plan.CampX}, {plan.CampY}, {plan.CampZ}).");
 

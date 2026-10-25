@@ -182,20 +182,6 @@
               ]
             },
             {
-              "zoneId": 19,
-              "zoneName": "Stonehenge Barrows",
-              "regionId": 20,
-              "minLevel": 32,
-              "maxLevel": 44,
-              "camp": null,
-              "bossCandidates": [
-                "pendragon ardent",
-                "pendrake",
-                "spectral essence",
-                "grave goblin"
-              ]
-            },
-            {
               "zoneId": 10,
               "zoneName": "Lyonesse",
               "regionId": 1,
@@ -334,15 +320,6 @@
               "maxLevel": 20,
               "camp": null,
               "bossCandidates": []
-            },
-            {
-              "zoneId": 129,
-              "zoneName": "Nisse's Lair",
-              "regionId": 129,
-              "minLevel": 10,
-              "maxLevel": 20,
-              "camp": null,
-              "bossCandidates": []
             }
           ]
         },
@@ -384,15 +361,6 @@
               "maxLevel": 32,
               "camp": null,
               "bossCandidates": []
-            },
-            {
-              "zoneId": 128,
-              "zoneName": "Cursed Tomb",
-              "regionId": 128,
-              "minLevel": 20,
-              "maxLevel": 32,
-              "camp": null,
-              "bossCandidates": []
             }
           ]
         },
@@ -430,24 +398,6 @@
               "zoneId": 152,
               "zoneName": "Gripklosa Mountains",
               "regionId": 151,
-              "minLevel": 32,
-              "maxLevel": 44,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 125,
-              "zoneName": "Spindelhalla",
-              "regionId": 125,
-              "minLevel": 32,
-              "maxLevel": 44,
-              "camp": null,
-              "bossCandidates": []
-            },
-            {
-              "zoneId": 127,
-              "zoneName": "Varulvhamn",
-              "regionId": 127,
               "minLevel": 32,
               "maxLevel": 44,
               "camp": null,
@@ -521,17 +471,6 @@
               "bossCandidates": []
             },
             {
-              "zoneId": 221,
-              "zoneName": "Muire Tomb",
-              "regionId": 221,
-              "minLevel": 10,
-              "maxLevel": 20,
-              "camp": null,
-              "bossCandidates": [
-                "tomb dweller"
-              ]
-            },
-            {
               "zoneId": 201,
               "zoneName": "Silvermine Mts.",
               "regionId": 200,
@@ -575,17 +514,6 @@
               "camp": null,
               "bossCandidates": [
                 "eriu waylayer"
-              ]
-            },
-            {
-              "zoneId": 222,
-              "zoneName": "Spraggon Den",
-              "regionId": 222,
-              "minLevel": 20,
-              "maxLevel": 32,
-              "camp": null,
-              "bossCandidates": [
-                "earth sprite"
               ]
             },
             {

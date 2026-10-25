@@ -95,7 +95,10 @@ public static class ExpeditionManager
             return;
         }
 
-        if (record == null || record.Status != StatusActive)
+        // A run revived by /recover resumes like an active one (ExpeditionRecovery).
+        bool recovered = record?.Status == ExpeditionRecovery.StatusRecovered;
+
+        if (record == null || (record.Status != StatusActive && !recovered))
         {
             return;
         }
@@ -120,6 +123,11 @@ public static class ExpeditionManager
             return;
         }
 
+        if (recovered)
+        {
+            ExpeditionRecovery.PrepareRecoveredRun(player, run);
+        }
+
         if (run.CurrentAct == null)
         {
             player.Out.SendMessage("Your expedition could not be resumed: its act could not be read. The run is kept as it was.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -133,6 +141,17 @@ public static class ExpeditionManager
         if (upgraded != null)
         {
             run.AddLog($"Act {run.Act}: updated to the latest rules ({upgraded}).");
+            Save(run);
+        }
+
+        // Fork (owner 2026-10-25): a camp planned on top of aggressive monsters is moved before the player can use it.
+        if (ExpeditionArrival.EnsureSafeCamp(run.CurrentAct, player.Realm, out bool campMoved))
+        {
+            if (campMoved)
+            {
+                run.AddLog($"Act {run.Act}: the camp was moved to a spot clear of aggressive monsters.");
+            }
+
             Save(run);
         }
 
@@ -153,6 +172,13 @@ public static class ExpeditionManager
             if (upgraded != null)
             {
                 player.Out.SendMessage($"Your act has been updated to the latest rules: {upgraded}. Type /run journal to see them.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+
+            if (recovered)
+            {
+                player.Out.SendMessage($"Your character was restored and your expedition carries on: act {run.Act}, {run.CurrentAct.ZoneName}. You are taken to the act's camp.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                ExpeditionArrival.MoveToCamp(player, run, run.CurrentAct);
+                ExpeditionBoons.RemindOffer(player, run);
             }
         });
     }
@@ -548,7 +574,8 @@ public static class ExpeditionManager
         ExpeditionAccountRealm.GiveToNewRun(player, run);
         player.Out.SendMessage($"Your expedition begins! Seed {runSeed}. Your HARDCORE flag is ON: death ends the run and deletes this character.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
-        if (!player.MoveTo((ushort)plan.RegionId, plan.CampX, plan.CampY, plan.CampZ, plan.CampHeading))
+        // Fork (owner 2026-10-25): every teleport to the camp makes it safe first and gives an arrival grace.
+        if (!ExpeditionArrival.MoveToCamp(player, run, plan))
         {
             Log.Warn($"[EXPEDITION] {player.Name} could not be moved to the act 1 camp in region {plan.RegionId} ({plan.CampX}, {plan.CampY}, {plan.CampZ}).");
             player.Out.SendMessage("You could not be taken to the camp. Type /run journal to see where it is.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -800,7 +827,7 @@ public static class ExpeditionManager
 
             ObjectiveTracker.Detach(player);
 
-            if (!player.MoveTo((ushort)next.RegionId, next.CampX, next.CampY, next.CampZ, next.CampHeading))
+            if (!ExpeditionArrival.MoveToCamp(player, current, next))
             {
                 Log.Warn($"[EXPEDITION] {player.Name} could not be moved to the act {nextAct} camp in region {next.RegionId} ({next.CampX}, {next.CampY}, {next.CampZ}).");
                 player.Out.SendMessage("You could not be taken to the next camp. Type /run journal to see where it is.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);

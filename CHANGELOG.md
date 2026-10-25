@@ -8,6 +8,10 @@ The newest version is first. For the full detail of every earlier update, see
 0.37 / 0.37b / 0.37c is the latest release.
 
 **Expedition mode**
+- Safe arrival at the act camp: a camp is never on top of aggressive monsters any more. In Darkness Falls the camp
+  is your realm's entrance; anywhere else, a camp with an aggressive monster (or its spawn point) in reach moves to the
+  nearest clear spot. Acts already under way are fixed the next time you log in or go to camp. Arriving at camp also
+  gives 10 seconds of protection (on servers where the invulnerability timer is on).
 - No zone twice in a run: a run's five zones are drawn together from the seed, each act from zones no other act of
   the run uses. Act 5 is always Darkness Falls, for every realm, and Darkness Falls is in no other act.
 - Hibernian runs no longer use the Shrouded Isles (Domnann, Caillte Garran, Vale of Balor, Cothrom Gorge, Vigilant
@@ -29,6 +33,12 @@ The newest version is first. For the full detail of every earlier update, see
 - Rare drops are at least 97% quality (was 95%, the same as any drop). Common and Magic drops roll 95–99%, Epic is
   always 99% and Unique 100%.
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
+- No dungeons before act 5: Stonehenge Barrows, Nisse's Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and
+  Spraggon Den are no longer act zones. Darkness Falls is still act 5.
+- New `/recover` command: lists the deleted characters of your account and restores one with its items (`/recover
+  <name>`). A character whose death ended an Expedition run gets its run back: it stays hardcore, is taken to the
+  act's camp at its next login (an act in a removed dungeon is planned again in another zone), and the boon choice it
+  was owed is still waiting.
 - Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of
   merchants), else beside the act camp; the journal gives its /loc. Hand it a unique weapon and pick a weapon type you
   can use: the same unique (name, bonuses, proc, item level) is reforged as that type for 2, 15 or 75 gold by tier.

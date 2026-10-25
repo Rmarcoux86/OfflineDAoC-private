@@ -37,6 +37,8 @@ FRONTIER_ZONES = {(1, 11), (1, 12), (1, 14), (1, 15), (100, 111), (100, 112), (1
 FRONTIER_REGIONS = {163, 246, 248, 276, 277}
 
 # Act 5 is Darkness Falls for every realm, and Darkness Falls is in no other act (owner, 2026-10-24).
+# No other dungeons (owner, 2026-10-25: a hardcore character died arriving in Cursed Tomb): Stonehenge Barrows, Nisse's
+# Lair, Cursed Tomb, Spindelhalla, Varulvhamn, Muire Tomb and Spraggon Den were taken out of acts 1-4.
 # (zone id, region id, boss candidates checked against the catalog). Classic level ranges decide the act; the server
 # drops any zone the world doesn't populate in the act's band.
 REALMS = {
@@ -47,23 +49,22 @@ REALMS = {
         3: [(6, 1, ["giant rooter"]), (52, 51, ["dread disciple", "drakoran thaumaturge", "sea hound", "caer caddug baille"]),
             (7, 1, []), (10, 1, []), (53, 51, [])],
         4: [(52, 51, ["caer caddug priest", "caer caddug knight"]),
-            (19, 20, ["pendragon ardent", "pendrake", "spectral essence", "grave goblin"]),
             (10, 1, []), (4, 1, []), (53, 51, []), (54, 51, []), (55, 51, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
     },
     "Midgard": {
         1: [(100, 100, []), (101, 100, []), (103, 100, []), (151, 151, [])],
-        2: [(102, 100, []), (105, 100, []), (151, 151, []), (129, 129, [])],
-        3: [(104, 100, []), (106, 100, []), (155, 151, []), (152, 151, []), (128, 128, [])],
-        4: [(107, 100, []), (116, 100, []), (153, 151, []), (152, 151, []), (125, 125, []), (127, 127, [])],
+        2: [(102, 100, []), (105, 100, []), (151, 151, [])],
+        3: [(104, 100, []), (106, 100, []), (155, 151, []), (152, 151, [])],
+        4: [(107, 100, []), (116, 100, []), (153, 151, []), (152, 151, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
     },
     # Hibernia's Shrouded Isles zones (region 181, Hy Brasil) were taken out on the owner's request (2026-10-24).
     "Hibernia": {
         1: [(200, 200, ["dergan fury", "dergan enchanter", "whistler", "anger sprite"]),
             (207, 200, ["large eirebug", "wild lucradan"])],
-        2: [(200, 200, []), (221, 221, ["tomb dweller"]), (201, 200, ["walking rock", "silvermine badger"]), (204, 200, [])],
-        3: [(201, 200, []), (202, 200, ["eriu waylayer"]), (222, 222, ["earth sprite"]), (204, 200, []), (208, 200, []),
+        2: [(200, 200, []), (201, 200, ["walking rock", "silvermine badger"]), (204, 200, [])],
+        3: [(201, 200, []), (202, 200, ["eriu waylayer"]), (204, 200, []), (208, 200, []),
             (206, 200, []), (216, 200, [])],
         4: [(203, 200, []), (205, 200, []), (206, 200, []), (216, 200, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
