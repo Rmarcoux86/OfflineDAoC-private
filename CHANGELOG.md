@@ -47,6 +47,8 @@ The newest version is first. For the full detail of every earlier update, see
 - The named act bosses look like their race and class: Toothmouth a Firbolg battle bard, Ios a Celtic valewalker,
   Drunkstains a Half Ogre armsman, Gwyraan a Celtic druid and Preesh a Firbolg blademaster. They still fight as
   ordinary monsters: no styles, spells or pets, and their gear is for looks only.
+- In Darkness Falls the "reach the far marker" objective is another camp to clear (compass words mean little on
+  several floors). A named boss's journal entry shows only its level, not the monster it is built on.
 - Objectives fit your level when the act begins: the camps to clear are from a level below you to four above, the
   named monster two to six above (not grey on arrival, not the act's last levels). A zone with nothing in that range
   keeps the old rule.

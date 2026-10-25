@@ -1004,7 +1004,9 @@ public static class ExpeditionManager
         lines.Add(string.Empty);
         lines.Add("-- BOSS --");
         lines.Add($"{plan.Boss.Title}");
-        lines.Add($"{Indent}level {plan.Boss.Level} {plan.Boss.BaseMobName}");
+        // A named boss keeps the monster it is built on to itself (owner 2026-10-25: it looks like its own race and class).
+        bool named = plan.Boss.Title != plan.Boss.BaseMobName && !plan.Boss.Title.StartsWith("Warden of ", StringComparison.Ordinal);
+        lines.Add(named ? $"{Indent}level {plan.Boss.Level}" : $"{Indent}level {plan.Boss.Level} {plan.Boss.BaseMobName}");
 
         string status = plan.BossKilled ? "slain" : plan.BossSpawned ? "has appeared" : "appears when every objective is done";
         lines.Add($"{Indent}{status}");

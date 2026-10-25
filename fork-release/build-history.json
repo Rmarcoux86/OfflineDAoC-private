@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v56",
+    "date": "2026-10-25",
+    "items": [
+      "Darkness Falls (act 5) has no \"reach the far marker\" objective any more: compass directions mean little in a dungeon of several floors, so it is another camp to clear instead."
+    ]
+  },
+  {
     "tag": "fork-v55",
     "date": "2026-10-25",
     "items": [

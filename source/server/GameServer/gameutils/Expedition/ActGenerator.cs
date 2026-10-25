@@ -493,6 +493,13 @@ public static class ActGenerator
             kinds.AddRange(order.Take(objectiveCount - 1));
         }
 
+        // Fork (owner 2026-10-25): compass words mean little in a dungeon of several floors, and the far marker could
+        // lead to the grey corners of Darkness Falls: there it is another camp to clear.
+        if (zone.ZoneId == DarknessFallsZoneId)
+        {
+            kinds = kinds.Select(kind => kind == eObjectiveKind.ReachPoint ? eObjectiveKind.ClearCamp : kind).ToList();
+        }
+
         List<ActObjective> objectives = new();
         HashSet<string> usedNames = new(StringComparer.Ordinal);
         HashSet<AutonomousCapnBryGoalCatalog.Entry> usedGoals = new();
