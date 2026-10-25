@@ -2614,6 +2614,12 @@ namespace DOL.GS
 			return GetHealthRegenerationInterval();
 		}
 
+		/// <summary>Fork (owner 2026-10-25): lets a player regenerate faster the longer they rest (GamePlayer).</summary>
+		protected virtual int AdjustRestingRegeneration(int amount, int max)
+		{
+			return amount;
+		}
+
 		protected virtual int PowerRegenerationTimerCallback(ECSGameTimer selfRegenerationTimer)
 		{
 			int maxMana = MaxMana;
@@ -2636,7 +2642,7 @@ namespace DOL.GS
 					return 0;
 				}
 
-				ChangeMana(this, eManaChangeType.Regenerate, GetModified(eProperty.PowerRegenerationAmount));
+				ChangeMana(this, eManaChangeType.Regenerate, AdjustRestingRegeneration(GetModified(eProperty.PowerRegenerationAmount), maxMana));
 			}
 
 			return GetPowerRegenerationInterval();

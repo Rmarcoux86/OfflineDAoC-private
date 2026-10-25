@@ -43,6 +43,17 @@ namespace DOL.UnitTests
             Assert.That(ClassicRestRegeneration.BaseEndurancePerTick(sitting, combat, moving), Is.EqualTo(amount));
         }
 
+        [TestCase(0, 2)]
+        [TestCase(2999, 2)]
+        [TestCase(3000, 4)]
+        [TestCase(9000, 8)]
+        [TestCase(12000, 10)]
+        [TestCase(600000, 10)]
+        public void RestingRampsToTenPercent(long restingMs, int percent)
+        {
+            Assert.That(ClassicRestRegeneration.RestingPercent(restingMs), Is.EqualTo(percent));
+        }
+
         [Test]
         public void SeatedRecoveryContinuesThroughStartThresholdUntilFull()
         {

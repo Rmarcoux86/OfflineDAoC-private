@@ -2373,8 +2373,36 @@ namespace DOL.GS
                 return 0;
             }
 
-            ChangeHealth(this, eHealthChangeType.Regenerate, GetModified(eProperty.HealthRegenerationAmount));
+            ChangeHealth(this, eHealthChangeType.Regenerate, AdjustRestingRegeneration(GetModified(eProperty.HealthRegenerationAmount), maxHealth));
             return GetHealthRegenerationInterval();
+        }
+
+        /// <summary>When this player sat down out of combat (game loop time), or 0 while not resting.</summary>
+        private long _restingSince;
+
+        /// <summary>
+        /// Fork (owner 2026-10-25): sitting out of combat regenerates more the longer you rest, up to 10% of the maximum
+        /// a tick (ClassicRestRegeneration.RestingPercent); never less than the normal amount.
+        /// </summary>
+        protected override int AdjustRestingRegeneration(int amount, int max)
+        {
+            if (!IsSitting || InCombat)
+            {
+                _restingSince = 0;
+
+                return amount;
+            }
+
+            long now = GameLoop.GameLoopTime;
+
+            if (_restingSince == 0)
+            {
+                _restingSince = now;
+            }
+
+            int percent = ClassicRestRegeneration.RestingPercent(now - _restingSince);
+
+            return Math.Max(amount, (int) Math.Ceiling(max * percent / 100.0));
         }
 
         protected override int EnduranceRegenerationTimerCallback(ECSGameTimer selfRegenerationTimer)
@@ -2412,6 +2440,11 @@ namespace DOL.GS
                     if (Endurance + regen > maxEndurance - longWind)
                         regen -= Endurance + regen - (maxEndurance - longWind);
                 }
+            }
+
+            if (!sprinting)
+            {
+                regen = AdjustRestingRegeneration(regen, maxEndurance);
             }
 
             if (regen != 0)
