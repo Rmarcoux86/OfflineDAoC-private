@@ -753,7 +753,9 @@ public static class ExpeditionLoot
         // The stock generator rolls a magical bonus only with a chance of 60% + level * 2, so at low levels a third of
         // its items are plain (owner 2026-10-23: a "[Rare] leather sleeves" with 0 utility). A rarity that promises
         // bonuses re-rolls until it has them, then a stat line is written as the last resort.
-        for (int attempt = 0; attempt < 8 && CountBonusLines(item) < wantedLines; attempt++)
+        // Fork (owner 2026-10-25): the generator picks from every weapon and armor the class gets by level 50, so a level-2
+        // Reaver found a whip it cannot wield yet. An item the player cannot use now is rolled again as well.
+        for (int attempt = 0; attempt < 20 && (CountBonusLines(item) < wantedLines || !CanUseNow(player, item)); attempt++)
         {
             item = new GeneratedUniqueItem(player.Realm, (eCharacterClass) player.CharacterClass.ID, level, profile.MinUtility);
         }
@@ -1084,6 +1086,22 @@ public static class ExpeditionLoot
             10 => (item.Bonus10Type, item.Bonus10),
             _ => (0, 0)
         };
+    }
+
+    /// <summary>
+    /// Whether the player can equip this item at their current level (the server's own equip check). True when the
+    /// rules can't be read (unit tests), so generation never stalls.
+    /// </summary>
+    internal static bool CanUseNow(GamePlayer player, DbItemTemplate item)
+    {
+        try
+        {
+            return GameServer.ServerRules?.CheckAbilityToUseItem(player, item) ?? true;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
     }
 
     internal static void SetBonus(DbItemTemplate item, int line, eProperty property, int value)

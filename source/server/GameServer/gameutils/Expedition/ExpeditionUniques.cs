@@ -553,7 +553,7 @@ public static class ExpeditionUniques
         }
         else if (definition.Slot == eUniqueSlot.Weapon)
         {
-            eObjectType type = WeaponTypeFor(realm, characterClass);
+            eObjectType type = WeaponTypeFor(player, realm, characterClass);
             item = new GeneratedUniqueItem(realm, characterClass, level, type, GeneratedUniqueItem.GenerateItemType(type));
         }
         else
@@ -604,13 +604,15 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// A weapon the class uses (the generator's per-realm tables), re-rolled a few times to get a one- or two-handed
-    /// melee weapon rather than a shield, instrument or ranged weapon. A class with only those keeps the last roll.
+    /// melee weapon rather than a shield, instrument or ranged weapon, preferring one the finder can wield now. A class
+    /// with no usable melee weapon keeps the first melee roll, else the last roll.
     /// </summary>
-    private static eObjectType WeaponTypeFor(eRealm realm, eCharacterClass characterClass)
+    private static eObjectType WeaponTypeFor(GamePlayer player, eRealm realm, eCharacterClass characterClass)
     {
         eObjectType type = eObjectType.Staff;
+        eObjectType firstMelee = eObjectType.GenericItem;
 
-        for (int attempt = 0; attempt < 12; attempt++)
+        for (int attempt = 0; attempt < 30; attempt++)
         {
             type = realm switch
             {
@@ -619,13 +621,24 @@ public static class ExpeditionUniques
                 _ => GeneratedUniqueItem.GetAlbionWeapon(characterClass)
             };
 
-            if (IsMeleeWeapon(type))
+            if (!IsMeleeWeapon(type))
+            {
+                continue;
+            }
+
+            // Fork (owner 2026-10-25): a weapon the finder can wield now (a level-2 Reaver cannot use a whip yet).
+            if (player == null || ExpeditionLoot.CanUseNow(player, new DbItemTemplate { Object_Type = (int) type, Realm = (int) realm }))
             {
                 return type;
             }
+
+            if (firstMelee == eObjectType.GenericItem)
+            {
+                firstMelee = type;
+            }
         }
 
-        return type;
+        return firstMelee != eObjectType.GenericItem ? firstMelee : type;
     }
 
     public static bool IsMeleeWeapon(eObjectType type)
