@@ -2,7 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using DOL.Database;
+using DOL.GS.PacketHandler;
+using DOL.Logging;
 
 namespace DOL.GS.Expedition;
 
@@ -59,6 +62,8 @@ public sealed record UniqueDefinition(string Name, eUniqueTier Tier, eUniqueSlot
 /// </summary>
 public static class ExpeditionUniques
 {
+    private static readonly Logger log = LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
+
     public const int LinesMin = 4;
     public const int LinesMax = 6;
 
@@ -273,8 +278,132 @@ public static class ExpeditionUniques
     /// <summary>Picks the player's unique for this drop and remembers it as found on the run.</summary>
     public const string ThreePointOhRingName = "Three Point Oh's Ring";
 
-    /// <summary>How much of each attribute Three Point Oh's Ring gives (owner, 2026-10-24: +1, then +5).</summary>
-    public const int ThreePointOhRingBonus = 5;
+    /// <summary>How much of each attribute Three Point Oh's Ring gives (owner, 2026-10-24: +1, then +5, then +3).</summary>
+    public const int ThreePointOhRingBonus = 3;
+
+    /// <summary>How much of each resist Three Point Oh's Ring gives. Applied in code while worn (the item has no room).</summary>
+    public const int ThreePointOhRingResistBonus = 3;
+
+    /// <summary>The nine resists Three Point Oh's Ring raises while worn.</summary>
+    public static readonly eProperty[] ThreePointOhRingResists =
+    {
+        eProperty.Resist_Body, eProperty.Resist_Cold, eProperty.Resist_Energy, eProperty.Resist_Heat, eProperty.Resist_Matter,
+        eProperty.Resist_Spirit, eProperty.Resist_Crush, eProperty.Resist_Slash, eProperty.Resist_Thrust
+    };
+
+    private static readonly string ThreePointOhRingLore = $"\"You want this ring? It's got...\" +{ThreePointOhRingResistBonus} to all resistances while worn";
+
+    /// <summary>The ring's full description, as the drop and the login update write it.</summary>
+    public static readonly string ThreePointOhRingDescription = ThreePointOhRingDescription;
+
+    public static bool IsThreePointOhRing(DbInventoryItem item)
+    {
+        return item != null && item.Name == ThreePointOhRingName;
+    }
+
+    /// <summary>
+    /// Adds (sign 1) or removes (sign -1) the ring's resists. Called from GamePlayer's equip, unequip and refresh of item
+    /// bonuses, next to where the item's own bonus lines are applied.
+    /// </summary>
+    public static void ApplyThreePointOhRingResists(GamePlayer player, DbInventoryItem item, int sign)
+    {
+        if (player == null || !IsThreePointOhRing(item))
+        {
+            return;
+        }
+
+        foreach (eProperty resist in ThreePointOhRingResists)
+        {
+            player.ItemBonus[resist] += sign * ThreePointOhRingResistBonus;
+        }
+    }
+
+    /// <summary>
+    /// Brings rings picked up before a change up to date: sets the eight attribute lines to the current bonus and the
+    /// description to the current text. A worn ring is taken off and put back on around the change so the player's
+    /// bonuses stay right. Runs at login for every player.
+    /// </summary>
+    public static void UpdateOldThreePointOhRings(GamePlayer player)
+    {
+        if (player?.Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
+        {
+            if (!IsThreePointOhRing(item) || IsCurrentThreePointOhRing(item))
+            {
+                continue;
+            }
+
+            bool worn = item.SlotPosition >= (int) eInventorySlot.MinEquipable && item.SlotPosition <= (int) eInventorySlot.MaxEquipable;
+            eInventorySlot slot = (eInventorySlot) item.SlotPosition;
+
+            if (worn)
+            {
+                player.OnItemUnequipped(item, slot);
+            }
+
+            for (int i = 0; i < ThreePointOhRingStats.Length; i++)
+            {
+                ExpeditionLoot.SetBonus(item.Template, i + 1, ThreePointOhRingStats[i], ThreePointOhRingBonus);
+            }
+
+            item.Template.Description = ThreePointOhRingDescription;
+
+            if (worn)
+            {
+                player.OnItemEquipped(item, slot);
+            }
+
+            try
+            {
+                GameInventoryObjectExtensions.SaveItem(item);
+
+                if (item.Template is DbItemUnique unique)
+                {
+                    GameServer.Database.SaveObject(unique);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"[EXPEDITION] Could not save the updated {ThreePointOhRingName} of {player.Name}.", ex);
+            }
+
+            player.Out.SendInventoryItemsUpdate(new[] { item });
+            player.Out.SendMessage($"Your {ThreePointOhRingName} has been updated: +{ThreePointOhRingBonus} to all attributes and +{ThreePointOhRingResistBonus} to all resistances.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    private static bool IsCurrentThreePointOhRing(DbInventoryItem item)
+    {
+        for (int i = 0; i < ThreePointOhRingStats.Length; i++)
+        {
+            if (BonusOf(item, i + 1) != ThreePointOhRingBonus)
+            {
+                return false;
+            }
+        }
+
+        return item.Description == ThreePointOhRingDescription;
+    }
+
+    private static int BonusOf(DbInventoryItem item, int line)
+    {
+        return line switch
+        {
+            1 => item.Bonus1,
+            2 => item.Bonus2,
+            3 => item.Bonus3,
+            4 => item.Bonus4,
+            5 => item.Bonus5,
+            6 => item.Bonus6,
+            7 => item.Bonus7,
+            8 => item.Bonus8,
+            _ => 0
+        };
+    }
 
     /// <summary>The eight attributes, +<see cref="ThreePointOhRingBonus"/> each, on Three Point Oh's Ring.</summary>
     public static readonly eProperty[] ThreePointOhRingStats =
@@ -284,7 +413,8 @@ public static class ExpeditionUniques
     };
 
     /// <summary>
-    /// The ring Three Point Oh (every run's act 1 boss) always drops on top of its normal drops: +5 to each attribute.
+    /// The ring Three Point Oh (every run's act 1 boss) always drops on top of its normal drops: +3 to each attribute,
+    /// and +3 to each resist while worn (<see cref="ApplyThreePointOhRingResists"/>).
     /// Marked Unique so /junk never touches it.
     /// </summary>
     public static GeneratedUniqueItem BuildThreePointOhRing(GamePlayer player)
@@ -299,7 +429,7 @@ public static class ExpeditionUniques
         }
 
         item.Name = ThreePointOhRingName;
-        item.Description = $"\"You want this ring? It's got...\" | Atlas ROG | Expedition {eLootRarity.Unique}";
+        item.Description = ThreePointOhRingDescription;
         item.Quality = 100;
         item.Condition = item.MaxCondition;
         item.Durability = item.MaxDurability;

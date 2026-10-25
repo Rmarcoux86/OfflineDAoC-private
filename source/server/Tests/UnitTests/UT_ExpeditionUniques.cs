@@ -241,6 +241,15 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.ThreePointOhRingStats.Length, Is.EqualTo(8));
         Assert.That(new HashSet<DOL.GS.eProperty>(ExpeditionUniques.ThreePointOhRingStats).Count, Is.EqualTo(8));
         Assert.That(ExpeditionUniques.ThreePointOhRingName, Is.EqualTo("Three Point Oh's Ring"));
-        Assert.That(ExpeditionUniques.ThreePointOhRingBonus, Is.EqualTo(5));
+        Assert.That(ExpeditionUniques.ThreePointOhRingBonus, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void ThreePointOhRing_HasEveryResistOnce()
+    {
+        Assert.That(ExpeditionUniques.ThreePointOhRingResists.Length, Is.EqualTo(9));
+        Assert.That(new HashSet<DOL.GS.eProperty>(ExpeditionUniques.ThreePointOhRingResists).Count, Is.EqualTo(9));
+        Assert.That(ExpeditionUniques.ThreePointOhRingResistBonus, Is.EqualTo(3));
+        Assert.That(ExpeditionUniques.ThreePointOhRingDescription, Does.Contain("+3 to all resistances"));
     }
 }

@@ -24,7 +24,8 @@ The newest version is first. For the full detail of every earlier update, see
   have none. Each act camp has a Hastener that gives speed when you talk to it.
 - Discovering a wild shrine is announced on screen as well as in chat.
 - The act 1 boss of every run is Three Point Oh, who shouts "You want this ring? It's got…" when it appears, and
-  always drops Three Point Oh's Ring (+5 to each of the eight attributes) on top of its normal drops.
+  always drops Three Point Oh's Ring (+3 to each of the eight attributes, and +3 to each of the nine resists while
+  worn) on top of its normal drops. Rings already picked up are updated to this at the owner's next login.
 - Unique weapon exchange: each act has a Reforger, in the act zone's town when it has one (the tightest cluster of
   merchants), else beside the act camp; the journal gives its /loc. Hand it a unique weapon and pick a weapon type you
   can use: the same unique (name, bonuses, proc, item level) is reforged as that type for 2, 15 or 75 gold by tier.

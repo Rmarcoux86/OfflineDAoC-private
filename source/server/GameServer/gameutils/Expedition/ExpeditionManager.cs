@@ -80,6 +80,7 @@ public static class ExpeditionManager
         }
 
         ShowPendingSummary(player);
+        ExpeditionUniques.UpdateOldThreePointOhRings(player);
 
         OfflineExpeditionRecord record;
 

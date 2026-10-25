@@ -9088,6 +9088,8 @@ namespace DOL.GS
             if (item.ExtraBonus != 0)
                 ItemBonus[(eProperty) item.ExtraBonusType] += item.ExtraBonus;
 
+            DOL.GS.Expedition.ExpeditionUniques.ApplyThreePointOhRingResists(this, item, 1);
+
             if ((ePrivLevel) Client.Account.PrivLevel == ePrivLevel.Player && Client.Player != null && Client.Player.ObjectState == eObjectState.Active)
             {
                 if (item.SpellID > 0 || item.SpellID1 > 0)
@@ -9246,6 +9248,8 @@ namespace DOL.GS
 
             if (item.ExtraBonus != 0)
                 ItemBonus[(eProperty) item.ExtraBonusType] -= item.ExtraBonus;
+
+            DOL.GS.Expedition.ExpeditionUniques.ApplyThreePointOhRingResists(this, item, -1);
 
             if (item is IGameInventoryItem inventoryItem)
                 inventoryItem.OnUnEquipped(this);
@@ -9429,6 +9433,8 @@ namespace DOL.GS
                     {
                         ItemBonus[(eProperty) item.ExtraBonusType] += item.ExtraBonus;
                     }
+
+                    DOL.GS.Expedition.ExpeditionUniques.ApplyThreePointOhRingResists(this, item, 1);
                 }
             }
         }
