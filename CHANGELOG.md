@@ -43,6 +43,8 @@ The newest version is first. For the full detail of every earlier update, see
 - Drops are always something you can use at your current level: the item generator chose from everything your class
   can use by level 50, so a level 2 Reaver could find a whip it could not equip yet. Weapon uniques follow the same
   rule.
+- Resting regenerates faster the longer you sit out of combat: 2% of your maximum health, power and endurance a tick
+  at once, +2% every 3 seconds, up to 10% a tick (never less than normal). Standing up or fighting starts it over.
 - Reavers can equip flexible weapons (whips and flails) from level 1, everywhere, not only on runs: they get the
   Weaponry: Flexible ability from the start, so the game shows whips as usable.
 - New `/recover` command: lists the deleted characters of your account and restores one with its items (`/recover
