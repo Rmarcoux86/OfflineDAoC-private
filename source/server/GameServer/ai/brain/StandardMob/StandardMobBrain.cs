@@ -75,7 +75,7 @@ namespace DOL.AI.Brain
         }
 
         /// <summary>How long a freshly spawned monster waits before it can aggro by proximity.</summary>
-        public const int SpawnAggroDelayMs = 5000;
+        public const int SpawnAggroDelayMs = 3000;
 
         public virtual bool CheckProximityAggro()
         {
