@@ -230,6 +230,54 @@ public static class ActGenerator
         return populated.Count > 0 ? populated : listed;
     }
 
+    /// <summary>Darkness Falls: the last act's zone whenever the realm lists it for that act (owner, 2026-10-24).</summary>
+    public const int DarknessFallsZoneId = 249;
+
+    /// <summary>
+    /// The zone of each act of a run (index = act; -1 = none eligible), from the seed alone: the last act is Darkness
+    /// Falls when the realm lists it there; then acts 1 to 5 in order each draw from their eligible zones not used by
+    /// another act of the run (owner, 2026-10-24: no zone twice in a run), repeating one only when none is left.
+    /// </summary>
+    public static int[] RunZonePlan(eRealm realm, int seed, IExpeditionCampSource campSource)
+    {
+        int[] zones = Enumerable.Repeat(-1, ActCount + 1).ToArray();
+        HashSet<int> used = new();
+
+        if (GetEligibleCandidates(ActCount, realm, campSource).Any(z => z.ZoneId == DarknessFallsZoneId))
+        {
+            zones[ActCount] = DarknessFallsZoneId;
+            used.Add(DarknessFallsZoneId);
+        }
+
+        for (int act = 1; act <= ActCount; act++)
+        {
+            if (zones[act] >= 0)
+            {
+                continue;
+            }
+
+            IReadOnlyList<ZoneCandidate> candidates = GetEligibleCandidates(act, realm, campSource);
+
+            if (candidates.Count == 0)
+            {
+                continue;
+            }
+
+            List<ZoneCandidate> fresh = candidates.Where(z => !used.Contains(z.ZoneId)).ToList();
+
+            if (fresh.Count == 0)
+            {
+                fresh = candidates.ToList();
+            }
+
+            ZoneCandidate pick = fresh[new Random(unchecked(seed * 31 + act)).Next(fresh.Count)];
+            zones[act] = pick.ZoneId;
+            used.Add(pick.ZoneId);
+        }
+
+        return zones;
+    }
+
     /// <summary>The live world's zone offset. Requires a loaded world.</summary>
     public static (int ox, int oy) WorldZoneOffset(int zoneId)
     {
@@ -264,15 +312,27 @@ public static class ActGenerator
         IReadOnlyList<ZoneCandidate> candidates = GetEligibleCandidates(act, realm, campSource);
         Random rng = new(unchecked(seed * 31 + act));
 
-        // Zone: anything but the previous act's zone (negative: none), unless that is the only choice.
-        List<ZoneCandidate> choices = candidates.Where(z => previousZoneId < 0 || z.ZoneId != previousZoneId).ToList();
+        // Zone: the run's zone for this act (RunZonePlan: no zone twice in a run, Darkness Falls last where listed).
+        // A previous zone passed in is still avoided when the plan would repeat it and another is left.
+        int[] runZones = RunZonePlan(realm, seed, campSource);
+        ZoneCandidate zone = candidates.FirstOrDefault(z => z.ZoneId == runZones[act]);
 
-        if (choices.Count == 0)
+        if (zone == null || (previousZoneId >= 0 && zone.ZoneId == previousZoneId))
         {
-            choices = candidates.ToList();
-        }
+            List<ZoneCandidate> choices = candidates.Where(z => previousZoneId < 0 || z.ZoneId != previousZoneId).ToList();
 
-        ZoneCandidate zone = choices[rng.Next(choices.Count)];
+            if (choices.Count == 0)
+            {
+                choices = candidates.ToList();
+            }
+
+            zone = choices[rng.Next(choices.Count)];
+        }
+        else
+        {
+            // Keep the random sequence after the zone draw as it was.
+            rng.Next();
+        }
 
         // Re-planning an act already under way (UpgradeInProgress): its own zone, with the same random sequence after.
         if (forcedZoneId >= 0)

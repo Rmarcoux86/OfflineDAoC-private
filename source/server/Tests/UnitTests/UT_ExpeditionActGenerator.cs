@@ -573,4 +573,30 @@ public class UT_ExpeditionActGenerator
         Assert.That(ActGenerator.BossQuote("Warden of Connacht"), Is.Null);
         Assert.That(ActGenerator.BossQuote(null), Is.Null);
     }
+
+    [Test]
+    public void RunZonePlan_NoZoneTwiceAndDarknessFallsLast([Values(eRealm.Albion, eRealm.Midgard, eRealm.Hibernia)] eRealm realm)
+    {
+        bool dfListed = ActGenerator.GetEligibleCandidates(ActGenerator.ActCount, realm, CatalogCampSource.Instance)
+            .Any(z => z.ZoneId == ActGenerator.DarknessFallsZoneId);
+
+        for (int seed = 0; seed < 200; seed++)
+        {
+            int[] zones = ActGenerator.RunZonePlan(realm, seed, CatalogCampSource.Instance);
+            List<int> acts = Enumerable.Range(1, ActGenerator.ActCount).Select(act => zones[act]).ToList();
+
+            Assert.That(acts, Has.None.EqualTo(-1), $"{realm} seed {seed}");
+            Assert.That(acts.Distinct().Count(), Is.EqualTo(acts.Count), $"{realm} seed {seed}: a zone repeats");
+
+            if (dfListed)
+            {
+                Assert.That(acts[^1], Is.EqualTo(ActGenerator.DarknessFallsZoneId), $"{realm} seed {seed}");
+            }
+
+            for (int act = 1; act <= ActGenerator.ActCount; act++)
+            {
+                Assert.That(FromCatalog(act, realm, seed, -1).ZoneId, Is.EqualTo(zones[act]), $"{realm} act {act} seed {seed}: Generate follows the plan");
+            }
+        }
+    }
 }
