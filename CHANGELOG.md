@@ -32,6 +32,8 @@ The newest version is first. For the full detail of every earlier update, see
   worn) on top of its normal drops. Rings already picked up are updated to this at the owner's next login.
 - Rare drops are at least 97% quality (was 95%, the same as any drop). Common and Magic drops roll 95–99%, Epic is
   always 99% and Unique 100%.
+- A monster that has just spawned (or respawned) waits 5 seconds before it can aggro on its own; attacking it still
+  starts the fight at once.
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.

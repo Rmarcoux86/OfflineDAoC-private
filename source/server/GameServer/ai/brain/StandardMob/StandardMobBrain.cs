@@ -74,12 +74,18 @@ namespace DOL.AI.Brain
             FSM.Think();
         }
 
+        /// <summary>How long a freshly spawned monster waits before it can aggro by proximity.</summary>
+        public const int SpawnAggroDelayMs = 5000;
+
         public virtual bool CheckProximityAggro()
         {
             FireAmbientSentence();
 
             // Check aggro only if our aggro list is empty and we're not in combat.
-            if (AggroLevel > 0 && AggroRange > 0 && Body.CurrentSpellHandler == null && !HasAggro && !_aggroLosCheckListener.HasPendingLosChecks)
+            // Fork (owner 2026-10-25): a monster that just spawned looks around for a few seconds before it aggroes on its own.
+            bool justSpawned = GameLoop.GameLoopTime - Body.SpawnTick < SpawnAggroDelayMs;
+
+            if (!justSpawned && AggroLevel > 0 && AggroRange > 0 && Body.CurrentSpellHandler == null && !HasAggro && !_aggroLosCheckListener.HasPendingLosChecks)
             {
                 CheckPlayerAggro();
                 CheckNpcAggro();
