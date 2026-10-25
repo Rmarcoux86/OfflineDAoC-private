@@ -90,6 +90,9 @@ public sealed class ExpeditionBoss : GameNPC
         }
 
         boss.Name = string.IsNullOrWhiteSpace(spec.Title) ? spec.BaseMobName : spec.Title;
+
+        // The named act bosses look like their race and class (docs/EXPEDITION-CLASS-BOSSES.md); still plain monsters.
+        ExpeditionBossLooks.Apply(boss, spec.Title);
         boss.Realm = eRealm.None;
         boss.RespawnInterval = -1;
         boss.RoamingRange = 0;

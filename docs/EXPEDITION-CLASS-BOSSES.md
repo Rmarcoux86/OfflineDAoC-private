@@ -1,4 +1,8 @@
-# Expedition class bosses (stored design, not built)
+# Expedition class bosses (looks built, abilities stored)
+
+**Built (2026-10-25):** the named act bosses wear these looks (race body, armor and weapon models) as plain monsters,
+in `gameutils/Expedition/ExpeditionBossLooks.cs`. The styles, damage add, dual wield and pet below are still only a
+design.
 
 Five named characters that fight like player classes. Designed on 2026-10-24 as act bosses, then set aside by the owner
 "until I can think of how to use them". Nothing here is in the game yet. The act bosses are still: Three Point Oh in
