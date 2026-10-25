@@ -43,6 +43,10 @@ public static class ExpeditionBoons
     public const string Frostbite = "frostbite";
     public const string Siphon = "siphon";
     public const string BountyHunter = "bounty_hunter";
+    public const string MarkedPrey = "marked_prey";
+    public const string Evasion = "evasion";
+    public const string TreasureSense = "treasure_sense";
+    public const string Swiftfoot = "swiftfoot";
     public const string Scavenger = "scavenger";
     public const string Glory = "glory";
     public const string BlessedArms = "blessed_arms";
@@ -82,6 +86,10 @@ public static class ExpeditionBoons
         new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true),
         new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false),
         new(BlessedArms, "Blessed Arms", "A lesser strength/constitution and dexterity/quickness buff for the rest of the run.", false),
+        new(MarkedPrey, "Marked Prey", "Elite pack monsters and act bosses take 20% more damage from you.", false),
+        new(Evasion, "Evasion", "Melee attacks on you have a 10% chance to miss outright (you evade them).", false),
+        new(TreasureSense, "Treasure Sense", "Unique drops are twice as likely.", true),
+        new(Swiftfoot, "Swiftfoot", "+20% run speed out of combat (with or without the Hastener).", false),
     };
 
     /// <summary>Boons taken out of the catalog (owner 2026-10-25). A run that has one gets a new boon choice instead.</summary>
@@ -248,6 +256,12 @@ public static class ExpeditionBoons
     /// first objective kill) is left as it is and the roll above it is shifted, so Fortune counts once per drop.
     /// Called by ExpeditionLoot.DropFor and BossDrops.
     /// </summary>
+    /// <summary>Treasure Sense: how many times the Unique weight counts in a rarity roll (2 with the boon, else 1).</summary>
+    public static int UniqueWeightMultiplier(ExpeditionRun run)
+    {
+        return run != null && Snapshot(run).Contains(TreasureSense) ? 2 : 1;
+    }
+
     public static eLootRarity ShiftRolledRarity(ExpeditionRun run, eLootRarity rolled)
     {
         if (run == null)

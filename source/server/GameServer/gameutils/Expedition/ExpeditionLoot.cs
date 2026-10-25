@@ -347,9 +347,12 @@ public static class ExpeditionLoot
     /// One drop event's rarity. Normal events use 60/27/9/3/1, boss events 0/0/50/35/15. Rarities below
     /// <paramref name="floor"/> are removed and the rest keep their relative weights.
     /// </summary>
-    public static eLootRarity RollRarity(Random rng, bool boss, eLootRarity floor = eLootRarity.Common)
+    public static eLootRarity RollRarity(Random rng, bool boss, eLootRarity floor = eLootRarity.Common, int uniqueWeightMultiplier = 1)
     {
-        int[] weights = boss ? BossWeights : BaseWeights;
+        int[] weights = (int[]) (boss ? BossWeights : BaseWeights).Clone();
+
+        // Treasure Sense (owner 2026-10-25): the Unique weight counts twice.
+        weights[(int) eLootRarity.Unique] *= Math.Max(1, uniqueWeightMultiplier);
         int total = 0;
 
         for (int i = (int) floor; i < weights.Length; i++)
@@ -625,7 +628,7 @@ public static class ExpeditionLoot
 
         for (int i = 0; i < count; i++)
         {
-            eLootRarity rarity = RollRarity(Random.Shared, true, BossFloor(i, count, act));
+            eLootRarity rarity = RollRarity(Random.Shared, true, BossFloor(i, count, act), ExpeditionBoons.UniqueWeightMultiplier(run));
             rarity = ExpeditionBoons.ShiftRolledRarity(run, rarity);
 
             Deliver(player, boss, rarity);
@@ -641,7 +644,7 @@ public static class ExpeditionLoot
         for (int i = 0; i < BoonEffects.ExtraBossDrops(player); i++)
         {
             player.Out.SendMessage("Bounty Hunter: the boss drops an extra item.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
-            Deliver(player, boss, ExpeditionBoons.ShiftRolledRarity(run, RollRarity(Random.Shared, true, eLootRarity.Rare)));
+            Deliver(player, boss, ExpeditionBoons.ShiftRolledRarity(run, RollRarity(Random.Shared, true, eLootRarity.Rare, ExpeditionBoons.UniqueWeightMultiplier(run))));
         }
     }
 
@@ -651,8 +654,9 @@ public static class ExpeditionLoot
     /// </summary>
     public static void DropFor(GamePlayer player, GameNPC killed, eLootRarity? forced)
     {
-        eLootRarity rarity = RollRarity(Random.Shared, false, forced ?? eLootRarity.Common);
-        rarity = ExpeditionBoons.ShiftRolledRarity(ExpeditionManager.GetRun(player), rarity);
+        ExpeditionRun run = ExpeditionManager.GetRun(player);
+        eLootRarity rarity = RollRarity(Random.Shared, false, forced ?? eLootRarity.Common, ExpeditionBoons.UniqueWeightMultiplier(run));
+        rarity = ExpeditionBoons.ShiftRolledRarity(run, rarity);
 
         Deliver(player, killed, rarity);
 
@@ -660,7 +664,7 @@ public static class ExpeditionLoot
         if (BoonEffects.RollsSecondDrop(player))
         {
             player.Out?.SendMessage("Scavenger: you find a second item.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
-            Deliver(player, killed, ExpeditionBoons.ShiftRolledRarity(ExpeditionManager.GetRun(player), RollRarity(Random.Shared, false, forced ?? eLootRarity.Common)));
+            Deliver(player, killed, ExpeditionBoons.ShiftRolledRarity(run, RollRarity(Random.Shared, false, forced ?? eLootRarity.Common, ExpeditionBoons.UniqueWeightMultiplier(run))));
         }
     }
 

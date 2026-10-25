@@ -15,6 +15,9 @@ namespace DOL.GS.Expedition;
 public static partial class BoonEffects
 {
     private const int ExecutionerThresholdPercent = 15;
+    private const int MarkedPreyPercent = 20;
+    private const double EvasionChance = 0.10;
+    private const double SwiftfootFactor = 1.2;
     private const int PhoenixTriggerPercent = 25;
     private const int PhoenixHealToPercent = 60;
     private const int SoulHarvestPercent = 8;
@@ -61,6 +64,14 @@ public static partial class BoonEffects
 
         GameLiving target = ad.Target;
         int dealt = ad.Damage + ad.CriticalDamage;
+
+        // Marked Prey: elites and act bosses take more from every hit.
+        if (boons.Contains(ExpeditionBoons.MarkedPrey) && target is GameNPC marked && (marked is ExpeditionBoss || ExpeditionElites.IsElite(marked)) && dealt > 0)
+        {
+            ad.Damage = ad.Damage * (100 + MarkedPreyPercent) / 100;
+            ad.CriticalDamage = ad.CriticalDamage * (100 + MarkedPreyPercent) / 100;
+            dealt = ad.Damage + ad.CriticalDamage;
+        }
 
         // Executioner: a monster that is already below the threshold dies to this hit, whatever it rolled.
         if (boons.Contains(ExpeditionBoons.Executioner) && target is GameNPC victim && victim is not ExpeditionBoss && IsMonster(victim)
@@ -288,5 +299,27 @@ public static partial class BoonEffects
     private static bool IsMonster(GameNPC npc)
     {
         return npc != null && npc is not GameBot && npc.Brain is not IControlledBrain && npc.Realm == eRealm.None;
+    }
+
+    /// <summary>Evasion: the evade chance (0-1) a player with the boon adds against a melee attack. Called by GameLiving.TryEvade.</summary>
+    public static double EvasionBonus(GameLiving defender, AttackData ad)
+    {
+        if (defender is not GamePlayer player || ad == null || !ad.IsMeleeAttack || !HasBoon(player, ExpeditionBoons.Evasion))
+        {
+            return 0;
+        }
+
+        return EvasionChance;
+    }
+
+    /// <summary>Swiftfoot: the run speed factor out of combat (1 without the boon). Called by MaxSpeedCalculator.</summary>
+    public static double SwiftfootSpeedFactor(GamePlayer player)
+    {
+        if (player == null || player.InCombat || !HasBoon(player, ExpeditionBoons.Swiftfoot))
+        {
+            return 1.0;
+        }
+
+        return SwiftfootFactor;
     }
 }

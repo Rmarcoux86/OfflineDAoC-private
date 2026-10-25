@@ -1022,6 +1022,9 @@ namespace DOL.GS
 					evadeChance = Properties.EVADE_CAP;
 			}
 
+			// Fork (owner 2026-10-25): the Expedition boon Evasion lets any class evade some melee attacks.
+			evadeChance += DOL.GS.Expedition.BoonEffects.EvasionBonus(this, ad);
+
 			return evadeChance;
 		}
 

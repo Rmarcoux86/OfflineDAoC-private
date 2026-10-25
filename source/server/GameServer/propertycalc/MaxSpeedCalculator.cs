@@ -56,6 +56,9 @@ namespace DOL.GS.PropertyCalc
                         speedIncrease *= 1.25; // New run speed is 125% when no buff.
                 }
 
+                // Fork (owner 2026-10-25): the Expedition boon Swiftfoot, out of combat.
+                speedIncrease *= DOL.GS.Expedition.BoonEffects.SwiftfootSpeedFactor(player);
+
                 if (player.IsEncumbered && player.Client.Account.PrivLevel == 1 && ServerProperties.Properties.ENABLE_ENCUMBERANCE_SPEED_LOSS)
                 {
                     speedIncrease *= player.MaxSpeedModifierFromEncumbrance;

@@ -37,6 +37,9 @@ The newest version is first. For the full detail of every earlier update, see
 - `/junk epic` clears Epic drops (and lower) from your backpack. Uniques are never junked.
 - Boons removed: Hunter's Eye, Chain Lightning, Rupture, Unshakable, Second Wind and Warded Hide. A run that had one
   taken loses it and gets a new boon choice.
+- New boons: Marked Prey (elites and act bosses take 20% more damage from you), Evasion (10% chance to evade any melee
+  attack, whatever your class), Treasure Sense (Unique drops twice as likely) and Swiftfoot (+20% run speed out of
+  combat).
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.
