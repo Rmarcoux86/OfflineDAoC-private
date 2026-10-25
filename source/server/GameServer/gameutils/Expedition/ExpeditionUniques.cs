@@ -614,7 +614,7 @@ public static class ExpeditionUniques
                 continue;
             }
 
-            int lookModel = LookModelFor(item, definition, player.Realm);
+            int lookModel = LookModelFor(item.Template, definition, player.Realm);
             int glow = definition.Slot == eUniqueSlot.Weapon ? WeaponGlowFor(definition.Name) : item.Effect;
             bool lookChanged = (lookModel > 0 && item.Model != lookModel) || item.Effect != glow;
             bool worn = item.SlotPosition >= (int) eInventorySlot.MinEquipable && item.SlotPosition <= (int) eInventorySlot.MaxEquipable;
