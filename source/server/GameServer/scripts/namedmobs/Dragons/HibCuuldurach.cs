@@ -332,7 +332,9 @@ namespace DOL.AI.Brain
 		}
 		public override void Think()
 		{
-            bool encounterAggro = CheckProximityAggro();
+            // Fork (owner 2026-10-25): a dragon flying its patrol route is only a sight; it notices no one on its own
+            // until it lands (anyone who attacks it is still fought).
+            bool encounterAggro = IsRestless ? HasAggro : CheckProximityAggro();
             EncounterAdds.Tick(Body, AggroList.Select(static entry => entry.Key), encounterAggro, IsRestless);
             if (encounterAggro) DragonDiagnostics.Fighting(Body, AggroList.Count);
 			if (!encounterAggro)
@@ -460,7 +462,8 @@ namespace DOL.AI.Brain
 				LockIsRestless = false; //roam 2nd check		
 				LockEndRoute = true;
 			}
-			if (IsRestless)//special glare phase, during dragon roam it will cast glare like a mad
+			// Fork (owner 2026-10-25): no glare at the zone while patrolling (it pulled every player within 5000 into the fight).
+			if (IsRestless && HasAggro)//special glare phase, during dragon roam it will cast glare like a mad
 			{
 				if (!CanGlare2 && !Body.IsCasting)
 				{

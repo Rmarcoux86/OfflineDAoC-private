@@ -58,6 +58,8 @@ The newest version is first. For the full detail of every earlier update, see
 - New boons: Marked Prey (elites and act bosses take 20% more damage from you), Evasion (10% chance to evade any melee
   attack, whatever your class), Treasure Sense (Unique drops twice as likely) and Swiftfoot (+20% run speed out of
   combat).
+- The three realm dragons (Golestandt, Gjalpinulva, Cuuldurach) still fly their patrol route, but don't glare at or
+  aggro anyone while flying; attacking one still starts the fight.
 - Arrows, bolts and throwing weapons are never used up (everywhere, not only on runs).
 - Poison vials are never used up: applying one leaves it in your bag. The poison on the weapon still runs out of
   charges and has to be applied again.

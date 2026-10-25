@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v57",
+    "date": "2026-10-25",
+    "items": [
+      "The realm dragons still fly their patrol route, but no longer attack anyone while they do: no glare at the zone and no aggro until they land. Attacking a flying dragon still starts the fight."
+    ]
+  },
+  {
     "tag": "fork-v56",
     "date": "2026-10-25",
     "items": [
