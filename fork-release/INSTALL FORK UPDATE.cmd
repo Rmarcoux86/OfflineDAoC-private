@@ -150,6 +150,7 @@ exit /b 1
 
 :copied
 if exist "%~dp0fork-version.txt" copy /y "%~dp0fork-version.txt" "%GAME%\runtime\fork-version.txt" >nul
+if exist "%~dp0build-history.json" copy /y "%~dp0build-history.json" "%GAME%\runtime\build-history.json" >nul
 if not defined AUTO goto done_by_hand
 
 echo.

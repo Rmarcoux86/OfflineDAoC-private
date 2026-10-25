@@ -10,6 +10,10 @@ on:
       version:
         description: "Release name, e.g. fork-v1"
         required: true
+      notes:
+        description: "What's new, one item per line (player-facing). Empty: the commit titles since the last fork release."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -19,6 +23,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The whole history and tags, so the release notes can list the commits since the last fork release.
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -85,6 +92,8 @@ jobs:
           Copy-Item source/server/Release/lib/GameServer.dll, source/server/Release/lib/GameServer.pdb $out
           Copy-Item "fork-release/INSTALL FORK UPDATE.cmd", "fork-release/RESTORE STOCK SERVER.cmd", "fork-release/README-FORK.txt" $out
           Copy-Item "QUICK COMMANDS.txt", "ALL SERVER COMMANDS.txt" $out
+          # The build history the launcher shows (BUILD HISTORY); the installer copies it to runtime\build-history.json.
+          Copy-Item "fork-release/build-history.json" $out
 
           # The launcher build: only its own five files. System.Data.SQLite and its native interop are already in every
           # 0.37 runtime folder (and new-client\runtime) from the same package version.
@@ -101,20 +110,48 @@ jobs:
           "ZIP=$out.zip" | Out-File -Append $env:GITHUB_ENV
           "NAME=$name" | Out-File -Append $env:GITHUB_ENV
 
+      # The release description: "## What's new" (this build's entry in fork-release/build-history.json, else the notes
+      # input, else the commit titles since the last fork release),
+      # then the install steps. The launcher reads the "What's new" section for its update notes and build history.
+      - name: Release notes
+        shell: pwsh
+        env:
+          NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          $items = @()
+          $history = @()
+          try { $history = @(Get-Content fork-release/build-history.json -Raw | ConvertFrom-Json) } catch { }
+          $entry = $history | Where-Object { $_.tag -eq $env:NAME } | Select-Object -First 1
+          if ($entry) {
+            $items = @($entry.items | ForEach-Object { "- $_" })
+          } elseif ($env:NOTES -and $env:NOTES.Trim()) {
+            $items = $env:NOTES -split "`r?`n" | Where-Object { $_.Trim() } | ForEach-Object { $t = $_.Trim(); if ($t.StartsWith("- ")) { $t } else { "- $t" } }
+          } else {
+            $previous = git tag --list "fork-v*" --sort=-version:refname | Where-Object { $_ -ne $env:NAME } | Select-Object -First 1
+            $range = if ($previous) { "$previous..HEAD" } else { "HEAD~20..HEAD" }
+            $items = git log $range --no-merges --pretty=format:"- %s" | Where-Object { $_ -notmatch "^- (Changelog|Restore CRLF|Fix .*initializer)" }
+          }
+          if (-not $items) { $items = @("- Maintenance build.") }
+          $install = @'
+          Fork update for Offline DAoC 0.37: fishing and Expedition mode.
+
+          1. Install the stock game from the v0.37 release of shadowofze/OfflineDAoC if you don't have it.
+          2. Download the zip below, extract it anywhere, close the game and stop the server.
+          3. Double-click `INSTALL FORK UPDATE.cmd` and point it at your `playable-v0.37` folder.
+          4. Start the game. `/fish pole` to fish, `/run new` on a fresh level-1 character for Expedition mode.
+
+          Already have an earlier fork update? The launcher shows **GET UPDATE** instead of START SERVER; click it and it installs this one and restarts.
+
+          `RESTORE STOCK SERVER.cmd` puts the original server back. Your saves are never changed.
+          '@
+          $body = @("## What's new") + $items + @("", "## How to install", $install)
+          Set-Content -Path release-notes.md -Value ($body -join "`n") -Encoding utf8
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NAME }}
           name: ${{ env.NAME }}
           files: ${{ env.ZIP }}
-          body: |
-            Fork update for Offline DAoC 0.37: fishing and Expedition mode.
+          body_path: release-notes.md
 
-            1. Install the stock game from the v0.37 release of shadowofze/OfflineDAoC if you don't have it.
-            2. Download the zip below, extract it anywhere, close the game and stop the server.
-            3. Double-click `INSTALL FORK UPDATE.cmd` and point it at your `playable-v0.37` folder.
-            4. Start the game. `/fish pole` to fish, `/run new` on a fresh level-1 character for Expedition mode.
-
-            Already have an earlier fork update? The launcher shows **GET UPDATE** instead of START SERVER; click it and it installs this one and restarts.
-
-            `RESTORE STOCK SERVER.cmd` puts the original server back. Your saves are never changed.

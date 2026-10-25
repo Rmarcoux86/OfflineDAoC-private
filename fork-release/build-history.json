@@ -1,0 +1,395 @@
+[
+  {
+    "tag": "fork-v52",
+    "date": "2026-10-25",
+    "items": [
+      "Freshly spawned or respawned monsters wait 3 seconds before they can aggro on their own."
+    ]
+  },
+  {
+    "tag": "fork-v51",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: unique weapons glow, unique chest and helm use the class's epic model; old uniques updated at login."
+    ]
+  },
+  {
+    "tag": "fork-v50",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: a Supplier at each camp sells the realm's poisons, arrows, bolts and throwing weapons.",
+      "Poison vials are not used up when applied."
+    ]
+  },
+  {
+    "tag": "fork-v49",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: drops require the finder's level so their procs fire; older items fixed at login."
+    ]
+  },
+  {
+    "tag": "fork-v48",
+    "date": "2026-10-25",
+    "items": [
+      "Resting out of combat ramps regeneration up to 10% of the maximum a tick."
+    ]
+  },
+  {
+    "tag": "fork-v47",
+    "date": "2026-10-25",
+    "items": [
+      "Reavers get Weaponry: Flexible from level 1 so the client allows whips."
+    ]
+  },
+  {
+    "tag": "fork-v46",
+    "date": "2026-10-25",
+    "items": [
+      "Reavers can equip flexible weapons from level 1.",
+      "Expedition: drops and weapon uniques are re-rolled until usable at the player's current level."
+    ]
+  },
+  {
+    "tag": "fork-v45",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: /run shrines gives each shrine's direction and distance from you."
+    ]
+  },
+  {
+    "tag": "fork-v44",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: Gripklosa and Lyonesse act 4 only; an unbegun act in a removed zone is planned again at login."
+    ]
+  },
+  {
+    "tag": "fork-v43",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: safe camp arrival, no dungeons before act 5, /recover restores deleted characters and their runs."
+    ]
+  },
+  {
+    "tag": "fork-v42",
+    "date": "2026-10-25",
+    "items": [
+      "Players never use up arrows, bolts or throwing weapons."
+    ]
+  },
+  {
+    "tag": "fork-v41",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition: Rare drops have a 97% quality floor.",
+      "Expedition: Three Point Oh's Ring is +3 all attributes and +3 all resists; old rings update at login."
+    ]
+  },
+  {
+    "tag": "fork-v40",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition zones: Darkness Falls stays out of other acts' fallback.",
+      "Expedition: act 5 is Darkness Falls for every realm, and only act 5.",
+      "Expedition: no zone twice in a run; Darkness Falls is the last act.",
+      "Expedition: no Shrouded Isles zones in Hibernian runs."
+    ]
+  },
+  {
+    "tag": "fork-v39",
+    "date": "2026-10-25",
+    "items": [
+      "Expedition journal: headed sections, one /loc per line.",
+      "Restore the Heretic block left open by fork-v38.",
+      "Revert \"Fork: allow the Heretic (allow_heretic)\"."
+    ]
+  },
+  {
+    "tag": "fork-v38",
+    "date": "2026-10-25",
+    "items": [
+      "Fork: allow the Heretic (allow_heretic)."
+    ]
+  },
+  {
+    "tag": "fork-v37",
+    "date": "2026-10-25",
+    "items": [
+      "Players swim at Greater Nereid potion speed by default."
+    ]
+  },
+  {
+    "tag": "fork-v36",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: recall stone to camp with no cooldown, Hastener at camp."
+    ]
+  },
+  {
+    "tag": "fork-v35",
+    "date": "2026-10-24",
+    "items": [
+      "Three Point Oh's Ring: +5 to each attribute.",
+      "Shrines: announce a discovery on screen.",
+      "Docs: store the class boss designs for later."
+    ]
+  },
+  {
+    "tag": "fork-v34",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: Three Point Oh always drops Three Point Oh's Ring."
+    ]
+  },
+  {
+    "tag": "fork-v33",
+    "date": "2026-10-24",
+    "items": [
+      "Revert \"Elites: a lone elite is lighter than a pack member\".",
+      "Expedition: act 1 boss is Three Point Oh.",
+      "Elites: a lone elite is lighter than a pack member."
+    ]
+  },
+  {
+    "tag": "fork-v32",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: unique weapon exchange (the Reforger)."
+    ]
+  },
+  {
+    "tag": "fork-v31",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: acts in progress pick up new act rules at login."
+    ]
+  },
+  {
+    "tag": "fork-v30",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: remove the run sky (ExpeditionWeather)."
+    ]
+  },
+  {
+    "tag": "fork-v29",
+    "date": "2026-10-24",
+    "items": [
+      "Lesser buffs: icons, spent shrine names, no retry loop for Vampiirs."
+    ]
+  },
+  {
+    "tag": "fork-v28",
+    "date": "2026-10-24",
+    "items": [
+      "Lesser buffs: cast through the potion line so they keep full strength.",
+      "Expedition: wild shrines and buff boons."
+    ]
+  },
+  {
+    "tag": "fork-v27",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: more objectives in later acts, objective XP, named final bosses."
+    ]
+  },
+  {
+    "tag": "fork-v26",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: experience bonus follows the XP table by player level.",
+      "Expedition: experience bonus scales with the act."
+    ]
+  },
+  {
+    "tag": "fork-v25",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: 2 boon rerolls per run (/run reroll).",
+      "Boons: no caster-only boons for pure melee classes.",
+      "Expedition: Glory boon, +50% realm points for the rest of the run."
+    ]
+  },
+  {
+    "tag": "fork-v24",
+    "date": "2026-10-24",
+    "items": [
+      "Boons: Vampiric rolls on DoT spell ticks, not on style bleeds."
+    ]
+  },
+  {
+    "tag": "fork-v23",
+    "date": "2026-10-24",
+    "items": [
+      "Boons: Vampiric, Siphon and Chain Lightning ignore damage-over-time ticks."
+    ]
+  },
+  {
+    "tag": "fork-v22",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: twelve new boons."
+    ]
+  },
+  {
+    "tag": "fork-v21",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: /loc for the act camp, the boss and elite packs."
+    ]
+  },
+  {
+    "tag": "fork-v20",
+    "date": "2026-10-24",
+    "items": [
+      "Respec anywhere, as often as you like."
+    ]
+  },
+  {
+    "tag": "fork-v19",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: count kills by damage-over-time ticks."
+    ]
+  },
+  {
+    "tag": "fork-v18",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: realm points are kept on the account instead of Legacy perks."
+    ]
+  },
+  {
+    "tag": "fork-v17",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: give runs from before realm points their realm points at login."
+    ]
+  },
+  {
+    "tag": "fork-v16",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: realm points on runs and an account Legacy that survives death."
+    ]
+  },
+  {
+    "tag": "fork-v15",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: four new boons - Thornmail, Vampiric, Rejuvenation, Arcane Fury."
+    ]
+  },
+  {
+    "tag": "fork-v14",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: objective kills count anywhere in the objective's zone."
+    ]
+  },
+  {
+    "tag": "fork-v13",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: show objective /loc and explain kills in the wrong camp."
+    ]
+  },
+  {
+    "tag": "fork-v12",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: 5x experience during a run."
+    ]
+  },
+  {
+    "tag": "fork-v11",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: no stock gear drops during a run, so all equipment has a rarity."
+    ]
+  },
+  {
+    "tag": "fork-v10",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: no windows, dialogs or weather while the client loads a region."
+    ]
+  },
+  {
+    "tag": "fork-v9",
+    "date": "2026-10-24",
+    "items": [
+      "Launcher: check for a fork update when the server is stopped."
+    ]
+  },
+  {
+    "tag": "fork-v8",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition: promote to the chosen class at once, from level 1."
+    ]
+  },
+  {
+    "tag": "fork-v7",
+    "date": "2026-10-24",
+    "items": [
+      "Expedition loot: bonuses sized to the item's level."
+    ]
+  },
+  {
+    "tag": "fork-v6",
+    "date": "2026-10-23",
+    "items": [
+      "Expedition: automatic class promotion and a gloomy sky on runs.",
+      "Expedition: boons, elite packs, fixed uniques, [Common] prefix, /junk.",
+      "Expedition loot: Magic and better items always carry bonus lines.",
+      "Expedition: scaffolding for boons and elite packs."
+    ]
+  },
+  {
+    "tag": "fork-v5",
+    "date": "2026-10-23",
+    "items": [
+      "Expedition: all three realms, acts built from the world's own monsters."
+    ]
+  },
+  {
+    "tag": "fork-v4",
+    "date": "2026-10-23",
+    "items": [
+      "Expedition loot: grey is con colour only, higher drop rates."
+    ]
+  },
+  {
+    "tag": "fork-v3",
+    "date": "2026-10-23",
+    "items": [
+      "Expedition: /run debug traces every kill and loot roll."
+    ]
+  },
+  {
+    "tag": "fork-v2",
+    "date": "2026-10-23",
+    "items": [
+      "Launcher update check: use the display clock instead of a fourth timer.",
+      "Launcher self-update: GET UPDATE replaces START SERVER when a new fork release is out."
+    ]
+  },
+  {
+    "tag": "fork-v1",
+    "date": "2026-10-23",
+    "items": [
+      "Fishing spots: guard the duplicate-name warning so Merge works without logging set up.",
+      "Fork release workflow: explicit test filter, report failed tests as annotations.",
+      "Player-facing fork releases: installer scripts, release workflow, README for players.",
+      "README: step-by-step install, build and deploy guide for this fork, plus how to play Expedition mode and fishing.",
+      "Expedition loot: tiered drops on every kill, uniques, richer boss drops.",
+      "Expedition mode, phases 1-2: seeded roguelite runs, acts, objectives, act bosses.",
+      "Fishing: sit, bobber and effects, fishing spots, no aggro with the pole.",
+      "Fishing: prefix template ids with offline_ so stock items can't shadow them.",
+      "Add fishing: /fish to relax and fish at any shoreline.",
+      "New client: target buttons, server target changes, abilities on the quickbar."
+    ]
+  }
+]
