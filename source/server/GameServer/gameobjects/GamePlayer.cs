@@ -7432,8 +7432,7 @@ namespace DOL.GS
                 toItem.PoisonMaxCharges = poisonPotion.Template.PoisonMaxCharges;
                 toItem.PoisonSpellID = poisonPotion.Template.PoisonSpellID;
             }
-            Inventory.RemoveCountFromStack(poisonPotion, 1);
-            InventoryLogging.LogInventoryAction(this, "(poison)", eInventoryActionType.Other, poisonPotion.Template);
+            // Fork (owner 2026-10-25): the vial is never used up; the weapon's charges still run out and need a new application.
             Out.SendMessage(string.Format("You apply {0} to {1}.", poisonPotion.GetName(0, false), toItem.GetName(0, false)), eChatType.CT_System, eChatLoc.CL_SystemWindow);
             return true;
         }
