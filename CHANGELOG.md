@@ -37,6 +37,9 @@ The newest version is first. For the full detail of every earlier update, see
 - Uniques carry Trials of Atlantis percentage bonuses on top of their own: 3% (early), 5% (mid) or 7% (late) melee
   damage, style damage or melee speed for melee classes, spell damage or casting speed for list casters, by slot.
   Uniques you already own get them at your next login.
+- Uniques level with you: each level up raises every unique you carry to your level (item level, weapon DPS or
+  armor AF, proc strength) until its tier's cap: early uniques stop at 20, mid at 40, late at 50. The description says
+  where it stops, and a chat line tells you when it grows. Uniques you already own catch up at your next login.
 - `/junk epic` clears Epic drops (and lower) from your backpack. Uniques are never junked.
 - Boons removed: Hunter's Eye, Chain Lightning, Rupture, Unshakable, Second Wind and Warded Hide. A run that had one
   taken loses it and gets a new boon choice.

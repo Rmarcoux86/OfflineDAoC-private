@@ -245,6 +245,18 @@ public class UT_ExpeditionUniques
     }
 
     [Test]
+    public void Description_SaysTheLevelItGrowsTo()
+    {
+        foreach (UniqueDefinition definition in ExpeditionUniques.Catalog)
+        {
+            string description = ExpeditionUniques.DescriptionFor(definition);
+
+            Assert.That(description, Does.Contain($"up to level {ExpeditionUniques.TierCapLevel(definition.Tier)}"), definition.Name);
+            Assert.That(description, Does.EndWith(" | Atlas ROG | Expedition Unique"), definition.Name);
+        }
+    }
+
+    [Test]
     public void ThreePointOhRing_HasEveryResistOnce()
     {
         Assert.That(ExpeditionUniques.ThreePointOhRingResists.Length, Is.EqualTo(9));

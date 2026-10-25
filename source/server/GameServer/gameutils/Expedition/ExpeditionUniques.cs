@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using DOL.Database;
+using DOL.Events;
 using DOL.GS.PacketHandler;
 using DOL.Logging;
 
@@ -791,6 +792,128 @@ public static class ExpeditionUniques
         }
     }
 
+    /// <summary>
+    /// The unique's description: its lore, then how far it grows (owner 2026-10-25: "make it clear what level it caps
+    /// out at"), then the Atlas ROG and rarity markers that salvage and /junk read.
+    /// </summary>
+    public static string DescriptionFor(UniqueDefinition definition)
+    {
+        return $"{definition.Lore} Grows with you up to level {TierCapLevel(definition.Tier)}. | Atlas ROG | Expedition {eLootRarity.Unique}";
+    }
+
+    [GameServerStartedEvent]
+    public static void OnServerStarted(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.AddHandler(GamePlayerEvent.LevelUp, new DOLEventHandler(OnLevelUp));
+    }
+
+    [GameServerStoppedEvent]
+    public static void OnServerStopped(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.RemoveHandler(GamePlayerEvent.LevelUp, new DOLEventHandler(OnLevelUp));
+    }
+
+    private static void OnLevelUp(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is GamePlayer player)
+        {
+            LevelUniques(player);
+        }
+    }
+
+    /// <summary>
+    /// Uniques level with their owner (owner 2026-10-25): each unique the player carries rises to the player's level,
+    /// up to its tier's cap (early 20, mid 40, late 50): item level, weapon DPS or armor AF (the generator's formulas,
+    /// GeneratedUniqueItem), proc strength and required level. Called on level-up and at login.
+    /// </summary>
+    public static void LevelUniques(GamePlayer player)
+    {
+        if (player?.Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
+        {
+            UniqueDefinition definition = item == null ? null : FindByName(item.Name);
+
+            if (definition == null)
+            {
+                continue;
+            }
+
+            int cap = TierCapLevel(definition.Tier);
+            int wanted = Math.Clamp((int) player.Level, TierMinLevel(definition.Tier), cap);
+            bool describe = item.Description != DescriptionFor(definition);
+
+            if (item.Level >= wanted && !describe)
+            {
+                continue;
+            }
+
+            bool grows = item.Level < wanted;
+            bool worn = item.SlotPosition >= (int) eInventorySlot.MinEquipable && item.SlotPosition <= (int) eInventorySlot.MaxEquipable;
+            eInventorySlot slot = (eInventorySlot) item.SlotPosition;
+
+            if (grows && worn)
+            {
+                player.OnItemUnequipped(item, slot);
+            }
+
+            DbItemTemplate template = item.Template;
+            template.Description = DescriptionFor(definition);
+
+            if (grows)
+            {
+                eObjectType type = (eObjectType) template.Object_Type;
+                template.Level = wanted;
+
+                if (type >= eObjectType._FirstArmor && type <= eObjectType._LastArmor)
+                {
+                    template.DPS_AF = type == eObjectType.Cloth ? wanted : wanted * 2;
+                }
+                else if ((type >= eObjectType._FirstWeapon && type <= eObjectType._LastWeapon) || type == eObjectType.Shield)
+                {
+                    template.DPS_AF = (int) ((wanted * 0.3 + 1.2) * 10);
+                }
+
+                if (template.ProcSpellID != 0 && definition.Proc != eUniqueProc.None)
+                {
+                    template.ProcSpellID = ProcSpellFor(definition.Proc, wanted);
+                }
+
+                template.LevelRequirement = Math.Max(1, Math.Min(wanted, (int) player.Level));
+            }
+
+            if (grows && worn)
+            {
+                player.OnItemEquipped(item, slot);
+            }
+
+            try
+            {
+                GameInventoryObjectExtensions.SaveItem(item);
+
+                if (template is DbItemUnique unique)
+                {
+                    GameServer.Database.SaveObject(unique);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error($"[EXPEDITION] Could not save the level of {item.Name} for {player.Name}.", ex);
+            }
+
+            player.Out.SendInventoryItemsUpdate(new[] { item });
+
+            if (grows)
+            {
+                string note = wanted >= cap ? $" It has reached its full strength (level {cap})." : $" It keeps growing with you up to level {cap}.";
+                player.Out.SendMessage($"Your {item.Name} grows to level {wanted}.{note}", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+        }
+    }
+
     public static UniqueDefinition FindByName(string name)
     {
         return Catalog.FirstOrDefault(definition => string.Equals(definition.Name, name, StringComparison.Ordinal));
@@ -941,7 +1064,7 @@ public static class ExpeditionUniques
         }
 
         // Salvage caps "Atlas ROG" items (Salvage.cs:708); the suffix marks the rarity for /junk (ExpeditionLoot.TryGetRarity).
-        item.Description = $"{definition.Lore} | Atlas ROG | Expedition {eLootRarity.Unique}";
+        item.Description = DescriptionFor(definition);
         item.Quality = 100;
         item.Condition = item.MaxCondition;
         item.Durability = item.MaxDurability;

@@ -83,6 +83,7 @@ public static class ExpeditionManager
         ExpeditionUniques.UpdateOldThreePointOhRings(player);
         ExpeditionLoot.FixOldLevelRequirements(player);
         ExpeditionUniques.UpdateOldUniqueLooks(player);
+        ExpeditionUniques.LevelUniques(player);
 
         OfflineExpeditionRecord record;
 
