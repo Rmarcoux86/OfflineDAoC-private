@@ -23,7 +23,15 @@ namespace DOL.GS.PropertyCalc
             int itemBonus = living.ItemBonus[property];
             int buffBonus = living.BaseBuffBonusCategory[property] + living.SpecBuffBonusCategory[property];
             int debuffMalus = Math.Abs(living.DebuffCategory[property]);
-            return abilityBonus + buffBonus + itemBonus - debuffMalus; // Uncapped since the client applies its own cap anyway.
+            int value = abilityBonus + buffBonus + itemBonus - debuffMalus; // Uncapped since the client applies its own cap anyway.
+
+            // Offline fork: players swim at least as fast as a Greater Nereid potion makes them (DefaultSwimSpeed).
+            if (living is GamePlayer)
+            {
+                value = Math.Max(value, DefaultSwimSpeed.Value);
+            }
+
+            return value;
         }
     }
 }
