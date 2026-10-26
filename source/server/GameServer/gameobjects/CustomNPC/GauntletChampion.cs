@@ -155,6 +155,7 @@ public sealed class GauntletChampion : GameBot
         }
 
         // Gear is picked by realm in the base constructor; only now does the champion leave its realm.
+        _homeRealm = Realm;
         Realm = eRealm.None;
 
         // Escalation (GauntletEscalation), as far as the prototype applies it: the realm rank, and the open-ended stat
@@ -177,6 +178,7 @@ public sealed class GauntletChampion : GameBot
         }
 
         ApplyLooks();
+        RollEpicGear();
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
@@ -269,27 +271,54 @@ public sealed class GauntletChampion : GameBot
         return GlobalConstants.REALM_RANK_NAMES[realm - 1, gender, rank - 1];
     }
 
+    /// <summary>The champion's class's own realm (its gear is that realm's); its Realm is None so it can fight anyone.</summary>
+    private readonly eRealm _homeRealm;
+
     /// <summary>
-    /// A full template without Trials of Atlantis bonuses (owner 2026-10-25): every stat at the level-50 item cap,
-    /// hit points and resists capped, +11 to all skills, on top of the generated gear (capped, so they don't add up past
-    /// the caps), and every ToA percentage bonus the gear might carry taken off.
+    /// Epic gear (owner 2026-10-26: "maybe they're just in epic gear", so players who reach the Gauntlet with drop gear
+    /// can stand up to them): every armor and jewelry piece is rolled again as an Expedition Epic of its type and slot for
+    /// the champion's class and realm, keeping the piece's look. Weapons and shields stay the class's own.
     /// </summary>
+    private void RollEpicGear()
+    {
+        if (Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in Inventory.EquippedItems.ToList())
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            eInventorySlot slot = (eInventorySlot) item.SlotPosition;
+
+            if (slot is eInventorySlot.RightHandWeapon or eInventorySlot.LeftHandWeapon or eInventorySlot.TwoHandWeapon or eInventorySlot.DistanceWeapon)
+            {
+                continue;
+            }
+
+            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, SpawnLevel, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, eLootRarity.Epic);
+
+            if (rolled == null)
+            {
+                continue;
+            }
+
+            rolled.Model = item.Model;
+            rolled.Color = item.Color;
+            rolled.Effect = item.Effect;
+            rolled.Extension = item.Extension;
+            item.Template = rolled;
+        }
+    }
+
+    /// <summary>The gear's bonuses without any Trials of Atlantis percentage bonus (owner 2026-10-25: no ToA).</summary>
     public override void RefreshItemBonuses()
     {
         base.RefreshItemBonuses();
-
-        for (eProperty stat = eProperty.Stat_First; stat <= eProperty.Stat_Last; stat++)
-        {
-            ItemBonus[stat] = Math.Max(ItemBonus[stat], ExpeditionUniques.LineCap(stat, SpawnLevel));
-        }
-
-        for (eProperty resist = eProperty.Resist_First; resist <= eProperty.Resist_Last; resist++)
-        {
-            ItemBonus[resist] = Math.Max(ItemBonus[resist], ExpeditionUniques.LineCap(resist, SpawnLevel));
-        }
-
-        ItemBonus[eProperty.MaxHealth] = Math.Max(ItemBonus[eProperty.MaxHealth], ExpeditionUniques.LineCap(eProperty.MaxHealth, SpawnLevel));
-        ItemBonus[eProperty.AllSkills] = Math.Max(ItemBonus[eProperty.AllSkills], ExpeditionUniques.LineCap(eProperty.AllSkills, SpawnLevel));
 
         foreach (eProperty toa in new[] { eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed, eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration })
         {

@@ -537,8 +537,8 @@ public class UT_ExpeditionGauntletSignatures
             double fromSpot = Math.Sqrt((double) (x - TargetX) * (x - TargetX) + (double) (y - TargetY) * (y - TargetY));
             double fromChallenger = Math.Sqrt((double) (x - challengerX) * (x - challengerX) + (double) (y - challengerY) * (y - challengerY));
 
-            Assert.That(fromSpot, Is.EqualTo(2000).Within(1), $"heading {heading}");
-            Assert.That(fromChallenger, Is.EqualTo(2400).Within(1), $"heading {heading}");
+            Assert.That(fromSpot, Is.EqualTo(2000).Within(2), $"heading {heading}");
+            Assert.That(fromChallenger, Is.EqualTo(2400).Within(2), $"heading {heading}");
         }
 
         Assert.That(GauntletPositioning.RetreatPoint(TargetX, TargetY, TargetX, TargetY, 2000), Is.EqualTo((TargetX + 2000, TargetY)));

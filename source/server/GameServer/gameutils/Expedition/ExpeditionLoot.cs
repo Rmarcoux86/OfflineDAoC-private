@@ -744,6 +744,46 @@ public static class ExpeditionLoot
     }
 
     /// <summary>
+    /// An item of this rarity for a class that isn't a player (owner 2026-10-26: the Gauntlet champions wear Epic gear like
+    /// what players find): the same generator, rarity floors, bonus lines and level budget as <see cref="Generate"/>, for a
+    /// given object type and slot, without the player's own checks, the rarity name or the description. ToA bonuses are
+    /// left to the caller. Null when the generator gives nothing.
+    /// </summary>
+    public static GeneratedUniqueItem RollFor(eRealm realm, eCharacterClass characterClass, byte level, eObjectType type, eInventorySlot slot, eLootRarity rarity)
+    {
+        LootProfile profile = ProfileFor(rarity);
+        int wantedLines = BonusLinesFor(rarity);
+        GeneratedUniqueItem item = new(realm, characterClass, level, type, slot, profile.MinUtility);
+
+        for (int attempt = 0; attempt < 20 && CountBonusLines(item) < wantedLines; attempt++)
+        {
+            item = new GeneratedUniqueItem(realm, characterClass, level, type, slot, profile.MinUtility);
+        }
+
+        while (CountBonusLines(item) < wantedLines)
+        {
+            if (!AddStatLine(item))
+            {
+                break;
+            }
+        }
+
+        if (item.Quality < profile.MinQuality)
+        {
+            item.Quality = profile.MinQuality;
+        }
+
+        if (profile.ExtraBonus)
+        {
+            AddExtraBonus(item);
+        }
+
+        FitToLevel(item, item.Level, rarity);
+
+        return item;
+    }
+
+    /// <summary>
     /// The ROG item for Common to Epic, built as AtlasROGManager.GenerateROG does (AtlasROGManager.cs:25): a
     /// GeneratedUniqueItem for the player's realm and class, AllowAdd so its ItemUnique row is added with the
     /// inventory item (the DbInventoryItem.IUWrapper relation), then raised to the rarity's quality, bonus and name.
