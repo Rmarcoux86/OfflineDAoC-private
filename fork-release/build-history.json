@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v68",
+    "date": "2026-10-25",
+    "items": [
+      "Maintenance build."
+    ]
+  },
+  {
     "tag": "fork-v67",
     "date": "2026-10-25",
     "items": [
