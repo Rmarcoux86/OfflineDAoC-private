@@ -532,7 +532,7 @@ public static class GauntletManager
         {
             if (GetState(player) == state && player.IsAlive && player.ObjectState == GameObject.eObjectState.Active)
             {
-                TryLeave(player, out _);
+                TryLeave(player, out string _);
             }
 
             return 0;
