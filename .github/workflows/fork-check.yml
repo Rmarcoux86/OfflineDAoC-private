@@ -1,0 +1,66 @@
+# Compile and test check for work in progress: runs on a push to a check/* branch. Builds the server and the launcher
+# and runs the fork's tests, like the release workflow, but publishes nothing.
+name: Fork check
+
+on:
+  push:
+    branches: ["check/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Prepare server config
+        shell: pwsh
+        run: Copy-Item source/server/CoreServer/config/serverconfig.example.xml source/server/CoreServer/config/serverconfig.xml
+
+      - name: Build server
+        shell: pwsh
+        run: dotnet build "source/server/Dawn of Light.sln" -c Release
+
+      - name: Run the fork's tests
+        shell: pwsh
+        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
+
+      - name: Build launcher
+        shell: pwsh
+        run: dotnet build source/tools/OfflineDaoc.Launcher/OfflineDaoc.Launcher.csproj -c Release
+
+      - name: Report failed tests
+        if: always()
+        shell: pwsh
+        run: |
+          $trxFiles = @(Get-ChildItem test-results -Filter *.trx -Recurse -ErrorAction SilentlyContinue)
+          if ($trxFiles.Count -eq 0)
+          {
+              Write-Output "::error title=No test results::dotnet test produced no TRX file (build or discovery failed before running tests)."
+              exit 0
+          }
+
+          $ns = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
+          foreach ($trx in $trxFiles)
+          {
+              [xml]$doc = Get-Content $trx.FullName
+              $counters = Select-Xml -Xml $doc -XPath '//t:Counters' -Namespace $ns | Select-Object -First 1
+              Write-Output "::notice title=Test totals ($($trx.BaseName))::total=$($counters.Node.total) passed=$($counters.Node.passed) failed=$($counters.Node.failed)"
+
+              foreach ($r in (Select-Xml -Xml $doc -XPath "//t:UnitTestResult[@outcome='Failed']" -Namespace $ns))
+              {
+                  $msg = ($r.Node.Output.ErrorInfo.Message -replace "`r?`n", ' | ')
+                  if ($msg.Length -gt 900)
+                  {
+                      $msg = $msg.Substring(0, 900)
+                  }
+
+                  Write-Output "::error title=$($r.Node.testName)::$msg"
+              }
+          }
