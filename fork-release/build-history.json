@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v61",
+    "date": "2026-10-25",
+    "items": [
+      "Valewalker and Vampiir uniques mix melee and caster ToA bonuses (melee damage, spell damage, melee speed, casting speed...) instead of caster ones only. Uniques you already own update at your next login."
+    ]
+  },
+  {
     "tag": "fork-v60",
     "date": "2026-10-25",
     "items": [

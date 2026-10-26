@@ -527,17 +527,22 @@ public static class ExpeditionUniques
         };
     }
 
-    /// <summary>The ToA bonuses a unique can carry: melee classes, list casters.</summary>
+    /// <summary>The ToA bonuses a unique can carry: melee classes, list casters, and casters who fight in melee.</summary>
     private static readonly eProperty[] MeleeToa = [eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed];
     private static readonly eProperty[] CasterToa = [eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration];
+
+    /// <summary>
+    /// Valewalkers and Vampiirs cast and fight in melee (owner 2026-10-25: a Valewalker's uniques only gave cast speed
+    /// and spell damage): melee and caster bonuses take turns, so a unique with two or more has one of each.
+    /// </summary>
+    private static readonly eProperty[] MixedToa = [eProperty.MeleeDamage, eProperty.SpellDamage, eProperty.MeleeSpeed, eProperty.CastingSpeed, eProperty.StyleDamage, eProperty.SpellDuration];
 
     /// <summary>
     /// The ToA properties this unique carries (owner 2026-10-25: not the same one on every unique, and more on higher
     /// tiers). Each unique starts at its own place in the three by its place in the catalog.
     /// </summary>
-    public static eProperty[] ToaPropertiesFor(UniqueDefinition definition, bool caster)
+    public static eProperty[] ToaPropertiesFor(UniqueDefinition definition, eProperty[] pool)
     {
-        eProperty[] pool = caster ? CasterToa : MeleeToa;
         int index = 0;
 
         for (int i = 0; i < Catalog.Count; i++)
@@ -563,30 +568,43 @@ public static class ExpeditionUniques
             count++;
         }
 
-        count = Math.Min(count, pool.Length);
+        count = Math.Min(count, Math.Min(pool.Length, 3));
         eProperty[] properties = new eProperty[count];
+
+        // A mixed pool starts on a melee bonus as often as on a caster one, then alternates.
+        int start = pool == MixedToa ? index % 2 : index;
 
         for (int i = 0; i < count; i++)
         {
-            properties[i] = pool[(index + i) % pool.Length];
+            properties[i] = pool[(start + i) % pool.Length];
         }
 
         return properties;
     }
 
-    /// <summary>A list caster (wizards, druids, healers...) gets the caster bonuses; every other class the melee ones.</summary>
-    public static bool IsCaster(GamePlayer player)
+    /// <summary>
+    /// The ToA bonuses for the finder's class: Valewalkers and Vampiirs both kinds, other list casters (wizards,
+    /// animists, bainshees...) the caster ones, every other class the melee ones.
+    /// </summary>
+    public static eProperty[] ToaPoolFor(GamePlayer player)
     {
-        return player?.CharacterClass?.ClassType == eClassType.ListCaster;
+        int classId = player?.CharacterClass?.ID ?? 0;
+
+        if (classId is (int) eCharacterClass.Valewalker or (int) eCharacterClass.Vampiir)
+        {
+            return MixedToa;
+        }
+
+        return player?.CharacterClass?.ClassType == eClassType.ListCaster ? CasterToa : MeleeToa;
     }
 
     /// <summary>
     /// Writes the unique's ToA lines after its own lines. Returns true when a line changed (the caller re-applies a worn
     /// item's bonuses and saves).
     /// </summary>
-    public static bool ApplyToaLines(DbItemTemplate item, UniqueDefinition definition, bool caster)
+    public static bool ApplyToaLines(DbItemTemplate item, UniqueDefinition definition, eProperty[] pool)
     {
-        eProperty[] properties = ToaPropertiesFor(definition, caster);
+        eProperty[] properties = ToaPropertiesFor(definition, pool);
         int value = ToaPercentFor(definition.Tier);
         bool changed = false;
 
@@ -659,7 +677,7 @@ public static class ExpeditionUniques
             // The ToA lines change the item's bonuses: a worn item is taken off and put back on around the change.
             DbItemTemplate preview = new();
             CopyBonusLines(item.Template, preview);
-            bool bonusChanged = ApplyToaLines(preview, definition, IsCaster(player));
+            bool bonusChanged = ApplyToaLines(preview, definition, ToaPoolFor(player));
 
             // The catalog's own lines too (owner 2026-10-25: mid-tier uniques halved).
             for (int i = 0; i < definition.Lines.Length && i < 8; i++)
@@ -689,7 +707,7 @@ public static class ExpeditionUniques
                     ExpeditionLoot.SetBonus(item.Template, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
                 }
 
-                ApplyToaLines(item.Template, definition, IsCaster(player));
+                ApplyToaLines(item.Template, definition, ToaPoolFor(player));
             }
 
             if (lookModel > 0)
@@ -1093,7 +1111,7 @@ public static class ExpeditionUniques
             ExpeditionLoot.SetBonus(item, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
         }
 
-        ApplyToaLines(item, definition, IsCaster(player));
+        ApplyToaLines(item, definition, ToaPoolFor(player));
 
         if (definition.Proc != eUniqueProc.None)
         {
