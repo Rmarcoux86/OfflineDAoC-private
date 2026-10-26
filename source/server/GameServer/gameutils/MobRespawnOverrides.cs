@@ -11,8 +11,9 @@ public static class MobRespawnOverrides
 {
     private static readonly Dictionary<string, int> Seconds = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Darkness Falls (owner, 2026-10-26): 2 minutes in the database.
-        ["naburite drinker"] = 180
+        // Darkness Falls (owner, 2026-10-26): 100-120 seconds in the database. Cambions and soultorns are 180 already.
+        ["naburite drinker"] = 180,
+        ["essence shredder"] = 180
     };
 
     /// <summary>The respawn time in seconds for a monster with this name and database value.</summary>

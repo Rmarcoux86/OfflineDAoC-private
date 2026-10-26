@@ -6,8 +6,9 @@ namespace DOL.GS.Tests;
 public class UT_MobRespawnOverrides
 {
     [Test]
-    public void NaburiteDrinkersRespawnAfterThreeMinutes()
+    public void NaburiteDrinkersAndEssenceShreddersRespawnAfterThreeMinutes()
     {
+        Assert.That(MobRespawnOverrides.For("essence shredder", 100), Is.EqualTo(180));
         Assert.That(MobRespawnOverrides.For("naburite drinker", 120), Is.EqualTo(180));
         Assert.That(MobRespawnOverrides.For("Naburite Drinker", 120), Is.EqualTo(180));
     }
