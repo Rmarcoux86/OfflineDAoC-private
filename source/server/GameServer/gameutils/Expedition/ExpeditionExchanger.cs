@@ -102,15 +102,28 @@ public static class ExpeditionExchanger
     #region Placement
 
     /// <summary>
-    /// The exchanger's spot for the act: beside the zone town's busiest merchant, else beside the camp. Found once, in
-    /// the world, and saved in the plan. Returns the merchant whose look the exchanger copies (null at the camp).
+    /// The exchanger's spot for the act: beside the zone town's busiest merchant of the player's realm, else beside the
+    /// camp. Found once, in the world, and saved in the plan. Returns the merchant whose look the exchanger copies (null
+    /// at the camp). Darkness Falls always uses the camp (owner 2026-10-25: act 5 had no exchanger to be found; the
+    /// busiest merchants there are the realms' own halls deep in the dungeon).
     /// </summary>
-    private static GameMerchant Place(ActPlan plan)
+    private static GameMerchant Place(ActPlan plan, eRealm realm)
     {
         Region region = WorldMgr.GetRegion((ushort) plan.RegionId);
-        List<GameMerchant> merchants = region?.Merchants?
-            .Where(m => m != null && m.ObjectState == GameObject.eObjectState.Active && m.CurrentZone?.ID == plan.ZoneId)
-            .ToList() ?? new List<GameMerchant>();
+        bool campOnly = plan.ZoneId == ActGenerator.DarknessFallsZoneId;
+        List<GameMerchant> merchants = campOnly
+            ? new List<GameMerchant>()
+            : region?.Merchants?
+                .Where(m => m != null && m.ObjectState == GameObject.eObjectState.Active && m.CurrentZone?.ID == plan.ZoneId &&
+                    (m.Realm == realm || m.Realm == eRealm.None))
+                .ToList() ?? new List<GameMerchant>();
+
+        // A Darkness Falls act placed under the old rule (in a merchant hall) is placed again, beside the camp.
+        if (campOnly && plan.ExchangerPlaced && plan.ExchangerInTown)
+        {
+            plan.ExchangerPlaced = false;
+        }
+
         GameMerchant town = null;
         int best = -1;
 
@@ -164,8 +177,8 @@ public static class ExpeditionExchanger
             return;
         }
 
-        bool wasPlaced = plan.ExchangerPlaced;
-        GameMerchant look = Place(plan);
+        bool wasPlaced = plan.ExchangerPlaced && !(plan.ZoneId == ActGenerator.DarknessFallsZoneId && plan.ExchangerInTown);
+        GameMerchant look = Place(plan, player.Realm);
 
         if (!wasPlaced)
         {
