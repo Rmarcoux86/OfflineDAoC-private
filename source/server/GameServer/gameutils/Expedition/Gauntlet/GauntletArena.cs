@@ -11,7 +11,8 @@ public static class GauntletArena
     // so the world coordinates below are the readings plus 8192. The client's arrival pad (the "exit to Aerus" zone
     // jump at about 23680, 26795) is avoided: standing on it freezes the client on an invalid zone point.
     //   player spawn: Celestius loc=22902,22092,15733 dir=90
-    //   champion spawn: Celestius loc=23690,23337,15836 dir=357
+    //   champion spawn: Celestius loc=24595,22079,15733 dir=265 (owner 2026-10-25: "boss spawn here"; 23690,23337 was
+    //   the client's own entry spot, used by mistake at first)
     // The centre (leash and walk-in target) is halfway between them.
 
     /// <summary>Celestius, the ML arena floating in space.</summary>
@@ -27,10 +28,10 @@ public static class GauntletArena
     public const ushort PlayerHeading = 90 * 4096 / 360;
 
     /// <summary>Where the champion appears and walks in from (the owner's champion spawn).</summary>
-    public const int GateX = 23690 + 8192;
-    public const int GateY = 23337 + 8192;
-    public const int GateZ = 15836;
-    public const ushort GateHeading = 357 * 4096 / 360;
+    public const int GateX = 24595 + 8192;
+    public const int GateY = 22079 + 8192;
+    public const int GateZ = 15733;
+    public const ushort GateHeading = 265 * 4096 / 360;
 
     /// <summary>The middle of the fight: the champion walks here, and its leash is measured from here.</summary>
     public const int CentreX = (PlayerX + GateX) / 2;
