@@ -3,7 +3,8 @@ namespace DOL.GS.Expedition;
 /// <summary>
 /// The named act bosses dressed as the race and class the owner gave them (docs/EXPEDITION-CLASS-BOSSES.md), for looks
 /// only (owner 2026-10-25): a race body, the class's armor and weapon models. They stay ordinary monsters: no styles,
-/// spells, pets or second weapon swings, and an NPC's equipment carries no stats (its damage comes from its level).
+/// spells or pets, and an NPC's equipment carries no stats (its damage comes from its level). Preesh alone also swings
+/// his left-hand mace (dual wield, for the Gauntlet's Blademaster), which applies to the act-5 boss as well.
 /// </summary>
 public static class ExpeditionBossLooks
 {
@@ -61,8 +62,8 @@ public static class ExpeditionBossLooks
             }
             case "Preesh":
             {
-                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand (shown only;
-                // it swings like any monster).
+                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand (looks only:
+                // the act-5 boss does not swing the left mace; a Gauntlet champion dual wields through its own spec).
                 boss.Model = FirbolgMale;
                 template.AddNPCEquipment(eInventorySlot.TorsoArmor, 782);
                 template.AddNPCEquipment(eInventorySlot.LegsArmor, 783);

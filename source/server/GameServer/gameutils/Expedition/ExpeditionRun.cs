@@ -304,6 +304,23 @@ public class OfflineExpeditionRecord : DataObject
         }
     }
 
+    private string m_gauntletJson;
+
+    /// <summary>
+    /// The Gauntlet after a won run (Gauntlet.GauntletSave as JSON: round and depth); empty until the character first
+    /// enters it (TEXT column). Only GauntletManager writes it; ExpeditionManager.Save leaves it as loaded.
+    /// </summary>
+    [DataElement(AllowDbNull = true)]
+    public string GauntletJson
+    {
+        get { return m_gauntletJson; }
+        set
+        {
+            Dirty = true;
+            m_gauntletJson = value;
+        }
+    }
+
     /// <summary>The boons taken on this run, as a JSON string array of boon ids (TEXT column).</summary>
     [DataElement(AllowDbNull = true)]
     public string BoonsJson

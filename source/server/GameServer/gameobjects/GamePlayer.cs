@@ -290,7 +290,7 @@ namespace DOL.GS
         /// <summary>
         /// Whether or not the player can be attacked.
         /// </summary>
-        public override bool IsAttackable { get { return (Client.Account.PrivLevel <= (uint)ePrivLevel.Player && base.IsAttackable); }}
+        public override bool IsAttackable { get { return ((Client.Account.PrivLevel <= (uint)ePrivLevel.Player || DOL.GS.Expedition.Gauntlet.GauntletManager.GetState(this) != null) && base.IsAttackable); }}
 
         /// <summary>
         /// Can this player use cross realm items
@@ -1662,6 +1662,16 @@ namespace DOL.GS
 
                     break;
                 }
+            }
+
+            // A Gauntlet death releases at the arena entrance (GauntletManager).
+            if (DOL.GS.Expedition.Gauntlet.GauntletManager.TryGetReleasePoint(this, out ushort gauntletRegion, out int gauntletX, out int gauntletY, out int gauntletZ, out ushort gauntletHeading))
+            {
+                relRegion = gauntletRegion;
+                relX = gauntletX;
+                relY = gauntletY;
+                relZ = gauntletZ;
+                relHeading = gauntletHeading;
             }
 
             Out.SendMessage(LanguageMgr.GetTranslation(Client.Account.Language, "GamePlayer.Release.YouRelease"), eChatType.CT_YouDied, eChatLoc.CL_SystemWindow);
@@ -6062,7 +6072,8 @@ namespace DOL.GS
                         }
                     }
                 }
-                else
+                // A Gauntlet death costs nothing: no experience, DeathCount or constitution (GauntletManager).
+                else if (!DOL.GS.Expedition.Gauntlet.GauntletManager.IsGauntletDeath(this))
                 {
                     if (Level >= Properties.PVE_EXP_LOSS_LEVEL)
                     {
