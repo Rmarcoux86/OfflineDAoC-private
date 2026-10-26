@@ -253,6 +253,187 @@ public class UT_ExpeditionGauntletSignatures
         }
     }
 
+    // The timed run through (GauntletChampionBrain.RunThrough, owner 2026-10-25: "make sure in tests you can get that
+    // stun off"), modelled on the server's loop. Each loop tick (GAME_LOOP_TICK_RATE default 30, so 33.3 ms) runs, in
+    // order (GameLoop.BuildTickSequence): ClientService.BeginTick (player packets, so the challenger's heading),
+    // NpcService (the brain), AttackService (the swing, on the first tick within half a tick of its due time,
+    // GameServiceUtils.ShouldTick), MovementService (NpcMovementComponent: a walk ordered this tick starts here and
+    // moves speed * elapsed per tick). The challenger stands on /stick: each heading their client sends faces the
+    // champion where the server last moved her, sent every U ms at a random phase and applied at the next tick, with no
+    // network delay (the offline server is local; any delay only makes the heading staler). PlayerMovementMonitor's
+    // speed-hack window assumes about 210 ms between a moving client's position packets (ViolationValidityDuration "at
+    // least ViolationThreshold * ~210"); how often a standing client sends heading packets is not in the server code,
+    // so U is swept from 100 to 500 ms. She starts 60 to 120 units in front of the challenger, who faces her, at any
+    // heading; her swing is due 1 to 5 s later; she runs at up to sprint speed (191 * 1.3). A run counts when
+    // StyleProcessor's positional check (GauntletPositioning.Accepts) passes for a back style at the swing.
+    private static readonly int[] RunThroughIntervals = [100, 150, 200, 210, 250, 300, 500];
+
+    private const double LoopTickMs = 1000.0 / 30;
+
+    private static long LoopTick(int k) => (long) Math.Round(k * LoopTickMs);
+
+    /// <returns>Whether the back positional is accepted at the swing; null when the run never started.</returns>
+    private static bool? TimedRunThrough(int updateIntervalMs, int phaseMs, int startDistance, int challengerHeading, long swingDue)
+    {
+        double topSpeed = Math.Floor(GamePlayer.PLAYER_BASE_SPEED * 1.3);
+        double angle = challengerHeading * Point2D.HEADING_TO_RADIAN;
+        double x = TargetX - Math.Sin(angle) * startDistance;
+        double y = TargetY + Math.Cos(angle) * startDistance;
+        Dictionary<int, (int X, int Y)> moved = [];
+        bool started = false;
+        int startTick = 0;
+        double vx = 0;
+        double vy = 0;
+        int destX = 0;
+        int destY = 0;
+        ushort walkHeading = 0;
+        int fireTick = -1;
+
+        for (int k = 0; k < 1_000 && fireTick < 0; k++)
+        {
+            long t = LoopTick(k);
+
+            // NpcService: the brain plans on the position MovementService gave her last.
+            if (!started)
+            {
+                int cx = (int) Math.Round(x);
+                int cy = (int) Math.Round(y);
+                double distance = Math.Sqrt((double) (TargetX - cx) * (TargetX - cx) + (double) (TargetY - cy) * (TargetY - cy));
+                double speed = GauntletPositioning.RunThroughSpeed(t, swingDue, LoopTickMs, distance, topSpeed);
+
+                if (speed > 0)
+                {
+                    started = true;
+                    startTick = k;
+                    (destX, destY) = GauntletPositioning.PointBeyond(cx, cy, TargetX, TargetY, 20);
+                    walkHeading = GauntletPositioning.HeadingTo(cx, cy, destX, destY);
+                    double walk = Math.Min(topSpeed, Math.Ceiling(speed));
+                    double length = Math.Sqrt((destX - x) * (destX - x) + (destY - y) * (destY - y));
+                    vx = (destX - x) / length * walk;
+                    vy = (destY - y) / length * walk;
+                }
+            }
+
+            // AttackService.
+            if (swingDue - t - LoopTickMs / 2 <= 0)
+            {
+                fireTick = k;
+
+                break;
+            }
+
+            // MovementService: NpcMovementComponent.UpdatePosition, clamped to the destination per axis.
+            if (started && k > startTick)
+            {
+                double elapsed = (t - LoopTick(k - 1)) / 1000.0;
+                x = Math.Abs(destX - x) >= Math.Abs(vx * elapsed) ? x + vx * elapsed : destX;
+                y = Math.Abs(destY - y) >= Math.Abs(vy * elapsed) ? y + vy * elapsed : destY;
+            }
+
+            moved[k] = ((int) Math.Round(x), (int) Math.Round(y));
+        }
+
+        if (!started || fireTick < 1)
+        {
+            return null;
+        }
+
+        // The last heading the challenger's client sent before the swing's tick, facing where she was on the last tick
+        // that had finished when it was sent.
+        long fireTime = LoopTick(fireTick);
+        // None sent yet (sent < 0) leaves the facing she had at the start.
+        long sent = phaseMs + (long) Math.Floor((fireTime - phaseMs) / (double) updateIntervalMs) * updateIntervalMs;
+        int seenTick = fireTick - 1;
+
+        while (seenTick > 0 && LoopTick(seenTick) >= sent)
+        {
+            seenTick--;
+        }
+
+        (int seenX, int seenY) = moved[seenTick];
+        ushort challengerFacing = GauntletPositioning.HeadingTo(TargetX, TargetY, seenX, seenY);
+        (int swingX, int swingY) = moved[fireTick - 1];
+
+        return GauntletPositioning.Accepts(TargetArc.Back, swingX, swingY, walkHeading, TargetX, TargetY, challengerFacing);
+    }
+
+    private static (int Landed, int Runs, int NotStarted) TimedRunThroughs(int updateIntervalMs, int seed)
+    {
+        Random random = new(seed);
+        int landed = 0;
+        int runs = 0;
+        int notStarted = 0;
+
+        for (int trial = 0; trial < 2_000; trial++)
+        {
+            int[] distances = [60, 80, 100, 120];
+            bool? result = TimedRunThrough(updateIntervalMs, random.Next(updateIntervalMs), distances[random.Next(distances.Length)],
+                random.Next(4096), random.Next(1_000, 5_000));
+
+            if (result == null)
+            {
+                notStarted++;
+
+                continue;
+            }
+
+            runs++;
+
+            if (result.Value)
+            {
+                landed++;
+            }
+        }
+
+        return (landed, runs, notStarted);
+    }
+
+    [Test]
+    public void TimedRunThrough_LandsTheBackStyle_OnAStuckChallenger()
+    {
+        foreach (int interval in RunThroughIntervals)
+        {
+            (int landed, int runs, int notStarted) = TimedRunThroughs(interval, interval);
+            double rate = landed / (double) runs;
+            TestContext.Out.WriteLine($"heading every {interval} ms: back positional accepted at the swing in {rate:P1} of {runs} runs");
+
+            Assert.That(notStarted, Is.Zero, $"interval {interval}");
+
+            // A run fails only when a heading is sent in the last tick before the swing: about 33 ms of every U.
+            Assert.That(rate, Is.GreaterThanOrEqualTo(0.6), $"interval {interval}");
+            Assert.That(rate, Is.GreaterThanOrEqualTo(1 - 2 * LoopTickMs / interval), $"interval {interval}");
+        }
+    }
+
+    [Test]
+    public void TimedRunThrough_AlwaysLands_WhenNoHeadingArrivesDuringTheRun()
+    {
+        (int landed, int runs, int notStarted) = TimedRunThroughs(1_000_000, 7);
+
+        Assert.That(notStarted, Is.Zero);
+        Assert.That(landed, Is.EqualTo(runs));
+    }
+
+    [Test]
+    public void RunThroughSpeed_StartsLateAndFast_AndNeverTooFast()
+    {
+        Assert.Multiple(() =>
+        {
+            // Too early: a later tick still makes it at 75 % or more of the top speed.
+            Assert.That(GauntletPositioning.RunThroughSpeed(0, 3_000, LoopTickMs, 100, 248), Is.Zero);
+
+            // Too late: the swing fires before even the top speed gets her through.
+            Assert.That(GauntletPositioning.RunThroughSpeed(0, 200, LoopTickMs, 100, 248), Is.Zero);
+        });
+
+        for (long now = 0; now < 2_000; now += 33)
+        {
+            double speed = GauntletPositioning.RunThroughSpeed(now, 2_000, LoopTickMs, 100, 248);
+
+            Assert.That(speed, Is.EqualTo(0.0).Or.InRange(248 * GauntletPositioning.RunThroughMinSpeedShare, 248.0));
+        }
+    }
+
     [Test]
     public void StunnedChallenger_StaysBehindableOnceTheChampionArrives()
     {

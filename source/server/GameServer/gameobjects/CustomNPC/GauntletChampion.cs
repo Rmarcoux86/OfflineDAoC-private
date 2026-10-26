@@ -390,8 +390,23 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>The behind attempt starts only this close to the challenger.</summary>
     private const int BehindStartRange = 500;
 
-    /// <summary>How long one behind attempt may take before it is given up.</summary>
-    private const long BehindStepMs = 6_000;
+    /// <summary>How long one behind attempt may take before it is given up (a run through waits for a swing it can time).</summary>
+    private const long BehindStepMs = 8_000;
+
+    /// <summary>A challenger whose facing is within this many degrees of the champion gets the run through.</summary>
+    private const float RunThroughMaxAngle = 30;
+
+    /// <summary>The run through stops this far past the challenger (inside IsObjectInFront's 32 always-in-front units).</summary>
+    private const int RunThroughStopPast = 20;
+
+    /// <summary>
+    /// While a run through waits for its moment the brain thinks every loop tick: NpcService schedules the next think at
+    /// GameLoopTime + ThinkInterval and ShouldTick's half-tick tolerance makes 1 ms the next tick.
+    /// </summary>
+    private const int RunThroughThinkMs = 1;
+
+    /// <summary>Meanwhile the bot's own fight (BotBrain.AttackMostWanted) runs at its usual pace.</summary>
+    private const long PressureThinkMs = 500;
 
     /// <summary>The wait after a behind attempt before the next one (owner 2026-10-25: "e.g. every 20 s").</summary>
     private const long BehindRetryMs = 20_000;
@@ -432,6 +447,10 @@ public sealed class GauntletChampionBrain : BotBrain
     private bool _sprintUsed;
     private long _sprintUntil;
     private short _speedBeforeSprint;
+    private bool _behindRunThrough;
+    private long _runSwingTick;
+    private long _nextPressureTick;
+    private int _thinkIntervalBeforeRun;
 
     public override void Think()
     {
@@ -486,6 +505,7 @@ public sealed class GauntletChampionBrain : BotBrain
             // Leash: drop the fight and go back to its spot.
             EndSprint(champion);
             _step = SignatureStep.None;
+            EndRunThrough();
             champion.CurrentPriority = null;
             champion.HeldSlot = null;
             ClearAggroList();
@@ -592,6 +612,13 @@ public sealed class GauntletChampionBrain : BotBrain
             challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
         UpdateStep(champion, challengerHere ? challenger : null, now);
 
+        if (_step == SignatureStep.Behind && _behindRunThrough && !champion.IsIncapacitated)
+        {
+            RunThrough(champion, challenger, now);
+
+            return;
+        }
+
         if (_step != SignatureStep.None && !champion.IsIncapacitated)
         {
             MoveForStep(champion, challenger, now);
@@ -612,11 +639,10 @@ public sealed class GauntletChampionBrain : BotBrain
     /// The signature step and the styles it wants first.
     /// Side: while the challenger is stunned (Ios's Damaging Grasp, Preesh's Devastating Blow, or any other stun) it
     /// stands at their side for the side chain; a stunned player cannot turn, so the side stays the side.
-    /// Behind: the stuck simulation (UT_ExpeditionGauntletSignatures) shows a challenger who keeps facing the champion
-    /// (/stick) cannot be hit from behind, except within one heading update after the champion runs through them; so the
-    /// attempt is made only when the challenger is not facing the champion already (they look or run elsewhere), is not
-    /// stunned (that is the side chain's turn), not immune to stuns, and not mezzed (bots do not hit mezzed players,
-    /// BotPvpCrowdControl), at most every 20 s. A rooted challenger can still turn, so a root does not count.
+    /// Behind: a challenger facing the champion (/stick) gets a run through timed to her swing (<see cref="RunThrough"/>);
+    /// one facing elsewhere gets a walk to the spot behind them. Either only while the challenger is not stunned (that is
+    /// the side chain's turn), not immune to stuns, and not mezzed (bots do not hit mezzed players, BotPvpCrowdControl),
+    /// at most every 20 s. A rooted challenger can still turn, so a root does not count.
     /// Otherwise it keeps up the pressure with the signature's priority and the bot's normal picks.
     /// </summary>
     private void UpdateStep(GauntletChampion champion, GamePlayer challenger, long now)
@@ -626,6 +652,7 @@ public sealed class GauntletChampionBrain : BotBrain
         if (challenger == null)
         {
             _step = SignatureStep.None;
+            EndRunThrough();
             champion.CurrentPriority = null;
 
             return;
@@ -653,9 +680,10 @@ public sealed class GauntletChampionBrain : BotBrain
                 _sideDone = stunned;
             }
         }
-        else if (_step == SignatureStep.Behind && (stunned || now >= _stepUntil || lastStyle == signature.BehindOpener))
+        else if (_step == SignatureStep.Behind && (stunned || now >= _stepUntil || lastStyle == signature.BehindOpener ||
+            _runSwingTick > 0 && now > _runSwingTick + (long) (2 * GameLoop.TickDuration)))
         {
-            // Landed (a stun-immune challenger is not stunned by it), stunned, or out of time.
+            // Landed (a stun-immune challenger is not stunned by it), stunned, out of time, or the timed swing is past.
             _step = SignatureStep.None;
             _nextBehindTick = now + BehindRetryMs;
         }
@@ -679,13 +707,24 @@ public sealed class GauntletChampionBrain : BotBrain
                 _sprintUsed = false;
             }
             else if (signature.BehindOpener != null && !stunned && !stunImmune && !challenger.IsMezzed && now >= _nextBehindTick &&
-                champion.IsWithinRadius(challenger, BehindStartRange) &&
-                GauntletPositioning.Classify(championAngle) != TargetArc.Front)
+                champion.IsWithinRadius(challenger, BehindStartRange))
             {
-                _step = SignatureStep.Behind;
-                _stepUntil = now + BehindStepMs;
-                _sprintUsed = false;
+                bool facingHer = championAngle <= RunThroughMaxAngle || championAngle >= 360 - RunThroughMaxAngle;
+
+                if (facingHer || GauntletPositioning.Classify(championAngle) != TargetArc.Front)
+                {
+                    _step = SignatureStep.Behind;
+                    _stepUntil = now + BehindStepMs;
+                    _sprintUsed = false;
+                    _behindRunThrough = facingHer;
+                    _runSwingTick = 0;
+                }
             }
+        }
+
+        if (_step != SignatureStep.Behind || !_behindRunThrough)
+        {
+            EndRunThrough();
         }
 
         champion.CurrentPriority = _step switch
@@ -736,6 +775,79 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         champion.TurnTo(challenger);
+    }
+
+    /// <summary>
+    /// Ios's run through a challenger who faces her (owner 2026-10-25: get the back stun off a stuck challenger). The
+    /// server knows a player's heading only from their client's packets (ClientService.BeginTick, the start of a loop
+    /// tick), so right after she passes them their heading still points where she came from. A swing fires on the first
+    /// loop tick within half a tick of AttackAction.NextTick (GameServiceUtils.ShouldTick), in AttackService, which runs
+    /// before MovementService: it sees her where the tick before moved her. She keeps fighting until the tick from which
+    /// a walk, at up to sprint speed, puts her half a tick's travel past the challenger on the tick before that swing
+    /// (GauntletPositioning.RunThroughSpeed), then walks straight through them and stops 20 units past, so the swing
+    /// checks Damaging Grasp from behind (within 32 units she counts as facing them). It fails only when the
+    /// challenger's client sends a heading in that last tick (UT_ExpeditionGauntletSignatures measures the rates).
+    /// </summary>
+    private void RunThrough(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        if (_runSwingTick > 0)
+        {
+            // Running: the walk was timed when it started.
+            return;
+        }
+
+        if (_thinkIntervalBeforeRun == 0)
+        {
+            _thinkIntervalBeforeRun = ThinkInterval;
+            ThinkInterval = RunThroughThinkMs;
+        }
+
+        long swingDue = champion.attackComponent.attackAction.NextTick;
+        double dx = challenger.X - champion.X;
+        double dy = challenger.Y - champion.Y;
+        double topSpeed = Math.Floor(champion.Endurance > 10 && !_sprintUsed ? champion.MaxSpeed * SprintFactor : champion.MaxSpeed);
+
+        // The timing assumes both stand still at the start (a moving challenger moves the line; a following champion
+        // moves once more before the walk starts).
+        double speed = champion.attackComponent.AttackState && !champion.IsMoving && !challenger.IsMoving && !champion.IsCasting
+            ? GauntletPositioning.RunThroughSpeed(now, swingDue, GameLoop.TickDuration, Math.Sqrt(dx * dx + dy * dy), topSpeed)
+            : 0;
+
+        if (speed <= 0)
+        {
+            if (now >= _nextPressureTick)
+            {
+                _nextPressureTick = now + PressureThinkMs;
+                base.AttackMostWanted();
+            }
+
+            return;
+        }
+
+        // No BotBrain fight this tick: its StartAttack would order a melee follow over the walk.
+        (int x, int y) = GauntletPositioning.PointBeyond(champion.X, champion.Y, challenger.X, challenger.Y, RunThroughStopPast);
+        _runSwingTick = swingDue;
+        champion.TargetObject = challenger;
+        champion.StopFollowing();
+
+        if (speed > champion.MaxSpeed)
+        {
+            StartSprint(champion, now);
+        }
+
+        champion.WalkTo(new Point3D(x, y, challenger.Z), (short) Math.Min(champion.MaxSpeed, Math.Ceiling(speed)));
+    }
+
+    /// <summary>Back to the usual think pace once no run through is pending.</summary>
+    private void EndRunThrough()
+    {
+        _runSwingTick = 0;
+
+        if (_thinkIntervalBeforeRun > 0)
+        {
+            ThinkInterval = _thinkIntervalBeforeRun;
+            _thinkIntervalBeforeRun = 0;
+        }
     }
 
     /// <summary>One sprint burst per step (see <see cref="SprintFactor"/>); it needs some endurance, as GameBot.Sprint does.</summary>
@@ -946,6 +1058,47 @@ public static class GauntletPositioning
     public static bool Accepts(TargetArc required, int x, int y, ushort heading, int targetX, int targetY, ushort targetHeading)
     {
         return IsFacing(x, y, heading, targetX, targetY) && Classify(AngleFrom(targetX, targetY, targetHeading, x, y)) == required;
+    }
+
+    /// <summary>A run through starts only at this share of its top speed or more (late and fast, so it starts on a tick).</summary>
+    public const double RunThroughMinSpeedShare = 0.75;
+
+    /// <summary>
+    /// The walk speed for a run through a target <paramref name="distance"/> away that is half a tick's travel past it on
+    /// the tick before the swing fires, or 0 when this tick is not the one to start (too early: a later tick still makes
+    /// it at 75 %+ of <paramref name="maxSpeed"/>; too late: not even <paramref name="maxSpeed"/> makes it). Now is tick 0
+    /// and the walk starts on it (MovementService runs after NpcService). The swing fires on the first tick k with
+    /// swingDueTick - t(k) - tickDuration / 2 &lt;= 0 (GameServiceUtils.ShouldTick) and sees the position MovementService
+    /// gave the champion on tick k - 1, after (k - 1) ticks of walking.
+    /// </summary>
+    public static double RunThroughSpeed(long now, long swingDueTick, double tickDuration, double distance, double maxSpeed)
+    {
+        double fireTick = Math.Ceiling((swingDueTick - tickDuration / 2 - now) / tickDuration);
+
+        if (fireTick < 2 || distance <= 0 || maxSpeed <= 0)
+        {
+            return 0;
+        }
+
+        // (k - 1) ticks of walking cover the distance plus half a tick of travel: speed * (k - 1.5) ticks = distance.
+        double speed = distance / ((fireTick - 1.5) * tickDuration / 1000.0);
+
+        return speed <= maxSpeed && speed > maxSpeed * RunThroughMinSpeedShare ? speed : 0;
+    }
+
+    /// <summary>The point <paramref name="distance"/> past (throughX, throughY) on the line from (fromX, fromY).</summary>
+    public static (int X, int Y) PointBeyond(int fromX, int fromY, int throughX, int throughY, int distance)
+    {
+        double dx = throughX - fromX;
+        double dy = throughY - fromY;
+        double length = Math.Sqrt(dx * dx + dy * dy);
+
+        if (length <= 0)
+        {
+            return (throughX, throughY);
+        }
+
+        return ((int) Math.Round(throughX + dx / length * distance), (int) Math.Round(throughY + dy / length * distance));
     }
 
     /// <summary>The side spot (left or right) nearer to the champion.</summary>

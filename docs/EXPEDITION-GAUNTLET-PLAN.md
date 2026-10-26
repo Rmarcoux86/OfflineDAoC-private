@@ -259,6 +259,15 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
     not stunned, stun-immune or mezzed), every 20 s; a stun (hers or any) sends her, and Preesh, to the side chain
     instead. Stun immunity is `CCSpellHandler.CheckSpellResist`'s test: the `eEffect.StunImmunity` effect (a style
     stun leaves 5× its duration on a player) or the StunImmunity ability.
+  - Superseded the same day (owner: "make sure in tests you can get that stun off"): against a challenger facing her
+    (within 30°), Ios times a run through to her swing. Per loop tick (30/s) the server applies player packets first,
+    then brains, then swings, then NPC movement, so a swing sees her where the previous tick moved her and the
+    challenger's heading as last sent. The brain thinks every tick while waiting and starts the walk (75–100 % of
+    sprint speed) on the tick that puts her half a tick's travel past the challenger on the tick before the swing
+    (`GauntletPositioning.RunThroughSpeed`), stopping 20 units past. It fails only if the client sends a heading in
+    that last tick: simulated success 65 % (heading every 100 ms), 77 % (150), 83 % (200–210, the ~210 ms position
+    cadence `PlayerMovementMonitor` assumes), 87 % (250), 89 % (300), 93 % (500); 100 % with no heading during the run.
+    A challenger facing elsewhere still gets the walk to the spot behind.
   - Drunkstains holds the shield and takes up the polearm when the swing is due within a think interval + 150 ms
     (the next swing time is the last swinging weapon's interval and survives `SwitchWeapon`); Slam replaces the
     polearm swing within 3 s of a block when `CanUseStyle` accepts it.
