@@ -14,6 +14,9 @@ public static class ExpeditionBossLooks
     private const ushort CeltFemale = 310;
     private const ushort HalfOgreMale = 1008;
 
+    /// <summary>The cloak every designed boss wears, hood up.</summary>
+    public const ushort CloakModel = 559;
+
     /// <summary>A little larger than a player, so the boss stands out.</summary>
     private const byte BossSize = 60;
 
@@ -112,6 +115,9 @@ public static class ExpeditionBossLooks
             }
         }
 
+        // Every designed boss wears a cloak with the hood up (owner 2026-10-25). 559 is the cloak model the uniques use.
+        template.AddNPCEquipment(eInventorySlot.Cloak, CloakModel);
+        boss.IsCloakHoodUp = true;
         boss.Size = BossSize;
         boss.Inventory = template.CloseTemplate();
         boss.SwitchWeapon(weaponSlot);

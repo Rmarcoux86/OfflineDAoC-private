@@ -144,6 +144,21 @@ public sealed class GauntletChampion : GameBot
         IGameInventory looks = Inventory;
         Inventory = realInventory;
 
+        // The hooded cloak (ExpeditionBossLooks): a bot's generated gear has no cloak, so it gets a plain one to wear.
+        if (realInventory != null && realInventory.GetItem(eInventorySlot.Cloak) == null)
+        {
+            DbItemTemplate cloak = new()
+            {
+                Id_nb = "gauntlet_champion_cloak",
+                Name = "Champion's Cloak",
+                Level = 50,
+                Item_Type = (int) eInventorySlot.Cloak,
+                Object_Type = (int) eObjectType.Magical,
+                Model = ExpeditionBossLooks.CloakModel
+            };
+            realInventory.AddItem(eInventorySlot.Cloak, GameInventoryItem.Create(cloak));
+        }
+
         if (realInventory != null && looks != null)
         {
             foreach (DbInventoryItem look in looks.VisibleItems.ToList())

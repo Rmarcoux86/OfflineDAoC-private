@@ -24,4 +24,10 @@ public static class GauntletRules
 
     /// <summary>Seconds after a Gauntlet death before the player is released to the arena entrance automatically.</summary>
     public const int AutoReleaseSeconds = 10;
+
+    /// <summary>
+    /// While the Gauntlet is being tested (owner 2026-10-25), any character without the Hardcore flag may enter, not only
+    /// one that has won its expedition; such a session is not saved. Set false to require a won run.
+    /// </summary>
+    public const bool TestEntryForAnyCharacter = true;
 }

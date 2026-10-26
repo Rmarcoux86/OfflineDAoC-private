@@ -253,10 +253,10 @@ public static class GauntletManager
         // A GM may enter without one for testing (owner 2026-10-25): no row is used, so nothing is saved.
         bool won = record != null && record.Status == ExpeditionManager.StatusWon;
 
-        if (!won && player.Client?.Account?.PrivLevel > (uint) ePrivLevel.Player)
+        if (!won && (GauntletRules.TestEntryForAnyCharacter || player.Client?.Account?.PrivLevel > (uint) ePrivLevel.Player))
         {
             record = null;
-            player.Out.SendMessage("GM test entry: you have not won an expedition, so this Gauntlet is not saved.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            player.Out.SendMessage("Test entry: you have not won an expedition, so this Gauntlet is not saved.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
         }
         else if (!won)
         {
