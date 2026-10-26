@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v71",
+    "date": "2026-10-26",
+    "items": [
+      "Darkness Falls: naburite drinkers and essence shredders now respawn after 3 minutes (were about 2), like the cambions, soultorns and mahr around them."
+    ]
+  },
+  {
     "tag": "fork-v70",
     "date": "2026-10-26",
     "items": [
