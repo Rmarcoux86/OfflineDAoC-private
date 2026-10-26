@@ -494,14 +494,28 @@ public static class ExpeditionUniques
     };
 
     /// <summary>
-    /// The weapon glows a unique weapon wears (owner 2026-10-25: uniques should look the part): the item effect numbers
-    /// the server already uses, 30 white core with a red glow, 48 fire, 49 sparkling fire (GeneratedUniqueItem).
+    /// The weapon glows a unique weapon wears (owner 2026-10-25: uniques should look the part). The values are item effects
+    /// real artifact and dungeon weapons in the item table carry (owner 2026-10-25: the first set, 30/48/49, looked bugged;
+    /// 30 is on no weapon in the table, 48 and 49 only on fist wraps): 61 the Balefire weapons, 53 Dragonfire, 41 the
+    /// Infernal weapons, 69 the Azure and Frozen ones.
     /// </summary>
-    public static readonly int[] WeaponGlows = [30, 48, 49];
+    public static readonly int[] WeaponGlows = [61, 53, 41, 69];
 
-    /// <summary>The same glow for a unique every time: picked from its name, so each unique has its own look.</summary>
+    /// <summary>A glow chosen for a unique by its theme; the others pick from <see cref="WeaponGlows"/> by name.</summary>
+    private static readonly Dictionary<string, int> ThemedGlows = new(StringComparer.Ordinal)
+    {
+        ["Fenwatch Fang"] = 61,
+        ["Wyrmbane, the Last Ember"] = 53
+    };
+
+    /// <summary>The same glow for a unique every time: its themed glow, else one picked from its name.</summary>
     public static int WeaponGlowFor(string name)
     {
+        if (name != null && ThemedGlows.TryGetValue(name, out int themed))
+        {
+            return themed;
+        }
+
         int sum = 0;
 
         foreach (char c in name ?? string.Empty)
