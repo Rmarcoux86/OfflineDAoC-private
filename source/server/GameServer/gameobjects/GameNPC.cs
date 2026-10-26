@@ -1090,7 +1090,7 @@ namespace DOL.GS
 			if (dbMob.RespawnInterval == -1)
 				dbMob.RespawnInterval = 0;
 
-			m_respawnInterval = dbMob.RespawnInterval * 1000;
+			m_respawnInterval = MobRespawnOverrides.For(dbMob.Name, dbMob.RespawnInterval) * 1000;
 			PathID = dbMob.PathID;
 
 			if (!string.IsNullOrEmpty(dbMob.Brain))
