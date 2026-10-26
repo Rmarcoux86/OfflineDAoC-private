@@ -10,8 +10,8 @@ namespace DOL.GS.Expedition.Gauntlet;
 /// A Gauntlet champion (docs/EXPEDITION-GAUNTLET-PLAN.md, Approach A): an ownerless level-50 GameBot of the champion's
 /// class, with realm None so the challenger may attack it and it may attack the challenger without any server-rule
 /// change. It is a throwaway: no owner, no database row, no BotManager or autonomous registration, no corpse and no
-/// respawn. It walks in from the gate, buffs at the arena centre, then fights only its challenger and the challenger's
-/// pets, within <see cref="GauntletRules.LeashRadius"/> of the centre. Its death is reported to
+/// respawn. It buffs at the gate, walks to the arena centre and waits there, buffs kept up, until its challenger
+/// targets it and bows (/bow) or attacks it; then it fights only the challenger and the challenger's pets, within <see cref="GauntletRules.LeashRadius"/> of the centre. Its death is reported to
 /// <see cref="GauntletManager.OnChampionDied"/>.
 /// </summary>
 public sealed class GauntletChampion : GameBot
@@ -26,13 +26,19 @@ public sealed class GauntletChampion : GameBot
     /// <summary>The Gauntlet round this champion was spawned for.</summary>
     public int Round { get; }
 
-    /// <summary>When it spawned at the gate (GameLoop time).</summary>
+    /// <summary>When its buffing at the gate ends and it walks in (GameLoop time).</summary>
+    internal long BuffUntilTick { get; set; }
+
+    /// <summary>When it started walking to the centre; 0 until then.</summary>
     internal long WalkInStartTick { get; set; }
 
-    /// <summary>When its buffing at the centre ends and it attacks; 0 while it is still walking in.</summary>
-    internal long EngageAtTick { get; set; }
+    /// <summary>True once it stands at the centre, waiting to be challenged.</summary>
+    internal bool AtCentre { get; set; }
 
-    /// <summary>True once it fights: after its buffing time, or as soon as the challenger's side hits it.</summary>
+    /// <summary>
+    /// True once it fights (owner 2026-10-25): when its challenger targets it and bows (GauntletManager.OnBow), or as
+    /// soon as the challenger's side attacks it. Until then it never starts a fight.
+    /// </summary>
     public bool Engaged { get; internal set; }
 
     public GauntletChampion(GamePlayer challenger, ChampionDefinition definition, int round, RoundTier tier)
@@ -72,6 +78,17 @@ public sealed class GauntletChampion : GameBot
 
         GauntletChampionBrain brain = new() { IsHealer = (Brain as BotBrain)?.IsHealer ?? false };
         SetOwnBrain(brain);
+    }
+
+    /// <summary>An attack by the challenger's side starts the fight, bow or no bow.</summary>
+    public override void OnAttackedByEnemy(AttackData ad)
+    {
+        if (!Engaged && ad != null && IsChallengerSide(ad.Attacker))
+        {
+            Engaged = true;
+        }
+
+        base.OnAttackedByEnemy(ad);
     }
 
     /// <summary>No corpse: GameNPC.ProcessDeath deletes the body, and RespawnInterval -1 keeps it gone.</summary>
@@ -216,13 +233,27 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (!champion.Engaged)
         {
-            if (champion.EngageAtTick == 0)
+            if (now < champion.BuffUntilTick)
             {
-                // Walking in from the gate: nothing else may give it orders.
+                // Buffing at the gate: the idle state casts its defensive spells. AddToAggroList refuses everyone until
+                // the fight starts, so nothing pulls it early.
+                base.Think();
+
+                return;
+            }
+
+            if (!champion.AtCentre)
+            {
+                if (champion.WalkInStartTick == 0)
+                {
+                    champion.WalkInStartTick = now;
+                }
+
                 if (champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance) || now - champion.WalkInStartTick > WalkInTimeoutMs)
                 {
                     champion.StopMoving();
-                    champion.EngageAtTick = now + GauntletRules.ChampionBuffSeconds * 1000L;
+                    champion.AtCentre = true;
+                    GauntletManager.OnChampionReady(champion);
                 }
                 else if (!champion.IsMoving)
                 {
@@ -232,16 +263,19 @@ public sealed class GauntletChampionBrain : BotBrain
                 return;
             }
 
-            if (now < champion.EngageAtTick)
-            {
-                // Buffing: the idle state casts its defensive spells; AddToAggroList refuses everyone but the
-                // challenger's side, and a hit from that side engages at once.
-                base.Think();
+            // Waiting to be challenged: buffs kept up, facing the challenger, back to the centre if anything moved it.
+            base.Think();
 
-                return;
+            if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
+            {
+                champion.WalkTo(champion.SpawnPoint, champion.MaxSpeed);
+            }
+            else if (!champion.IsMoving && challenger != null && challenger.CurrentRegion == champion.CurrentRegion)
+            {
+                champion.TurnTo(challenger);
             }
 
-            champion.Engaged = true;
+            return;
         }
 
         if (champion.IsOutOfTetherRange)
@@ -322,10 +356,10 @@ public sealed class GauntletChampionBrain : BotBrain
             return;
         }
 
-        // Hit during the walk-in or the buffing: fight now.
+        // Before the bow (or an attack, GauntletChampion.OnAttackedByEnemy) it never takes anyone on.
         if (!champion.Engaged)
         {
-            champion.Engaged = true;
+            return;
         }
 
         base.AddToAggroList(living, aggroAmount);

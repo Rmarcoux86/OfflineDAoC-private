@@ -362,6 +362,12 @@ namespace DOL.GS.Commands
 			}
 
 			SendEmote(client.Player, client.Player.TargetObject, emoteID, emoteMessages);
+
+			// The Gauntlet: bowing to your waiting champion starts the duel (owner 2026-10-25).
+			if (emoteID == eEmote.Bow)
+			{
+				DOL.GS.Expedition.Gauntlet.GauntletManager.OnBow(client.Player, client.Player.TargetObject);
+			}
 		}
 
 

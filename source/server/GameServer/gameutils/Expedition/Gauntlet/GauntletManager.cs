@@ -300,7 +300,7 @@ public static class GauntletManager
             return false;
         }
 
-        player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly: the champion prepares, walks in and waits. Target it and type /bow to begin.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         // Nothing is spawned or shown until the client has loaded the arena (ExpeditionManager.WhenSettled).
         ExpeditionManager.WhenSettled(player, GauntletArena.RegionId, () => BeginRound(player));
@@ -309,8 +309,9 @@ public static class GauntletManager
     }
 
     /// <summary>
-    /// Begins the player's current round: announces it and spawns the champion at the gate; the champion walks to the
-    /// centre, buffs for <see cref="GauntletRules.ChampionBuffSeconds"/>, then attacks (GauntletChampionBrain).
+    /// Begins the player's current round: announces it and spawns the champion at the gate; the champion buffs there for
+    /// <see cref="GauntletRules.ChampionBuffSeconds"/>, walks to the centre and waits until the player targets it and
+    /// bows (<see cref="OnBow"/>) or attacks it (GauntletChampionBrain).
     /// </summary>
     public static bool BeginRound(GamePlayer player)
     {
@@ -360,7 +361,7 @@ public static class GauntletManager
             champion.Z = GauntletArena.GateZ;
             champion.Heading = GauntletArena.GateHeading;
             champion.CurrentRegionID = GauntletArena.RegionId;
-            champion.WalkInStartTick = GameLoop.GameLoopTime;
+            champion.BuffUntilTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffSeconds * 1000L;
 
             if (!champion.AddToWorld())
             {
@@ -379,8 +380,15 @@ public static class GauntletManager
             {
                 $"Round {state.Round}",
                 string.Empty,
-                $"{champion.Name} steps into the arena.",
-                $"Realm rank {tier.RealmRank}.",
+                $"{champion.Name} steps into the arena (realm rank {tier.RealmRank}).",
+                string.Empty,
+                "How the Gauntlet works:",
+                $"- The champion prepares its buffs, then walks to the middle of the arena and waits for you.",
+                $"- Prepare yourself too. When you are ready, target {champion.Name} and type /bow to begin the duel.",
+                "- Attacking it also starts the fight.",
+                "- Win, and the next round begins after a short rest. Each round is harder.",
+                "- If you fall, you return to the arena entrance with no death penalty; type /gauntlet start to try the round again.",
+                "- /gauntlet status shows your round; /gauntlet leave takes you out.",
                 string.Empty,
                 $"Rounds beaten so far: {state.Depth}."
             };
@@ -390,6 +398,49 @@ public static class GauntletManager
 
             return true;
         }
+    }
+
+    /// <summary>The champion has walked in and waits to be challenged (GauntletChampionBrain).</summary>
+    public static void OnChampionReady(GauntletChampion champion)
+    {
+        GamePlayer player = champion?.Challenger;
+
+        if (player == null)
+        {
+            return;
+        }
+
+        player.Out.SendMessage($"{champion.Name} awaits your challenge. Target {champion.Name} and type /bow when you are ready.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"{champion.Name} awaits your challenge. Target {champion.Name} and type /bow when you are ready.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
+
+    /// <summary>
+    /// A /bow (EmoteCommandHandler): bowing to your own waiting champion starts the duel; it bows back. Any other bow
+    /// does nothing here.
+    /// </summary>
+    public static void OnBow(GamePlayer player, GameObject target)
+    {
+        if (player == null || target is not GauntletChampion champion || champion.Challenger != player || champion.Engaged || !champion.IsAlive)
+        {
+            return;
+        }
+
+        if (!champion.AtCentre)
+        {
+            player.Out.SendMessage($"{champion.Name} is not ready yet. Wait until it reaches the middle of the arena.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+            return;
+        }
+
+        champion.Engaged = true;
+
+        foreach (GamePlayer watcher in champion.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+        {
+            watcher.Out.SendEmoteAnimation(champion, eEmote.Bow);
+        }
+
+        player.Out.SendMessage($"{champion.Name} bows in return. Fight!", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"{champion.Name} bows in return. Fight!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
     }
 
     /// <summary>
