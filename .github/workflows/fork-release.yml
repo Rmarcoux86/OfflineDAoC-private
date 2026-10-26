@@ -94,6 +94,9 @@ jobs:
           Copy-Item "QUICK COMMANDS.txt", "ALL SERVER COMMANDS.txt" $out
           # The build history the launcher shows (BUILD HISTORY); the installer copies it to runtime\build-history.json.
           Copy-Item "fork-release/build-history.json" $out
+          # The Gauntlet spectators players submitted (hall-of-fame workflow); the installer copies it to
+          # runtime\server\gauntlet-spectators.json, where the server reads it at start (GauntletSpectators.cs).
+          Copy-Item "gauntlet/guest-champions.json" "$out/gauntlet-spectators.json"
 
           # The launcher build: only its own five files. System.Data.SQLite and its native interop are already in every
           # 0.37 runtime folder (and new-client\runtime) from the same package version.

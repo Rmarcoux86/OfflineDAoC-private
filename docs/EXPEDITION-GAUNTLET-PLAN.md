@@ -202,6 +202,50 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
   earlier. All leave together; a dead member releases to the entrance and rejoins at the next round.
 - Likely needs the arena as an instance if two groups can be in the Gauntlet at once; revisit the Phase 0 decision.
 
+## Phase 6: Gauntlet spectators (owner 2026-10-26; replaces the guest-champion round)
+
+**Owner decision:** a player whose character cleared the Gauntlet can submit that character as a **spectator**: a
+peaceful NPC at the edge of every player's Gauntlet arena that watches, cannot be attacked and never fights. It shows the
+character's name, race/gender body and the LOOK of its gear (models, colors, glows, extensions, cloak and hood). No
+stats, realm abilities or boons. (The earlier idea of fighting other players' champions as a guest round is dropped.)
+
+Pipeline:
+
+1. **Launcher** (`source/tools/OfflineDaoc.Launcher/GauntletSpectator.cs`, `HallOfFamePanel.cs`,
+   `MainForm.HallOfFame.cs`): the Hall of Fame panel has **SUBMIT AS SPECTATOR** under SHARE MY WIN. It is enabled
+   when a local win has `GauntletCleared` (GauntletJson Depth >= 5) and its character id is not in
+   `runtime\gauntlet-spectators-submitted.txt`; several candidates open a picker. The snapshot is read from the
+   database (no server command): the DOLCharacters row (Name, Class, Race, Gender, Realm, CurrentModel or else
+   CreationModel, IsCloakHoodUp, IsHelmInvisible, IsCloakInvisible, ActiveWeaponSlot) and the worn Inventory rows in the
+   visible slots (10-13, 21-23, 25-28) with the model and effect from ItemUnique when `UTemplate_Id` is set, else
+   ItemTemplate, and the color and extension from the Inventory row. A hidden helm or cloak is left out. It opens a
+   pre-filled issue `[Gauntlet Champion] <name>` with a compact ```json block:
+   `{"id":"<DOLCharacters_ID>","name","classId","race","gender"(0 male, 1 female),"realm","model"(with size bits),
+   "hoodUp","activeWeapon"(0 one-hand, 1 two-hand, 2 ranged),"items":[{"slot","model","color","effect","extension"}]}`.
+   A fully dressed worst case is about 2,300 URL characters (tested under 4,000; the limit is about 8,000).
+2. **Intake** (`.github/workflows/hall-of-fame.yml`, `.github/scripts/hall_of_fame_intake.py`, unchanged paths and
+   title prefix): validates (id 1-128, a character name, numeric classId, items array, < 60 KB) and appends to
+   `gauntlet/guest-champions.json` (`{"entries": []}`), dedupe by id, the same author may replace.
+3. **Release**: `fork-release.yml` copies `gauntlet/guest-champions.json` into the update zip as
+   `gauntlet-spectators.json`; `INSTALL FORK UPDATE.cmd` copies it to `runtime\server\gauntlet-spectators.json` (the
+   server's RootDirectory, beside bot-goals.json). New spectators reach players with the next fork update.
+4. **Server** (`gameutils/Expedition/Gauntlet/GauntletSpectators.cs`): loads the file at server start (missing or
+   invalid = no spectators, logged). `GauntletManager.TryStart` calls `Show` (idempotent, one arena): a random pick per
+   session (seeded, the challenger's own character left out) of up to 8, on a ring of radius 1,200 around the arena
+   centre, placed 67.5/112.5/247.5/292.5 degrees from the centre-to-gate line first (the sides of the fight), then
+   22.5/157.5/202.5/337.5; Z = CentreZ; each faces the centre. `Stop` calls `Hide` when the arena is free;
+   `OnChampionDied` has one spectator `/cheer`. The NPC: `GameNPC` with `BlankBrain` (never thinks or aggroes),
+   `Flags = PEACE` (`AbstractServerRules.IsAllowedToAttack` refuses any attack by or on it; the client shows it as
+   friendly), `Realm = None`, level 50, guild "Hall of Champions", `RespawnInterval = -1`, no loot; model `& 0x7FF`
+   with the size bits as NPC size (short 45, average 50, tall 55), or the race/gender model when the snapshot has none;
+   items through `GameNpcInventoryTemplate.AddNPCEquipment(slot, model, color, effect, extension)`, `SwitchWeapon` to
+   the active weapon, `IsCloakHoodUp` from the snapshot.
+5. **Tests**: `OfflineDaoc.Launcher.Tests/GauntletSpectatorTests.cs` (snapshot building, candidates, issue JSON and
+   URL size) and `Tests/UnitTests/UT_ExpeditionGauntletSpectators.cs` (parsing, load, body, pick, ring).
+
+Assumption to check in game: Celestius' floor reaches 1,200 around the centre at the height of the owner's two /loc
+readings (Z 15733); a spot off the platform would leave that spectator standing in space. Move `RingRadius` if so.
+
 ## Open questions for the owner (ask when relevant, do not block on them)
 
 1. Exact `/loc` of the arena centre, gate and entrance (blocks Phase 1 only).
@@ -271,6 +315,12 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
   - Drunkstains holds the shield and takes up the polearm when the swing is due within a think interval + 150 ms
     (the next swing time is the last swinging weapon's interval and survives `SwitchWeapon`); Slam replaces the
     polearm swing within 3 s of a block when `CanUseStyle` accepts it.
+
+- 2026-10-26, Phase 6 (spectators, not built, not tested in game): the spectators file keeps the intake's path
+  `gauntlet/guest-champions.json` and title prefix `[Gauntlet Champion]` (only wording changed to "spectators"); the
+  installed name is `runtime\server\gauntlet-spectators.json`. Spectators use `Realm = None` + PEACE rather than the
+  challenger's realm, a `BlankBrain`, and are shared by the single-occupancy arena (shown on start, hidden when the arena
+  is free). The intake now also checks the spectator name against the character-name rule the server applies.
 
 ## Phase 0 findings (2026-10-25)
 

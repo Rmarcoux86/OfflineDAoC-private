@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Hall of Fame and guest-champion intake for .github/workflows/hall-of-fame.yml.
+"""Hall of Fame and Gauntlet spectator intake for .github/workflows/hall-of-fame.yml.
 
-Players open an issue titled "[Hall of Fame] <name>" (an expedition win) or "[Gauntlet Champion] <name>" (a Gauntlet
-champion snapshot) whose body holds the JSON object in a ```json fenced block, or links an attached .json file. This
-script reads the issue from the event file only (issue text never reaches a shell), validates it and adds it to the
-shared file on main:
+Players open an issue titled "[Hall of Fame] <name>" (an expedition win) or "[Gauntlet Champion] <name>" (the look of a
+character that cleared the Gauntlet, shown as a peaceful spectator at the Gauntlet arena) whose body holds the JSON
+object in a ```json fenced block, or links an attached .json file. This script reads the issue from the event file only
+(issue text never reaches a shell), validates it and adds it to the shared file on main:
 
   validate WORK   read $GITHUB_EVENT_PATH, check the JSON, write WORK/meta.json and WORK/payload.json
   apply WORK      merge the payload into the repository file (dedupe by id), write WORK/result.json and the commit message
@@ -22,6 +22,7 @@ import urllib.request
 HALL_PREFIX = "[Hall of Fame]"
 GUEST_PREFIX = "[Gauntlet Champion]"
 HALL_FILE = "hall-of-fame/hall-of-fame.json"
+# The spectators; the fork update installs it as runtime\server\gauntlet-spectators.json (fork-release.yml).
 GUEST_FILE = "gauntlet/guest-champions.json"
 
 MAX_BODY_CHARS = 200_000
@@ -190,6 +191,8 @@ def validate_guest(entry, size):
 
     if not isinstance(entry.get("name"), str) or not 0 < len(entry["name"].strip()) <= 64:
         errors.append('"name" must be a string of 1 to 64 characters.')
+    elif not CHARACTER_NAME.match(entry["name"].strip()):
+        errors.append('"name" is not a valid character name (letters, at most 32).')
 
     if not is_number(entry.get("classId")):
         errors.append('"classId" must be a number.')
@@ -310,7 +313,7 @@ def command_apply(work):
         if result["status"] in ("added", "updated"):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             write_json(path, data)
-            what = "Hall of Fame win" if meta["kind"] == "hall" else "Gauntlet guest champion"
+            what = "Hall of Fame win" if meta["kind"] == "hall" else "Gauntlet spectator"
             verb = "Add" if result["status"] == "added" else "Update"
 
             with open(os.path.join(work, "commit-message.txt"), "w", encoding="utf-8", newline="\n") as handle:
@@ -355,12 +358,12 @@ def command_report(work):
     pushed = os.environ.get("PUSHED", "")
     hall = meta.get("kind") == "hall"
     what = "your win" if hall else "your champion"
-    where = "the Hall of Fame" if hall else "the Gauntlet's guest champions"
+    where = "the Hall of Fame" if hall else "the Gauntlet's spectators"
     close_reason = "completed"
 
     if not meta.get("ok"):
         lines = [f"This could not be added to {where}:", ""] + ["- " + error for error in meta.get("errors", [])]
-        source = "the launcher's SHARE MY WIN" if hall else "/gauntlet submit"
+        source = "the launcher's SHARE MY WIN" if hall else "the launcher's SUBMIT AS SPECTATOR"
         lines += ["", f"Please submit again from {source} (or fix the JSON and edit this issue)."]
         close_reason = "not_planned"
     elif status == "conflict":
@@ -376,7 +379,7 @@ def command_report(work):
         lines = [f"This is already in {where}, unchanged."]
     elif pushed == "yes":
         verb = "added to" if status == "added" else "updated in"
-        after = "Launchers show it on their next refresh." if hall else "It joins the Gauntlet with the next fork update."
+        after = "Launchers show it on their next refresh." if hall else "It watches the Gauntlet from the next fork update."
         lines = [f"Thanks! {what[0].upper() + what[1:]} was {verb} {where}. {after}"]
     else:
         lines = ["The entry is valid, but saving it failed (the repository changed too often). The owner will re-run it."]

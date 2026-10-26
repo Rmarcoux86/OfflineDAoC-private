@@ -300,6 +300,8 @@ public static class GauntletManager
             return false;
         }
 
+        // Players' Gauntlet champions watch from the edge of the arena while the session lasts (GauntletSpectators).
+        GauntletSpectators.Show(player);
         player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly: the champion prepares, walks in and waits. Target it and type /bow to begin.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         // Nothing is spawned or shown until the client has loaded the arena (ExpeditionManager.WhenSettled).
@@ -490,6 +492,7 @@ public static class GauntletManager
             }
 
             player.Out.SendMessage($"Round {beaten} is yours! {champion.Name} is defeated.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            GauntletSpectators.Cheer();
 
             if (beaten >= GauntletRules.Rounds)
             {
@@ -725,6 +728,12 @@ public static class GauntletManager
         }
 
         GauntletArena.Release(player);
+
+        // Any player's quit comes here; the spectators go only when the arena is free.
+        if (GauntletArena.Occupant == null)
+        {
+            GauntletSpectators.Hide();
+        }
     }
 
     /// <summary>The /gauntlet status lines.</summary>

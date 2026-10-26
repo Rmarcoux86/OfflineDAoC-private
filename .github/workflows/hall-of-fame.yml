@@ -1,6 +1,7 @@
 # Adds players' shared expedition wins to hall-of-fame/hall-of-fame.json (read by every launcher's Hall of Fame) and
-# Gauntlet champion snapshots to gauntlet/guest-champions.json. The launcher opens a pre-filled issue titled
-# "[Hall of Fame] <name>"; "[Gauntlet Champion] <name>" issues come from /gauntlet submit. The JSON is in a ```json block
+# Gauntlet spectators (the look of a character that cleared the Gauntlet) to gauntlet/guest-champions.json, which the
+# fork update installs for the server. The launcher opens pre-filled issues titled "[Hall of Fame] <name>" (SHARE MY WIN)
+# and "[Gauntlet Champion] <name>" (SUBMIT AS SPECTATOR). The JSON is in a ```json block
 # in the body or an attached .json file. Issue text is only ever read by the Python script from the event file, never
 # put into a shell command.
 name: Hall of Fame

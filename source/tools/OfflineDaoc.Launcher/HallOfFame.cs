@@ -226,7 +226,7 @@ internal static class HallOfFame
     }
 
     // An unreadable time sorts last.
-    private static DateTimeOffset EndedAt(string endedUtc) =>
+    internal static DateTimeOffset EndedAt(string endedUtc) =>
         DateTimeOffset.TryParse(endedUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset ended)
             ? ended
             : DateTimeOffset.MinValue;

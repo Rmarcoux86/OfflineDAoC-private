@@ -22,7 +22,7 @@ internal sealed partial class MainForm
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
         row.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        _hallOfFame = new HallOfFamePanel(_root, _logsDirectory, ReadLocalExpeditionWins);
+        _hallOfFame = new HallOfFamePanel(_root, _logsDirectory, ReadLocalExpeditionWins, ReadSpectatorSnapshot);
         row.Controls.Add(BuildTabs(), 0, 0);
         row.Controls.Add(_hallOfFame, 1, 0);
 
@@ -94,5 +94,98 @@ internal sealed partial class MainForm
         }
 
         return wins;
+    }
+
+    /// <summary>
+    /// A Gauntlet spectator's look (owner 2026-10-26): the character's DOLCharacters row and the models, colors, glows
+    /// and extensions of its worn visible items (Inventory with ItemUnique for uniques, else ItemTemplate). Null when
+    /// the character is not in the database.
+    /// </summary>
+    private GauntletSpectator.Snapshot? ReadSpectatorSnapshot(string characterId)
+    {
+        if (!File.Exists(_database))
+        {
+            return null;
+        }
+
+        using var connection = new SQLiteConnection($"Data Source={_database};Version=3;Read Only=True;Pooling=False;Default Timeout=5");
+        connection.Open();
+
+        if (!TableExists(connection, "DOLCharacters"))
+        {
+            return null;
+        }
+
+        // Booleans may come back as a bool or as 0/1.
+        static bool Flag(object value) => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) is "1" or "True" or "true";
+        string hoodUp = ColumnExists(connection, "DOLCharacters", "IsCloakHoodUp") ? "COALESCE(IsCloakHoodUp, 0)" : "0";
+        string helmHidden = ColumnExists(connection, "DOLCharacters", "IsHelmInvisible") ? "COALESCE(IsHelmInvisible, 0)" : "0";
+        string cloakHidden = ColumnExists(connection, "DOLCharacters", "IsCloakInvisible") ? "COALESCE(IsCloakInvisible, 0)" : "0";
+        string name;
+        int classId, race, gender, realm, currentModel, creationModel, activeWeaponSlot;
+        bool isHoodUp, isHelmHidden, isCloakHidden;
+
+        using (var character = connection.CreateCommand())
+        {
+            character.CommandText = $"""
+                SELECT Name, Class, Race, Gender, Realm, CurrentModel, CreationModel, {hoodUp}, {helmHidden}, {cloakHidden}, ActiveWeaponSlot
+                FROM DOLCharacters
+                WHERE DOLCharacters_ID = @id
+                """;
+            character.Parameters.AddWithValue("@id", characterId);
+            using var reader = character.ExecuteReader();
+
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            name = Convert.ToString(reader.GetValue(0)) ?? string.Empty;
+            classId = Convert.ToInt32(reader.GetValue(1));
+            race = Convert.ToInt32(reader.GetValue(2));
+            gender = Convert.ToInt32(reader.GetValue(3));
+            realm = Convert.ToInt32(reader.GetValue(4));
+            currentModel = Convert.ToInt32(reader.GetValue(5));
+            creationModel = Convert.ToInt32(reader.GetValue(6));
+            isHoodUp = Flag(reader.GetValue(7));
+            isHelmHidden = Flag(reader.GetValue(8));
+            isCloakHidden = Flag(reader.GetValue(9));
+            activeWeaponSlot = Convert.ToInt32(reader.GetValue(10));
+        }
+
+        var worn = new List<GauntletSpectator.Item>();
+
+        if (TableExists(connection, "Inventory") && TableExists(connection, "ItemTemplate") && TableExists(connection, "ItemUnique"))
+        {
+            using var items = connection.CreateCommand();
+
+            // An item uses its ItemUnique row when UTemplate_Id is set (DbInventoryItem.Template), else its ItemTemplate row.
+            items.CommandText = $"""
+                SELECT i.SlotPosition,
+                       CASE WHEN COALESCE(i.UTemplate_Id, '') <> '' THEN COALESCE(u.Model, 0) ELSE COALESCE(t.Model, 0) END,
+                       COALESCE(i.Color, 0),
+                       CASE WHEN COALESCE(i.UTemplate_Id, '') <> '' THEN COALESCE(u.Effect, 0) ELSE COALESCE(t.Effect, 0) END,
+                       COALESCE(i.Extension, 0)
+                FROM Inventory i
+                LEFT JOIN ItemTemplate t ON t.Id_nb = i.ITemplate_Id
+                LEFT JOIN ItemUnique u ON u.Id_nb = i.UTemplate_Id
+                WHERE i.OwnerID = @id AND i.SlotPosition IN ({string.Join(", ", GauntletSpectator.VisibleSlots)})
+                """;
+            items.Parameters.AddWithValue("@id", characterId);
+            using var reader = items.ExecuteReader();
+
+            while (reader.Read())
+            {
+                worn.Add(new GauntletSpectator.Item(
+                    Convert.ToInt32(reader.GetValue(0)),
+                    Convert.ToInt32(reader.GetValue(1)),
+                    Convert.ToInt32(reader.GetValue(2)),
+                    Convert.ToInt32(reader.GetValue(3)),
+                    Convert.ToInt32(reader.GetValue(4))));
+            }
+        }
+
+        return GauntletSpectator.Build(characterId, name, classId, race, gender, realm, currentModel, creationModel, isHoodUp, isHelmHidden,
+            isCloakHidden, activeWeaponSlot, worn);
     }
 }
