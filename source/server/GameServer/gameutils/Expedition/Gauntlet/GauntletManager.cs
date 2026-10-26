@@ -310,7 +310,7 @@ public static class GauntletManager
 
     /// <summary>
     /// Begins the player's current round: announces it and spawns the champion at the gate; the champion buffs there for
-    /// <see cref="GauntletRules.ChampionBuffSeconds"/>, walks to the centre and waits until the player targets it and
+    /// <see cref="GauntletRules.ChampionBuffSeconds"/> and waits there until the player targets it and
     /// bows (<see cref="OnBow"/>) or attacks it (GauntletChampionBrain).
     /// </summary>
     public static bool BeginRound(GamePlayer player)
@@ -371,9 +371,8 @@ public static class GauntletManager
                 return false;
             }
 
-            // AddToWorld made the gate its spawn point; the leash and the walk-in are about the centre.
-            champion.SpawnPoint = new Point3D(GauntletArena.CentreX, GauntletArena.CentreY, GauntletArena.CentreZ);
-            champion.SpawnHeading = GauntletArena.CentreHeading;
+            // AddToWorld made the gate its spawn point: it waits there, returns there when leashed, and the leash is
+            // measured from there (owner 2026-10-25: the champion stays where it appears).
             state.Champion = champion;
 
             List<string> lines = new()
@@ -383,7 +382,7 @@ public static class GauntletManager
                 $"{champion.Name} steps into the arena (realm rank {tier.RealmRank}).",
                 string.Empty,
                 "How the Gauntlet works:",
-                $"- The champion prepares its buffs, then walks to the middle of the arena and waits for you.",
+                $"- The champion prepares its buffs where it stands and waits for you.",
                 $"- Prepare yourself too. When you are ready, target {champion.Name} and type /bow to begin the duel.",
                 "- Attacking it also starts the fight.",
                 "- Win, and the next round begins after a short rest. Each round is harder.",
@@ -427,7 +426,7 @@ public static class GauntletManager
 
         if (!champion.AtCentre)
         {
-            player.Out.SendMessage($"{champion.Name} is not ready yet. Wait until it reaches the middle of the arena.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            player.Out.SendMessage($"{champion.Name} is still preparing. Wait a moment, then bow again.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
             return;
         }

@@ -16,8 +16,8 @@ public static class GauntletRules
     /// <summary>Seconds of rest between a champion's death and the next round's champion.</summary>
     public const int RestSeconds = 90;
 
-    /// <summary>How far (world units) the champion may chase from the arena centre before it is pulled back.</summary>
-    public const int LeashRadius = 1500;
+    /// <summary>How far (world units) the champion may chase from where it appeared before it is pulled back (covers the player spot, about 1,700 away).</summary>
+    public const int LeashRadius = 2500;
 
     /// <summary>Seconds the champion spends buffing at the arena centre before it attacks.</summary>
     public const int ChampionBuffSeconds = 10;

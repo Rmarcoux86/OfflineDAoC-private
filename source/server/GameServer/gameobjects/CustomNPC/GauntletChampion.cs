@@ -10,8 +10,8 @@ namespace DOL.GS.Expedition.Gauntlet;
 /// A Gauntlet champion (docs/EXPEDITION-GAUNTLET-PLAN.md, Approach A): an ownerless level-50 GameBot of the champion's
 /// class, with realm None so the challenger may attack it and it may attack the challenger without any server-rule
 /// change. It is a throwaway: no owner, no database row, no BotManager or autonomous registration, no corpse and no
-/// respawn. It buffs at the gate, walks to the arena centre and waits there, buffs kept up, until its challenger
-/// targets it and bows (/bow) or attacks it; then it fights only the challenger and the challenger's pets, within <see cref="GauntletRules.LeashRadius"/> of the centre. Its death is reported to
+/// respawn. It buffs where it appears and waits there, buffs kept up, until its challenger
+/// targets it and bows (/bow) or attacks it; then it fights only the challenger and the challenger's pets, within <see cref="GauntletRules.LeashRadius"/> of where it appeared. Its death is reported to
 /// <see cref="GauntletManager.OnChampionDied"/>.
 /// </summary>
 public sealed class GauntletChampion : GameBot
@@ -26,13 +26,10 @@ public sealed class GauntletChampion : GameBot
     /// <summary>The Gauntlet round this champion was spawned for.</summary>
     public int Round { get; }
 
-    /// <summary>When its buffing at the gate ends and it walks in (GameLoop time).</summary>
+    /// <summary>When its buffing ends and it waits to be challenged (GameLoop time).</summary>
     internal long BuffUntilTick { get; set; }
 
-    /// <summary>When it started walking to the centre; 0 until then.</summary>
-    internal long WalkInStartTick { get; set; }
-
-    /// <summary>True once it stands at the centre, waiting to be challenged.</summary>
+    /// <summary>True once it has finished buffing and waits to be challenged (it stays where it appeared).</summary>
     internal bool AtCentre { get; set; }
 
     /// <summary>
@@ -72,8 +69,7 @@ public sealed class GauntletChampion : GameBot
 
         ApplyLooks();
 
-        // The leash is measured from SpawnPoint, which GauntletManager sets to the arena centre after AddToWorld (GameNPC.
-        // AddToWorld makes the gate it appears at the spawn point).
+        // The leash is measured from SpawnPoint: where it appears (GameNPC.AddToWorld sets it).
         TetherRange = GauntletRules.LeashRadius;
 
         GauntletChampionBrain brain = new() { IsHealer = (Brain as BotBrain)?.IsHealer ?? false };
@@ -199,19 +195,16 @@ public sealed class GauntletChampion : GameBot
 }
 
 /// <summary>
-/// The champion's brain: the bot's own combat AI (styles, spells, heals) with three changes. It walks in and buffs
+/// The champion's brain: the bot's own combat AI (styles, spells, heals) with three changes. It buffs and waits
 /// before fighting; it fights only its challenger's side and keeps the challenger on its aggro list (BotBrain's AGGRO
-/// state drops out after 6 s without combat); and it is leashed to the arena centre (BotBrain ignores TetherRange).
+/// state drops out after 6 s without combat); and it is leashed to where it appeared (BotBrain ignores TetherRange).
 /// </summary>
 public sealed class GauntletChampionBrain : BotBrain
 {
     /// <summary>The aggro the challenger is topped up to every think.</summary>
     private const long ChallengerAggro = 10_000;
 
-    /// <summary>A walk-in that has not reached the centre by then stops where it is and starts buffing.</summary>
-    private const long WalkInTimeoutMs = 20_000;
-
-    /// <summary>The champion is at the centre within this distance.</summary>
+    /// <summary>While waiting, a champion moved further than twice this from its spot walks back.</summary>
     private const int CentreReachedDistance = 150;
 
     /// <summary>How often a champion hunting a stealthed challenger re-plots its walk.</summary>
@@ -244,26 +237,15 @@ public sealed class GauntletChampionBrain : BotBrain
 
             if (!champion.AtCentre)
             {
-                if (champion.WalkInStartTick == 0)
-                {
-                    champion.WalkInStartTick = now;
-                }
-
-                if (champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance) || now - champion.WalkInStartTick > WalkInTimeoutMs)
-                {
-                    champion.StopMoving();
-                    champion.AtCentre = true;
-                    GauntletManager.OnChampionReady(champion);
-                }
-                else if (!champion.IsMoving)
-                {
-                    champion.WalkTo(champion.SpawnPoint, champion.MaxSpeed);
-                }
+                // It stays where it appeared (owner 2026-10-25: no walk to the middle) and waits there.
+                champion.StopMoving();
+                champion.AtCentre = true;
+                GauntletManager.OnChampionReady(champion);
 
                 return;
             }
 
-            // Waiting to be challenged: buffs kept up, facing the challenger, back to the centre if anything moved it.
+            // Waiting to be challenged: buffs kept up, facing the challenger, back to its spot if anything moved it.
             base.Think();
 
             if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
@@ -280,7 +262,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (champion.IsOutOfTetherRange)
         {
-            // Leash: drop the fight and go back to the centre.
+            // Leash: drop the fight and go back to its spot.
             ClearAggroList();
             champion.StopAttack();
             champion.TargetObject = null;
