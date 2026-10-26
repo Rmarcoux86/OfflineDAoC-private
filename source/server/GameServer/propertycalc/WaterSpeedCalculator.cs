@@ -25,12 +25,6 @@ namespace DOL.GS.PropertyCalc
             int debuffMalus = Math.Abs(living.DebuffCategory[property]);
             int value = abilityBonus + buffBonus + itemBonus - debuffMalus; // Uncapped since the client applies its own cap anyway.
 
-            // Offline fork: players swim at least as fast as a Greater Nereid potion makes them (DefaultSwimSpeed).
-            if (living is GamePlayer)
-            {
-                value = Math.Max(value, DefaultSwimSpeed.Value);
-            }
-
             return value;
         }
     }

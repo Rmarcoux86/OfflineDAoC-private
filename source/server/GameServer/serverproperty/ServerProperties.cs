@@ -611,8 +611,6 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("server", "respec_anywhere", "Offline fork: /respec ALL, /respec <line> and /respec REALM work anywhere (no trainer) and as often as you like.", true)]
 		public static bool RESPEC_ANYWHERE = true;
 
-		[ServerProperty("server", "player_default_swim_speed", "Offline fork: water speed bonus every player has (percent). -1 uses the Greater Nereid potion's value from the database; 0 turns it off. A higher potion or ability still wins.", -1)]
-		public static int PLAYER_DEFAULT_SWIM_SPEED = -1;
 		#endregion
 
 		#region WORLD

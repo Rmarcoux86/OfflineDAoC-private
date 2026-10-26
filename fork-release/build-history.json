@@ -3,6 +3,7 @@
     "tag": "fork-v61",
     "date": "2026-10-25",
     "items": [
+      "Nereid's Blessing and the faster default swim speed are removed: swimming is back to normal speed. Nereid potions still work.",
       "Valewalker and Vampiir uniques mix melee and caster ToA bonuses (melee damage, spell damage, melee speed, casting speed...) instead of caster ones only. Uniques you already own update at your next login."
     ]
   },
