@@ -724,6 +724,7 @@ public static class ExpeditionManager
             record.PendingBoonOfferJson = JsonSerializer.Serialize(run.PendingBoonOffer ?? new List<string>(), ExpeditionJson.Options);
             record.RealmPointsEarned = run.RealmPointsEarned;
             record.RerollsUsed = run.RerollsUsed;
+            record.PlayedSecondsAtWin = run.PlayedSecondsAtWin;
 
             if (record.IsPersisted)
             {
@@ -784,6 +785,7 @@ public static class ExpeditionManager
         {
             run.Status = StatusWon;
             run.EndedUtc = DateTime.UtcNow;
+            run.PlayedSecondsAtWin = player.PlayedTime;
             run.SummaryShown = true;
             run.AddLog($"{run.CharacterName} has won the expedition.");
 
@@ -1212,6 +1214,7 @@ public static class ExpeditionManager
             BossesKilled = record.BossesKilled,
             RealmPointsEarned = record.RealmPointsEarned,
             RerollsUsed = record.RerollsUsed,
+            PlayedSecondsAtWin = record.PlayedSecondsAtWin,
             LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,

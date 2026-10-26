@@ -33,6 +33,7 @@ public class OfflineExpeditionRecord : DataObject
     private string m_endedUtc = string.Empty;
     private string m_actJson = string.Empty;
     private string m_logJson = string.Empty;
+    private long m_playedSecondsAtWin;
 
     public OfflineExpeditionRecord()
     {
@@ -288,6 +289,21 @@ public class OfflineExpeditionRecord : DataObject
         }
     }
 
+    /// <summary>
+    /// The character's played time (seconds) when it won the expedition; 0 until then. The launcher's Hall of Fame
+    /// shows it (owner 2026-10-25), since the character can be played on after its win.
+    /// </summary>
+    [DataElement(AllowDbNull = false)]
+    public long PlayedSecondsAtWin
+    {
+        get { return m_playedSecondsAtWin; }
+        set
+        {
+            Dirty = true;
+            m_playedSecondsAtWin = value;
+        }
+    }
+
     /// <summary>The boons taken on this run, as a JSON string array of boon ids (TEXT column).</summary>
     [DataElement(AllowDbNull = true)]
     public string BoonsJson
@@ -335,6 +351,9 @@ public sealed class ExpeditionRun
 
     /// <summary>Realm points earned on the run (ExpeditionRealm); updated under <see cref="KillSync"/>.</summary>
     public long RealmPointsEarned;
+
+    /// <summary>The character's played time (seconds) at its win; 0 until then.</summary>
+    public long PlayedSecondsAtWin;
 
     /// <summary>Boon offer rerolls used (ExpeditionBoons.TryReroll); changed under the Boons lock.</summary>
     public int RerollsUsed;
