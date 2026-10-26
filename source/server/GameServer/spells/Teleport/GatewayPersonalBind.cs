@@ -26,7 +26,11 @@ namespace DOL.GS.Spells
             if (Caster is not GamePlayer player)
                 return false;
 
-            if ((((player.CurrentZone != null && player.CurrentZone.IsRvR) || (player.CurrentRegion != null && player.CurrentRegion.IsInstance)) && GameServer.Instance.Configuration.ServerType != EGameServerType.GST_PvE) ||
+            // Expedition (owner 2026-10-25): on a run the stone always works, so act 5 in Darkness Falls (an RvR zone) can
+            // go back to its camp too.
+            bool onRun = DOL.GS.Expedition.ExpeditionManager.GetRun(player)?.CurrentAct != null;
+
+            if ((!onRun && ((player.CurrentZone != null && player.CurrentZone.IsRvR) || (player.CurrentRegion != null && player.CurrentRegion.IsInstance)) && GameServer.Instance.Configuration.ServerType != EGameServerType.GST_PvE) ||
                 (player.CurrentRegion.ID == 497 && player.Client.Account.PrivLevel == 1)) // Jail.
             {
                 // Actual live message is: You can't use that item!
