@@ -35,6 +35,10 @@ jobs:
         shell: pwsh
         run: dotnet build source/tools/OfflineDaoc.Launcher/OfflineDaoc.Launcher.csproj -c Release
 
+      - name: Run the launcher's tests
+        shell: pwsh
+        run: dotnet test source/tools/OfflineDaoc.Launcher.Tests/OfflineDaoc.Launcher.Tests.csproj -c Release --logger "trx;LogFileName=launcher-tests.trx" --results-directory test-results
+
       - name: Report failed tests
         if: always()
         shell: pwsh

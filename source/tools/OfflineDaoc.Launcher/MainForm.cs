@@ -208,7 +208,7 @@ internal sealed partial class MainForm : Form
 
         rootLayout.Controls.Add(BuildHeader(), 0, 0);
         rootLayout.Controls.Add(BuildCards(), 0, 1);
-        rootLayout.Controls.Add(BuildTabs(), 0, 2);
+        rootLayout.Controls.Add(BuildTabsAndHallOfFame(), 0, 2);
         rootLayout.Controls.Add(BuildFooter(), 0, 3);
 
         _realmFilter.Items.AddRange(["All realms", "Albion", "Midgard", "Hibernia"]);
@@ -234,11 +234,20 @@ internal sealed partial class MainForm : Form
         {
             ScheduleNextAutoRefresh();
             await RefreshDashboardAsync();
+
+            if (_hallOfFame is not null)
+            {
+                // A win made while the launcher is open appears without a click (no network).
+                await _hallOfFame.RefreshLocalAsync();
+            }
         };
         _serverReadinessPoll.Tick += async (_, _) => await RefreshWhenServerReadyAsync();
         Shown += async (_, _) =>
         {
             await RefreshDashboardAsync();
+            // After the dashboard read, which disables and then restores every button (SHARE MY WIN included).
+            // Downloads in the background; nothing waits for it.
+            _ = _hallOfFame?.RefreshAsync();
             await RefreshRealmExchangeAsync();
             _displayClock.Start();
             ScheduleNextAutoRefresh();

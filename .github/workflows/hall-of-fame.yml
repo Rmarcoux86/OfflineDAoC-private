@@ -1,0 +1,85 @@
+# Adds players' shared expedition wins to hall-of-fame/hall-of-fame.json (read by every launcher's Hall of Fame) and
+# Gauntlet champion snapshots to gauntlet/guest-champions.json. The launcher opens a pre-filled issue titled
+# "[Hall of Fame] <name>"; "[Gauntlet Champion] <name>" issues come from /gauntlet submit. The JSON is in a ```json block
+# in the body or an attached .json file. Issue text is only ever read by the Python script from the event file, never
+# put into a shell command.
+name: Hall of Fame
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: write
+  issues: write
+
+# Edits of one issue run one after another (a newer edit replaces a pending one); different issues run side by side
+# and the push loop below handles the races.
+concurrency:
+  group: hall-of-fame-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    if: startsWith(github.event.issue.title, '[Hall of Fame]') || startsWith(github.event.issue.title, '[Gauntlet Champion]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate the submission
+        run: python3 .github/scripts/hall_of_fame_intake.py validate "$RUNNER_TEMP/hall-of-fame"
+
+      - name: Save to main
+        id: save
+        run: |
+          WORK="$RUNNER_TEMP/hall-of-fame"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          attempt=0
+
+          while true; do
+            attempt=$((attempt + 1))
+            python3 .github/scripts/hall_of_fame_intake.py apply "$WORK"
+
+            if [ -z "$(git status --porcelain -- hall-of-fame gauntlet)" ]; then
+              echo "pushed=none" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            git add -- hall-of-fame gauntlet
+            git commit -q -F "$WORK/commit-message.txt"
+
+            # Another push landed first: rebase onto it and push again.
+            for push_try in 1 2 3; do
+              if git push -q origin HEAD:main; then
+                echo "pushed=yes" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+
+              sleep $((push_try * 3))
+
+              if ! git pull -q --rebase origin main; then
+                git rebase --abort || true
+                break
+              fi
+            done
+
+            if [ "$attempt" -ge 4 ]; then
+              echo "pushed=failed" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # The rebase conflicted (both sides added to the same file): start again from the newest main and
+            # merge the submission into it afresh, so no other entry is lost.
+            git fetch -q origin main
+            git reset -q --hard origin/main
+          done
+
+      - name: Comment and close
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PUSHED: ${{ steps.save.outputs.pushed }}
+        run: python3 .github/scripts/hall_of_fame_intake.py report "$RUNNER_TEMP/hall-of-fame"
