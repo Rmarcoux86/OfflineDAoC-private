@@ -123,12 +123,13 @@ public static class GauntletManager
     #region Death hooks (GamePlayer)
 
     /// <summary>
-    /// True when this player's death is a Gauntlet death: they are in the Gauntlet and inside the arena. GamePlayer.
+    /// True when this player's death is a Gauntlet death: they are in the Gauntlet and anywhere in the arena's region (the
+    /// same test as the release point, so a death just past the arena radius is still a Gauntlet death). GamePlayer.
     /// ProcessDeath then skips the experience, DeathCount and constitution penalties.
     /// </summary>
     public static bool IsGauntletDeath(GamePlayer player)
     {
-        return player != null && States.ContainsKey(player.ObjectId) && GauntletArena.IsInside(player);
+        return player != null && GauntletArena.IsConfigured && States.ContainsKey(player.ObjectId) && player.CurrentRegionID == GauntletArena.RegionId;
     }
 
     /// <summary>

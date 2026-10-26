@@ -77,6 +77,12 @@ public sealed class GauntletChampion : GameBot
     /// <summary>No corpse: GameNPC.ProcessDeath deletes the body, and RespawnInterval -1 keeps it gone.</summary>
     protected override bool RetainCorpseForResurrection => false;
 
+    /// <summary>
+    /// A champion kill gives the normal kill rewards (experience, realm points): GameNPC.RewardStatus denies every NPC with
+    /// an IControlledBrain, and BotBrain is one, so it is allowed here.
+    /// </summary>
+    public override RewardEligibility RewardStatus => RewardEligibility.Eligible;
+
     public override void ProcessDeath(GameObject killer)
     {
         base.ProcessDeath(killer);

@@ -17,9 +17,6 @@ public static class ExpeditionBossLooks
     /// <summary>A little larger than a player, so the boss stands out.</summary>
     private const byte BossSize = 60;
 
-    /// <summary>Percent of Preesh's swings that also swing his left-hand mace.</summary>
-    private const byte PreeshLeftHandSwingChance = 40;
-
     /// <summary>Dresses the boss when its name is one of the designed bosses. Returns true when it did.</summary>
     public static bool Apply(GameNPC boss, string title)
     {
@@ -65,9 +62,8 @@ public static class ExpeditionBossLooks
             }
             case "Preesh":
             {
-                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand. A positive
-                // LeftHandSwingChance makes an NPC swing its left-hand weapon (AttackComponent.CalculateLeftHandSwingCount)
-                // and also stops it blocking (GameLiving's block check), which is right for a dual wielder.
+                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand (looks only:
+                // the act-5 boss does not swing the left mace; a Gauntlet champion dual wields through its own spec).
                 boss.Model = FirbolgMale;
                 template.AddNPCEquipment(eInventorySlot.TorsoArmor, 782);
                 template.AddNPCEquipment(eInventorySlot.LegsArmor, 783);
@@ -77,7 +73,6 @@ public static class ExpeditionBossLooks
                 template.AddNPCEquipment(eInventorySlot.HeadArmor, 838);
                 template.AddNPCEquipment(eInventorySlot.RightHandWeapon, 914);
                 template.AddNPCEquipment(eInventorySlot.LeftHandWeapon, 914);
-                boss.LeftHandSwingChance = PreeshLeftHandSwingChance;
                 weaponSlot = eActiveWeaponSlot.Standard;
 
                 break;
