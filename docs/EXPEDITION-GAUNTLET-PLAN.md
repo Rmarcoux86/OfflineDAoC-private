@@ -211,8 +211,53 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
 
 ## Decisions made during implementation
 
-(agents append here: date, decision, reason, file)
+- 2026-10-25: **Approach A (hostile GameBot)** chosen from the Phase 0 findings: an ownerless GameBot with
+  `Realm = eRealm.None` is attackable by and aggressive to any player with no server-rule changes, and can be made a
+  throwaway. Arena is a shared region with a single-occupancy lock for the prototype. The arena /loc is not known yet;
+  `GauntletArena` uses placeholders marked `TODO owner /loc`.
 
-## Phase 0 findings
+## Phase 0 findings (2026-10-25)
 
-(agent appends here)
+**Hostile bot (A).** `new GameBot(owner, …)` throws on a null owner (bots/GameBot.cs:2262) and takes level/Quit hook
+from the owner; BotManager.CreateBot/SpawnBot need an owner and write DB rows. Never use the autonomous-world-bot
+constructor (GameBot.cs:2328; registry, travel, DB saves). The DB-free precedent is `/spawn`
+(commands/playercommands/TemporaryGroupCommands.cs:232-266): new GameBot, coordinates, AddToWorld; a plain
+`new BotInventory()` never saves. Changes for A:
+1. GameBot.cs: protected ownerless constructor copying :2263-2313 with SetRaceAndRealm(null), Level 50, optional spec,
+   EquipBot(50), no Quit handler. Set `Realm = eRealm.None` AFTER gear is generated (gear is picked by realm).
+2. Realm None needs no rule change: the owner swap in NormalServerRules.cs:33-38 is skipped without an owner, None vs a
+   player realm is "different realm" (:57), self-buffs still land (:104), BotBrain.CanAggroTarget allows it (:386).
+3. Targeting: BotBrain has an aggro list (:150, AddToAggroList :186, Attack(target) :38-53); AGGRO drops after 6 s
+   without combat (:2906-2918), so the champion brain re-adds the challenger every Think and filters AddToAggroList to
+   the challenger and their pets.
+4. Kit: styles via BotMeleeStylePolicy (BotBrain.cs:3494), spells CheckSpells/Offensive/Defensive/Heals
+   (:3792/:4138/:4278/:4755) built by SetBotSpells (GameBot.cs:3647), pets via AutonomousPetSupport.Maintain (:1465).
+   Realm abilities only through AutonomousBotRealmAbilities' private Grant (autonomous-only, :180/:253); add a public
+   GrantFixed. No bot potion code exists. The constructor picks a random spec (GameBot.cs:2284), so take a spec param.
+5. Leash: GameNPC SpawnPoint/TetherRange/IsOutOfTetherRange/ReturnToSpawnPoint (GameNPC.cs:718-908); BotBrain ignores
+   TetherRange, so do it in the brain subclass (precedent: SluaghbinderBotBrain : BotBrain; SetOwnBrain is public).
+6. Death: GameBot.ProcessDeath (:941) revives after 20 s unless RetainCorpseForResurrection is false (override it;
+   GameNPC.ProcessDeath then deletes the body, RespawnInterval -1). Kill rewards stay normal.
+7. Risks to check in game: the con/name colour of a Realm-None bot; AGGRO 6 s dropout stutter. Mezzed players are not
+   hit by bots (BotPvpCrowdControl.cs:23).
+
+**Death without run end.** A won run is out of ExpeditionManager.Runs (:802), so OnDying returns before OnPlayerDied;
+HCFlag is false after the win, so no deletion. But a Realm-None killer takes the normal monster-death path
+(GamePlayer.cs:6064): DeathCount++, xp loss, con loss, gravestone. DeathCount is dangerous later (hardcore.cs:35 and
+/run new refuse or delete with DeathCount > 0). Two hooks in GamePlayer: (1) in ProcessDeath's else branch at :6064,
+skip the xp/DeathCount/con block when `GauntletManager.IsGauntletDeath(this)`; (2) in Release just before
+`switch (m_releaseType)` (:1521), use the Gauntlet's release point when it supplies one. Release(eReleaseType, bool) is
+public (:1425) for an auto-release timer. Keep the entrance in the arena's own region (cross-region release sets
+RELEASING_PROPERTY and skips Revive/Released notifications, :1748-1751). The Gauntlet must read "won" from
+OfflineExpeditionRecord (GetRun is null for won runs) and refuse if HCFlag is on.
+
+**Arena.** Instances exist (WorldMgr.CreateInstance; BaseInstance) but get new zone ids (no navmesh: nav loads by
+zone id), and login inside one moves the player to bind. Prototype: shared region + `GauntletArena.Occupant` lock.
+Safe teleport: ExpeditionArrival.MoveToCamp pattern and ExpeditionManager.WhenSettled (internal, :642).
+
+**Approach B fallback** still matches the code (ExpeditionBoss is sealed: unseal or sibling; SkillBase.GetStyleList
+:2722; GAMENPC_CHANCES_TO_STYLE 20; Spells after Level; in-combat heals need a StandardMobBrain subclass overriding
+AttackMostWanted to CheckSpells(Defensive) first).
+
+**Commands.** Model on commands/playercommands/Run.cs ([CmdAttribute("&run", …)], AbstractCommandHandler,
+ICommandHandler); registration is automatic (ScriptMgr.cs:178-189). Run.cs and Junk.cs are LF.
