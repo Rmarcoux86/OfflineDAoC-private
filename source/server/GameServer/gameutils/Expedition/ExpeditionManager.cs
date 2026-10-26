@@ -190,6 +190,12 @@ public static class ExpeditionManager
         ExpeditionBoons.RemindOffer(player, run);
         WhenSettled(player, player.CurrentRegionID, () =>
         {
+            // A boon still waiting from the last act break opens its window at login too.
+            if (run.PendingBoonOffer.Count > 0)
+            {
+                player.Out.SendCustomTextWindow("Expedition boons", ExpeditionBoons.OfferLines(run));
+            }
+
             ExpeditionPromotion.OnRunResumed(player);
             ExpeditionRealm.Backfill(player);
             GiveRecallStone(player);
@@ -870,7 +876,19 @@ public static class ExpeditionManager
 
             ObjectiveTracker.Attach(player);
             ExpeditionBoons.ApplyAll(player, current);
-            WhenSettled(player, (ushort)next.RegionId, () => player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList()));
+            WhenSettled(player, (ushort)next.RegionId, () =>
+            {
+                // The boon choice is the act break's reward, so it is the window that opens (owner 2026-10-25: the
+                // offer was only a chat line and the journal); the journal is a /run journal away.
+                if (current.PendingBoonOffer.Count > 0)
+                {
+                    player.Out.SendCustomTextWindow("Expedition boons", ExpeditionBoons.OfferLines(current));
+                }
+                else
+                {
+                    player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList());
+                }
+            });
 
             return 0;
         }, NextActTeleportDelayMilliseconds);

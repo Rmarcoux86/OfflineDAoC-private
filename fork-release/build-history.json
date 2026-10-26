@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v62",
+    "date": "2026-10-25",
+    "items": [
+      "The boon choice opens as a window when you arrive at a new act's camp (and at login while a choice is still waiting). Before, it was only a chat line; /run boons still shows it any time."
+    ]
+  },
+  {
     "tag": "fork-v61",
     "date": "2026-10-25",
     "items": [
