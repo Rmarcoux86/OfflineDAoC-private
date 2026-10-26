@@ -4,7 +4,8 @@
     "date": "2026-10-25",
     "items": [
       "Closing the launcher with the X stops a running server first (it is told to save and exit, as Stop does).",
-      "Mid-tier uniques (level 20 to 40) have about half the stats, hit points, resists and skills they had; their ToA bonuses stay. Mid-tier uniques you already own update at your next login."
+      "Mid-tier uniques (level 20 to 40) have about half the stats, hit points, resists and skills they had; their ToA bonuses stay. Mid-tier uniques you already own update at your next login.",
+      "Realm points are fully shared across your account: every time an expedition character logs in, it is topped up to the account's total, so realm points earned on any realm show up on all your characters."
     ]
   },
   {

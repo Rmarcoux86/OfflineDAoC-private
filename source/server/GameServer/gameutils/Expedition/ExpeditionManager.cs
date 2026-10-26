@@ -173,6 +173,9 @@ public static class ExpeditionManager
         }
 
         Runs[run.CharacterId] = run;
+
+        // Fork (owner 2026-10-25): realm points are fully shared; every login tops the character up to the account's total.
+        ExpeditionAccountRealm.SyncToAccount(player, run);
         ObjectiveTracker.Attach(player);
 
         if (ExpeditionBoons.RemoveRetired(player, run))

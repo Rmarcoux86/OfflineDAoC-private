@@ -48,8 +48,9 @@ public class OfflineExpeditionAccountRecord : DataObject
 }
 
 /// <summary>
-/// Account realm points: every realm point a run earns is added to the account at once, and a new run's character
-/// starts with the account's total, so realm ranks and realm abilities are never lost to a hardcore death.
+/// Account realm points: every realm point a run earns is added to the account at once, and a run's character starts
+/// with the account's total and is topped up to it at every login, so all of the account's characters share one realm
+/// rank and realm abilities are never lost to a hardcore death.
 /// </summary>
 public static class ExpeditionAccountRealm
 {
@@ -135,6 +136,26 @@ public static class ExpeditionAccountRealm
                 Log.Error($"[EXPEDITION] Could not save the realm points of account {accountName}.", ex);
             }
         }
+    }
+
+    /// <summary>
+    /// A run's character at login is brought up to the account's total (owner 2026-10-25: "make it fully shared"), so
+    /// what another character on the account earned since shows here too. Not counted as earned by the run, so it is
+    /// not added to the account again. A character already at or over the total is left as it is.
+    /// </summary>
+    public static void SyncToAccount(GamePlayer player, ExpeditionRun run)
+    {
+        long missing = Total(run?.AccountName) - (player?.RealmPoints ?? 0);
+
+        if (player == null || missing <= 0)
+        {
+            return;
+        }
+
+        player.GainRealmPoints(missing, false, false);
+        run.AddLog($"{missing} realm points earned by the account's other characters carry over to {player.Name}.");
+        ExpeditionManager.Save(run);
+        player.Out.SendMessage($"{missing} realm points your other characters earned carry over to this character. Spend realm ability points with /train.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
     }
 
     /// <summary>
