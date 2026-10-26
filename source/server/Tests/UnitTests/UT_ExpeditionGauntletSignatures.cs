@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DOL.Database;
+using DOL.GS.Expedition;
 using DOL.GS.Expedition.Gauntlet;
 using NUnit.Framework;
 
@@ -542,5 +543,25 @@ public class UT_ExpeditionGauntletSignatures
         }
 
         Assert.That(GauntletPositioning.RetreatPoint(TargetX, TargetY, TargetX, TargetY, 2000), Is.EqualTo((TargetX + 2000, TargetY)));
+    }
+
+    [Test]
+    public void GearRarity_ScalesAcrossTheFiveFights()
+    {
+        Random rng = new(7);
+
+        Assert.That(GauntletChampion.GearRarityFor(1, rng), Is.EqualTo(eLootRarity.Rare));
+        Assert.That(GauntletChampion.GearRarityFor(2, rng), Is.EqualTo(eLootRarity.Rare));
+        Assert.That(GauntletChampion.GearRarityFor(5, rng), Is.EqualTo(eLootRarity.Epic));
+
+        HashSet<eLootRarity> middle = new();
+
+        for (int i = 0; i < 200; i++)
+        {
+            middle.Add(GauntletChampion.GearRarityFor(3, rng));
+            middle.Add(GauntletChampion.GearRarityFor(4, rng));
+        }
+
+        Assert.That(middle, Is.EquivalentTo(new[] { eLootRarity.Rare, eLootRarity.Epic }));
     }
 }

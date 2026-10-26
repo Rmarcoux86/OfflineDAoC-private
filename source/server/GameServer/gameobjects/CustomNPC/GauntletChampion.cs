@@ -178,7 +178,7 @@ public sealed class GauntletChampion : GameBot
         }
 
         ApplyLooks();
-        RollEpicGear();
+        RollGear(round);
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
@@ -275,11 +275,27 @@ public sealed class GauntletChampion : GameBot
     private readonly eRealm _homeRealm;
 
     /// <summary>
-    /// Epic gear (owner 2026-10-26: "maybe they're just in epic gear", so players who reach the Gauntlet with drop gear
-    /// can stand up to them): every armor and jewelry piece is rolled again as an Expedition Epic of its type and slot for
-    /// the champion's class and realm, keeping the piece's look. Weapons and shields stay the class's own.
+    /// The champion's gear, scaled across the five fights (owner 2026-10-26, from the drop rates a player finishing act 5
+    /// has seen): fights 1-2 all Rare, 3-4 each piece Rare or Epic at random, 5 (Preesh) all Epic. Every armor and
+    /// jewelry piece is rolled again as an Expedition item of that rarity, type and slot for the champion's class and
+    /// realm, keeping the piece's look. Weapons and shields stay the class's own.
     /// </summary>
-    private void RollEpicGear()
+    public static eLootRarity GearRarityFor(int round, Random rng)
+    {
+        if (round <= 2)
+        {
+            return eLootRarity.Rare;
+        }
+
+        if (round <= 4)
+        {
+            return rng.Next(2) == 0 ? eLootRarity.Rare : eLootRarity.Epic;
+        }
+
+        return eLootRarity.Epic;
+    }
+
+    private void RollGear(int round)
     {
         if (Inventory == null)
         {
@@ -300,7 +316,7 @@ public sealed class GauntletChampion : GameBot
                 continue;
             }
 
-            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, SpawnLevel, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, eLootRarity.Epic);
+            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, SpawnLevel, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, GearRarityFor(round, Random.Shared));
 
             if (rolled == null)
             {
