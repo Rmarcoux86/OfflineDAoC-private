@@ -172,7 +172,7 @@ public class UT_ExpeditionGauntlet
         Assert.Multiple(() =>
         {
             Assert.That(GauntletRules.DeathEndsRun, Is.False, "owner decision: no permadeath in the Gauntlet for now");
-            Assert.That(GauntletRules.RestSeconds, Is.EqualTo(90));
+            Assert.That(GauntletRules.RestSeconds, Is.EqualTo(15));
             Assert.That(GauntletRules.LeashRadius, Is.GreaterThan(0));
             Assert.That(GauntletRules.ChampionBuffSeconds, Is.GreaterThan(0));
             Assert.That(GauntletRules.AutoReleaseSeconds, Is.GreaterThan(0));
