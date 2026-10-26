@@ -807,6 +807,9 @@ public static class ExpeditionManager
             player.Out.SendMessage("You have won the expedition! Your Hardcore flag has been disabled.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
             player.Out.SendCustomTextWindow("Expedition won", SummaryLines(run, "VICTORY"));
 
+            // Fork (owner 2026-10-25): the winner is taken to the Gauntlet, the ultimate test.
+            Gauntlet.GauntletManager.StartAfterExpedition(player);
+
             return;
         }
 

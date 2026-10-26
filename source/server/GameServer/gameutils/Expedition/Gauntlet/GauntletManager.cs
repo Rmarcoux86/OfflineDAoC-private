@@ -375,22 +375,33 @@ public static class GauntletManager
             // measured from there (owner 2026-10-25: the champion stays where it appears).
             state.Champion = champion;
 
-            List<string> lines = new()
-            {
-                $"Round {state.Round}",
-                string.Empty,
-                $"{champion.Name} steps into the arena (realm rank {tier.RealmRank}).",
-                string.Empty,
-                "How the Gauntlet works:",
-                $"- The champion prepares its buffs where it stands and waits for you.",
-                $"- Prepare yourself too. When you are ready, target {champion.Name} and type /bow to begin the duel.",
-                "- Attacking it also starts the fight.",
-                "- Win, and the next round begins after a short rest. Each round is harder.",
-                "- If you fall, you return to the arena entrance with no death penalty; type /gauntlet start to try the round again.",
-                "- /gauntlet status shows your round; /gauntlet leave takes you out.",
-                string.Empty,
-                $"Rounds beaten so far: {state.Depth}."
-            };
+            List<string> lines = state.Round <= 1
+                ? new List<string>
+                {
+                    "Congratulations, champion of the expedition!",
+                    string.Empty,
+                    "Few ever get this far. But your journey is not over: now you face your ultimate test.",
+                    string.Empty,
+                    $"The {GauntletRules.GuildName} guild.",
+                    string.Empty,
+                    $"Its {GauntletRules.Rounds} members will face you one at a time, each of a higher realm rank than the last. Defeat them all to finish the Gauntlet.",
+                    string.Empty,
+                    "How it works:",
+                    "- Each challenger prepares its buffs where it stands and waits for you. Prepare yourself too.",
+                    $"- When you are ready, target {champion.Name} and type /bow (or /duel challenge) to begin the fight.",
+                    "- Attacking it also starts the fight.",
+                    "- Win, and the next challenger steps forward after a short rest.",
+                    "- If you fall, you return here with no death penalty; type /gauntlet start to face the same challenger again.",
+                    "- /gauntlet status shows where you are; /gauntlet leave takes you back to camp."
+                }
+                : new List<string>
+                {
+                    $"Challenger {state.Round} of {GauntletRules.Rounds}",
+                    string.Empty,
+                    $"{champion.Name} of {GauntletRules.GuildName} steps forward (realm rank {tier.RealmRank}).",
+                    string.Empty,
+                    $"Target {champion.Name} and type /bow (or /duel challenge) when you are ready."
+                };
 
             player.Out.SendMessage($"The Gauntlet, round {state.Round}: {champion.Name} steps into the arena!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
             player.Out.SendCustomTextWindow("The Gauntlet", lines);
@@ -479,11 +490,82 @@ public static class GauntletManager
             }
 
             player.Out.SendMessage($"Round {beaten} is yours! {champion.Name} is defeated.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            if (beaten >= GauntletRules.Rounds)
+            {
+                Complete(player, state, champion);
+
+                return;
+            }
+
             ExpeditionLoot.DropFor(player, champion, eLootRarity.Rare);
             StartRest(player, state);
 
             return;
         }
+    }
+
+    /// <summary>
+    /// The last champion fell: the Gauntlet is won. A unique drops, the box congratulates the player, the next Gauntlet
+    /// would start from the first challenger again, and the player is taken back to camp shortly.
+    /// </summary>
+    private static void Complete(GamePlayer player, GauntletState state, GauntletChampion champion)
+    {
+        lock (state)
+        {
+            state.Round = 1;
+            SaveState(state);
+        }
+
+        ExpeditionLoot.DropFor(player, champion, eLootRarity.Unique);
+        player.Out.SendMessage($"The {GauntletRules.GuildName} guild is defeated! You have passed the ultimate test.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendCustomTextWindow("The Gauntlet", new List<string>
+        {
+            $"You have defeated the {GauntletRules.GuildName} guild!",
+            string.Empty,
+            $"All {GauntletRules.Rounds} of its members have fallen before you. You have passed the ultimate test.",
+            string.Empty,
+            $"You return to camp in {GauntletRules.ReturnAfterVictorySeconds} seconds."
+        });
+
+        new ECSGameTimer(player, _ =>
+        {
+            if (GetState(player) == state && player.IsAlive && player.ObjectState == GameObject.eObjectState.Active)
+            {
+                TryLeave(player, out _);
+            }
+
+            return 0;
+        }, GauntletRules.ReturnAfterVictorySeconds * 1000);
+    }
+
+    /// <summary>
+    /// The expedition was just won (ExpeditionManager): after <see cref="GauntletRules.StartAfterWinSeconds"/> the winner
+    /// is taken to the Gauntlet and its first challenger.
+    /// </summary>
+    public static void StartAfterExpedition(GamePlayer player)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        player.Out.SendMessage($"Your journey is not over. In {GauntletRules.StartAfterWinSeconds} seconds you will be taken to face your ultimate test.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        new ECSGameTimer(player, _ =>
+        {
+            if (!player.IsAlive || player.ObjectState != GameObject.eObjectState.Active || GetState(player) != null)
+            {
+                return 0;
+            }
+
+            if (!TryStart(player, out string error) && error != null)
+            {
+                player.Out.SendMessage(error, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            }
+
+            return 0;
+        }, GauntletRules.StartAfterWinSeconds * 1000);
     }
 
     /// <summary>

@@ -146,6 +146,13 @@ public sealed class GauntletChampion : GameBot
         }
     }
 
+    /// <summary>Every champion is of the SmuG guild (GameBot.AddToWorld would show its own bot guild otherwise).</summary>
+    public override string GuildName
+    {
+        get { return GauntletRules.GuildName; }
+        set { base.GuildName = GauntletRules.GuildName; }
+    }
+
     /// <summary>An attack by the challenger's side starts the fight, bow or no bow.</summary>
     public override void OnAttackedByEnemy(AttackData ad)
     {

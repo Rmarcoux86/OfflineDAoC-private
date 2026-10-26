@@ -14,7 +14,7 @@ public static class GauntletRules
     public const bool DeathEndsRun = false;
 
     /// <summary>Seconds of rest between a champion's death and the next round's champion.</summary>
-    public const int RestSeconds = 90;
+    public const int RestSeconds = 15;
 
     /// <summary>How far (world units) the champion may chase from where it appeared before it is pulled back (covers the player spot, about 1,700 away).</summary>
     public const int LeashRadius = 2500;
@@ -30,4 +30,19 @@ public static class GauntletRules
     /// one that has won its expedition; such a session is not saved. Set false to require a won run.
     /// </summary>
     public const bool TestEntryForAnyCharacter = true;
+
+    /// <summary>
+    /// The Gauntlet is one fight against each champion (owner 2026-10-25: "it should just end after fighting each boss
+    /// once"): four in a seeded order, then Preesh.
+    /// </summary>
+    public const int Rounds = 5;
+
+    /// <summary>The champions' guild, shown under their names: the expedition's ultimate test.</summary>
+    public const string GuildName = "SmuG";
+
+    /// <summary>Seconds after the expedition is won before the winner is taken to the Gauntlet (time to read and loot).</summary>
+    public const int StartAfterWinSeconds = 20;
+
+    /// <summary>Seconds after the last champion falls before the winner is taken back to camp.</summary>
+    public const int ReturnAfterVictorySeconds = 15;
 }

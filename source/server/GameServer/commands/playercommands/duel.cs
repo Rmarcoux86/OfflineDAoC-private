@@ -121,6 +121,13 @@ namespace DOL.GS.Commands
 				{
 					case "challenge":
 					{
+						// The Gauntlet: challenging your waiting champion starts the fight, as /bow does (owner 2026-10-25).
+						if (client.Player.TargetObject is DOL.GS.Expedition.Gauntlet.GauntletChampion)
+						{
+							DOL.GS.Expedition.Gauntlet.GauntletManager.OnBow(client.Player, client.Player.TargetObject);
+							return;
+						}
+
 						GamePlayer target = client.Player.TargetObject as GamePlayer;
 
 						if (target == null || target == client.Player)
