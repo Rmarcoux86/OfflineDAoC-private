@@ -2318,6 +2318,63 @@ namespace DOL.GS
         }
 
         /// <summary>
+        /// An ownerless, throwaway character for scripted fights (the Gauntlet's champions,
+        /// docs/EXPEDITION-GAUNTLET-PLAN.md Phase 0): the owner constructor's setup without the owner. It has no Quit
+        /// hook, no database row, no BotManager registration and no autonomous-world registration; its BotInventory is
+        /// generated and never saved. The realm is the class's realm, so its gear is picked for that realm; a caller that
+        /// wants another realm sets it after this constructor. <paramref name="spec"/> None picks a random build.
+        /// </summary>
+        protected GameBot(byte classId, string name, byte raceId, byte genderId, byte level, eSpecType spec = eSpecType.None)
+        {
+            ClassId = classId;
+            RaceId = raceId;
+            GenderId = genderId;
+            ClassName = BotManager.GetClassNameById(classId);
+            InternalID = Guid.NewGuid().ToString();
+            _dummyClient = new BotDummyClient();
+            _dummyLib = new BotDummyPacketLib();
+
+            if (!SetCharacterClass(ClassId))
+            {
+                throw new InvalidOperationException($"Failed to set character class for class ID {ClassId}. Ensure the class ID is valid.");
+            }
+
+            SetRaceAndRealm(null);
+            Level = (byte)Math.Clamp((int)level, 1, MaxLevel);
+            _creationModel = Model;
+            Name = string.IsNullOrEmpty(name) ? ClassName : name;
+            MaxSpeedBase = PLAYER_BASE_SPEED;
+
+            InitializeBotStats();
+            eCharacterClass characterClass = (eCharacterClass)ClassId;
+            eSpecType chosenSpec = spec == eSpecType.None ? BotSpec.ChooseRandomSpecialization(characterClass) : spec;
+            BotSpec = characterClass == eCharacterClass.Bonedancer
+                ? new BonedancerBotSpec(chosenSpec, 0, false)
+                : characterClass == eCharacterClass.Sluaghbinder
+                    ? new SluaghbinderBotSpec(chosenSpec, 0, false)
+                : BotSpec.GetSpec(characterClass, chosenSpec);
+            LoadClassSpecializations(false);
+            SpendSpecPoints(Level, 0);
+            RefreshSpecDependantSkills(false);
+            SetBotSpells();
+            SortStyles();
+            SortSpells();
+            EquipBot(Level);
+
+            Health = MaxHealth;
+            Endurance = MaxEndurance;
+            Mana = MaxMana;
+            RespawnInterval = -1;
+
+            var brain = characterClass == eCharacterClass.Sluaghbinder
+                ? new DOL.AI.Brain.SluaghbinderBotBrain()
+                : new DOL.AI.Brain.BotBrain();
+            brain.IsHealer = IsHealerClass();
+            SetOwnBrain(brain);
+            InitControlledBrainArray(1);
+        }
+
+        /// <summary>
         /// Loads an ownerless autonomous character from its persistent record.
         /// No generated equipment and no field auto-training are allowed here.
         /// </summary>

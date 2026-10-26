@@ -215,6 +215,34 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
   `Realm = eRealm.None` is attackable by and aggressive to any player with no server-rule changes, and can be made a
   throwaway. Arena is a shared region with a single-occupancy lock for the prototype. The arena /loc is not known yet;
   `GauntletArena` uses placeholders marked `TODO owner /loc`.
+- 2026-10-25, Phase 1 code (not built, not tested in game):
+  - `GameBot` gained a protected ownerless constructor `(classId, name, raceId, genderId, level, spec = None)`: the
+    owner constructor's setup minus the owner, Quit hook, DB and registrations. `GauntletChampion` sets
+    `Realm = None` after it (gear is already generated).
+  - The arena constants are placeholders with `RegionId = 0`; `GauntletArena.IsConfigured` is false and
+    `/gauntlet start` refuses with "The Gauntlet arena is not set up yet." until the owner's `/loc` is filled in.
+  - Prototype champion is always Ios (`GauntletManager.PrototypeIosOnly`); flip it to use
+    `GauntletChampions.ForRound(seed, round)`. Escalation applied: realm rank (`RealmLevel = (RR-1)*10`) and the
+    round-21+ stat bonus (base stats). Gear tier, RAs, potions, affixes and helpers are Phase 2.
+  - `ExpeditionBossLooks.Apply` replaces an NPC's inventory with a model-only template, which would strip a bot's real
+    gear (weapon type drives styles). The champion keeps its generated `BotInventory` and only copies the template's
+    models onto its items (each item gets its own template copy so cached templates are not changed).
+  - `GameNPC.AddToWorld` resets `SpawnPoint` to where the NPC appears, so the manager sets the spawn point (leash
+    centre) to the arena centre after `AddToWorld` at the gate. The brain walks in (20 s cap), lets the idle state cast
+    buffs for `ChampionBuffSeconds`, then fights; a hit from the challenger's side engages at once.
+  - A stealthed challenger is hunted: the champion walks to the player's position (half speed, re-plotted every 3 s) so
+    `UncoverStealthAction`'s normal NPC rule can reveal them; it is not given aggro on a hidden player.
+  - Release hook placed after `Release`'s switch (overrides the computed point) rather than before it, to keep the edit
+    to one block. Auto-release is a timer started from the Dying handler calling `Release(eReleaseType.Normal, true)`.
+  - `GauntletRules.DeathEndsRun = true` ends the Gauntlet session at death and lets the normal death rules apply
+    (open question 3 decides more).
+  - Session ends (champion removed, round saved, arena freed) on quit, linkdeath, leaving the arena's region and
+    `/gauntlet leave`. A login inside the arena is moved to the entrance. `/gauntlet leave` uses
+    `ExpeditionArrival.MoveToCamp(player, null, plan)` with the won run's saved act and writes a moved camp back.
+  - A champion kill gives one `ExpeditionLoot.DropFor(player, champion, Rare)` (Rare or better). Normal kill rewards
+    stay, so the player may also get experience and realm points for the bot kill (open question 2).
+  - `GauntletChampion.cs` is LF like `ExpeditionBoss.cs` (the fork's own files in that folder are LF; the stock ones CRLF).
+  - Unit tests for `GauntletSave.Parse`/`ToJson` are not written (the test files belong to the data agent).
 
 ## Phase 0 findings (2026-10-25)
 

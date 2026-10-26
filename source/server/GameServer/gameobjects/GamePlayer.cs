@@ -1664,6 +1664,16 @@ namespace DOL.GS
                 }
             }
 
+            // A Gauntlet death releases at the arena entrance (GauntletManager).
+            if (DOL.GS.Expedition.Gauntlet.GauntletManager.TryGetReleasePoint(this, out ushort gauntletRegion, out int gauntletX, out int gauntletY, out int gauntletZ, out ushort gauntletHeading))
+            {
+                relRegion = gauntletRegion;
+                relX = gauntletX;
+                relY = gauntletY;
+                relZ = gauntletZ;
+                relHeading = gauntletHeading;
+            }
+
             Out.SendMessage(LanguageMgr.GetTranslation(Client.Account.Language, "GamePlayer.Release.YouRelease"), eChatType.CT_YouDied, eChatLoc.CL_SystemWindow);
             Out.SendCloseTimerWindow();
 
@@ -6062,7 +6072,8 @@ namespace DOL.GS
                         }
                     }
                 }
-                else
+                // A Gauntlet death costs nothing: no experience, DeathCount or constitution (GauntletManager).
+                else if (!DOL.GS.Expedition.Gauntlet.GauntletManager.IsGauntletDeath(this))
                 {
                     if (Level >= Properties.PVE_EXP_LOSS_LEVEL)
                     {

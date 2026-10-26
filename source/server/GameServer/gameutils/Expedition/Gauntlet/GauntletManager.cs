@@ -1,0 +1,735 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text.Json;
+using DOL.Events;
+using DOL.GS.PacketHandler;
+using DOL.Logging;
+
+namespace DOL.GS.Expedition.Gauntlet;
+
+/// <summary>
+/// The Gauntlet (docs/EXPEDITION-GAUNTLET-PLAN.md), Phase 1 prototype: a character whose expedition is won duels
+/// champions in the arena, round after round. /gauntlet start teleports to the arena and begins the saved round; a
+/// champion's death is a beaten round, a rest and the next round; a death keeps the character (no DeathCount, no
+/// experience or constitution loss, GamePlayer's two hooks), removes the champion and releases the player at the arena
+/// entrance with the round unchanged. Round and depth are saved in <see cref="OfflineExpeditionRecord.GauntletJson"/>.
+/// Prototype: every round's champion is Ios (<see cref="PrototypeIosOnly"/>).
+/// </summary>
+public static class GauntletManager
+{
+    private static readonly Logger Log = LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
+
+    /// <summary>
+    /// Phase 1 fights only Ios (melee only, no pet). When false the round's champion is
+    /// GauntletChampions.ForRound(seed, round).
+    /// </summary>
+    public static readonly bool PrototypeIosOnly = true;
+
+    /// <summary>The countdown line during the rest is sent this often.</summary>
+    private const int RestAnnounceMs = 30_000;
+
+    /// <summary>Gauntlets of characters in the game, by character id.</summary>
+    private static readonly ConcurrentDictionary<string, GauntletState> States = new(StringComparer.Ordinal);
+
+    #region Server and player events
+
+    [GameServerStartedEvent]
+    public static void OnServerStarted(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.AddHandler(GamePlayerEvent.GameEntered, new DOLEventHandler(OnGameEntered));
+        GameEventMgr.AddHandler(GamePlayerEvent.Quit, new DOLEventHandler(OnQuit));
+        GameEventMgr.AddHandler(GamePlayerEvent.Linkdeath, new DOLEventHandler(OnQuit));
+        GameEventMgr.AddHandler(GamePlayerEvent.RegionChanged, new DOLEventHandler(OnRegionChanged));
+        GameEventMgr.AddHandler(GameLivingEvent.Dying, new DOLEventHandler(OnDying));
+    }
+
+    [GameServerStoppedEvent]
+    public static void OnServerStopped(DOLEvent e, object sender, EventArgs args)
+    {
+        GameEventMgr.RemoveHandler(GamePlayerEvent.GameEntered, new DOLEventHandler(OnGameEntered));
+        GameEventMgr.RemoveHandler(GamePlayerEvent.Quit, new DOLEventHandler(OnQuit));
+        GameEventMgr.RemoveHandler(GamePlayerEvent.Linkdeath, new DOLEventHandler(OnQuit));
+        GameEventMgr.RemoveHandler(GamePlayerEvent.RegionChanged, new DOLEventHandler(OnRegionChanged));
+        GameEventMgr.RemoveHandler(GameLivingEvent.Dying, new DOLEventHandler(OnDying));
+
+        foreach (GauntletState state in States.Values)
+        {
+            lock (state)
+            {
+                RemoveChampion(state);
+                StopRest(state);
+                SaveState(state);
+            }
+        }
+
+        States.Clear();
+    }
+
+    /// <summary>A character who logs in inside the arena is put at its entrance; /gauntlet start resumes the round.</summary>
+    private static void OnGameEntered(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player || !GauntletArena.IsInside(player))
+        {
+            return;
+        }
+
+        ExpeditionManager.WhenSettled(player, GauntletArena.RegionId, () =>
+        {
+            if (!GauntletArena.IsInside(player) || States.ContainsKey(player.ObjectId))
+            {
+                return;
+            }
+
+            player.MoveTo(GauntletArena.RegionId, GauntletArena.EntranceX, GauntletArena.EntranceY, GauntletArena.EntranceZ, GauntletArena.EntranceHeading);
+            player.Out.SendMessage("You stand at the entrance of the Gauntlet. Type /gauntlet start to resume your round.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        });
+    }
+
+    /// <summary>Quit and linkdeath: the champion goes, the round is kept for the next /gauntlet start.</summary>
+    private static void OnQuit(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is GamePlayer player)
+        {
+            Stop(player);
+        }
+    }
+
+    /// <summary>A player who changes region away from the arena leaves the Gauntlet.</summary>
+    private static void OnRegionChanged(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is not GamePlayer player || !States.ContainsKey(player.ObjectId))
+        {
+            return;
+        }
+
+        if (player.CurrentRegionID != GauntletArena.RegionId)
+        {
+            Stop(player);
+        }
+    }
+
+    private static void OnDying(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is GamePlayer player && IsGauntletDeath(player))
+        {
+            OnPlayerDied(player);
+        }
+    }
+
+    #endregion
+
+    #region Death hooks (GamePlayer)
+
+    /// <summary>
+    /// True when this player's death is a Gauntlet death: they are in the Gauntlet and inside the arena. GamePlayer.
+    /// ProcessDeath then skips the experience, DeathCount and constitution penalties.
+    /// </summary>
+    public static bool IsGauntletDeath(GamePlayer player)
+    {
+        return player != null && States.ContainsKey(player.ObjectId) && GauntletArena.IsInside(player);
+    }
+
+    /// <summary>
+    /// The release point after a Gauntlet death: the arena entrance, in the arena's own region (a cross-region release
+    /// skips GamePlayer's Revive and Released notifications). False when GamePlayer.Release should use its own point.
+    /// </summary>
+    public static bool TryGetReleasePoint(GamePlayer player, out ushort regionId, out int x, out int y, out int z, out ushort heading)
+    {
+        regionId = 0;
+        x = 0;
+        y = 0;
+        z = 0;
+        heading = 0;
+
+        if (player == null || !GauntletArena.IsConfigured || !States.ContainsKey(player.ObjectId) || player.CurrentRegionID != GauntletArena.RegionId)
+        {
+            return false;
+        }
+
+        regionId = GauntletArena.RegionId;
+        x = GauntletArena.EntranceX;
+        y = GauntletArena.EntranceY;
+        z = GauntletArena.EntranceZ;
+        heading = GauntletArena.EntranceHeading;
+
+        return true;
+    }
+
+    #endregion
+
+    #region Start, rounds, death, leave
+
+    public static GauntletState GetState(GamePlayer player)
+    {
+        if (player == null)
+        {
+            return null;
+        }
+
+        return States.TryGetValue(player.ObjectId, out GauntletState state) ? state : null;
+    }
+
+    /// <summary>
+    /// /gauntlet start: for a character whose expedition is won, alive, with the arena free. Teleports to the arena
+    /// centre and begins the saved round once the player has settled there.
+    /// </summary>
+    public static bool TryStart(GamePlayer player, out string error)
+    {
+        error = null;
+
+        if (player?.Client == null)
+        {
+            error = "Only a player in the world can enter the Gauntlet.";
+
+            return false;
+        }
+
+        if (!GauntletArena.IsConfigured)
+        {
+            error = GauntletArena.NotSetUpMessage;
+
+            return false;
+        }
+
+        if (!player.IsAlive)
+        {
+            error = "You must be alive to enter the Gauntlet.";
+
+            return false;
+        }
+
+        if (player.HCFlag)
+        {
+            error = "The Gauntlet is open only to a character that has won its expedition (your Hardcore flag is on).";
+
+            return false;
+        }
+
+        GauntletState existing = GetState(player);
+
+        if (existing != null)
+        {
+            lock (existing)
+            {
+                if (existing.ChampionOut)
+                {
+                    error = $"Round {existing.Round} is already under way.";
+
+                    return false;
+                }
+
+                if (existing.IsResting)
+                {
+                    long seconds = Math.Max(1, (existing.RestEndsAt - GameLoop.GameLoopTime + 999) / 1000);
+                    error = $"Round {existing.Round} begins in {seconds} seconds.";
+
+                    return false;
+                }
+            }
+        }
+
+        OfflineExpeditionRecord record;
+
+        try
+        {
+            record = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[GAUNTLET] Could not load the run of {player.Name}.", ex);
+            }
+
+            error = "Your expedition could not be read. Please try again.";
+
+            return false;
+        }
+
+        // A won run has left ExpeditionManager's active runs (GetRun is null for it), so "won" is read from the row.
+        if (record == null || record.Status != ExpeditionManager.StatusWon)
+        {
+            error = "Only a character that has won its expedition can enter the Gauntlet.";
+
+            return false;
+        }
+
+        if (!GauntletArena.TryClaim(player))
+        {
+            error = "Someone else is in the Gauntlet. Try again later.";
+
+            return false;
+        }
+
+        GauntletState state = existing;
+
+        if (state == null)
+        {
+            GauntletSave save = GauntletSave.Parse(record.GauntletJson);
+            state = States.GetOrAdd(player.ObjectId, _ => new GauntletState
+            {
+                CharacterId = player.ObjectId,
+                Round = save.Round,
+                Depth = save.Depth
+            });
+        }
+
+        lock (state)
+        {
+            state.Record = record;
+            state.Seed = record.Seed;
+        }
+
+        if (!GauntletArena.IsInside(player) &&
+            !player.MoveTo(GauntletArena.RegionId, GauntletArena.CentreX, GauntletArena.CentreY, GauntletArena.CentreZ, GauntletArena.CentreHeading))
+        {
+            GauntletArena.Release(player);
+            error = "The Gauntlet could not be reached. Please try again.";
+
+            return false;
+        }
+
+        player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        // Nothing is spawned or shown until the client has loaded the arena (ExpeditionManager.WhenSettled).
+        ExpeditionManager.WhenSettled(player, GauntletArena.RegionId, () => BeginRound(player));
+
+        return true;
+    }
+
+    /// <summary>
+    /// Begins the player's current round: announces it and spawns the champion at the gate; the champion walks to the
+    /// centre, buffs for <see cref="GauntletRules.ChampionBuffSeconds"/>, then attacks (GauntletChampionBrain).
+    /// </summary>
+    public static bool BeginRound(GamePlayer player)
+    {
+        GauntletState state = GetState(player);
+
+        if (state == null)
+        {
+            return false;
+        }
+
+        lock (state)
+        {
+            if (state.ChampionOut)
+            {
+                return false;
+            }
+
+            if (!player.IsAlive || !GauntletArena.IsInside(player))
+            {
+                player.Out.SendMessage($"Round {state.Round} waits for you. Type /gauntlet start in the arena to begin it.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                return false;
+            }
+
+            ChampionDefinition definition = PrototypeIosOnly ? GauntletChampions.Get("Ios") : GauntletChampions.ForRound(state.Seed, state.Round);
+            RoundTier tier = GauntletEscalation.For(state.Round);
+            GauntletChampion champion;
+
+            try
+            {
+                champion = new GauntletChampion(player, definition, state.Round, tier);
+            }
+            catch (Exception ex)
+            {
+                if (Log.IsErrorEnabled)
+                {
+                    Log.Error($"[GAUNTLET] The round {state.Round} champion could not be made for {player.Name}.", ex);
+                }
+
+                player.Out.SendMessage("The champion could not be summoned. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                return false;
+            }
+
+            champion.X = GauntletArena.GateX;
+            champion.Y = GauntletArena.GateY;
+            champion.Z = GauntletArena.GateZ;
+            champion.Heading = GauntletArena.GateHeading;
+            champion.CurrentRegionID = GauntletArena.RegionId;
+            champion.WalkInStartTick = GameLoop.GameLoopTime;
+
+            if (!champion.AddToWorld())
+            {
+                champion.Remove();
+                player.Out.SendMessage("The champion could not enter the arena. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                return false;
+            }
+
+            // AddToWorld made the gate its spawn point; the leash and the walk-in are about the centre.
+            champion.SpawnPoint = new Point3D(GauntletArena.CentreX, GauntletArena.CentreY, GauntletArena.CentreZ);
+            champion.SpawnHeading = GauntletArena.CentreHeading;
+            state.Champion = champion;
+
+            List<string> lines = new()
+            {
+                $"Round {state.Round}",
+                string.Empty,
+                $"{champion.Name} steps into the arena.",
+                $"Realm rank {tier.RealmRank}.",
+                string.Empty,
+                $"Rounds beaten so far: {state.Depth}."
+            };
+
+            player.Out.SendMessage($"The Gauntlet, round {state.Round}: {champion.Name} steps into the arena!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            player.Out.SendCustomTextWindow("The Gauntlet", lines);
+
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// The champion died (GauntletChampion.ProcessDeath, only on a real death): the round is beaten, one Rare-or-better
+    /// item is given, the round number goes up and the rest begins.
+    /// </summary>
+    public static void OnChampionDied(GauntletChampion champion)
+    {
+        if (champion == null || champion.Health > 0)
+        {
+            return;
+        }
+
+        foreach (GauntletState state in States.Values)
+        {
+            GamePlayer player;
+            int beaten;
+
+            lock (state)
+            {
+                if (state.Champion != champion)
+                {
+                    continue;
+                }
+
+                state.Champion = null;
+                beaten = state.Round;
+                state.Depth = Math.Max(state.Depth, beaten);
+                state.Round = beaten + 1;
+                SaveState(state);
+                player = champion.Challenger;
+            }
+
+            if (player == null || player.ObjectState != GameObject.eObjectState.Active)
+            {
+                return;
+            }
+
+            player.Out.SendMessage($"Round {beaten} is yours! {champion.Name} is defeated.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            ExpeditionLoot.DropFor(player, champion, eLootRarity.Rare);
+            StartRest(player, state);
+
+            return;
+        }
+    }
+
+    /// <summary>
+    /// A Gauntlet death: the champion is removed, the run and the character are untouched, the round stays the same,
+    /// and the player is released at the arena entrance after <see cref="GauntletRules.AutoReleaseSeconds"/>.
+    /// </summary>
+    public static void OnPlayerDied(GamePlayer player)
+    {
+        GauntletState state = GetState(player);
+
+        if (state == null)
+        {
+            return;
+        }
+
+        // The one switch for permadeath (owner decision: off). When on, the Gauntlet session ends with the death and the
+        // normal death rules apply, as the state is gone before GamePlayer.ProcessDeath asks IsGauntletDeath. What a
+        // Gauntlet death should do to the character then is open question 3 in the plan.
+        if (GauntletRules.DeathEndsRun)
+        {
+            Stop(player);
+            player.Out.SendMessage($"You have fallen in round {state.Round}. Your Gauntlet is over.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            return;
+        }
+
+        lock (state)
+        {
+            RemoveChampion(state);
+            StopRest(state);
+            SaveState(state);
+        }
+
+        player.Out.SendMessage($"You have fallen in round {state.Round}. Your character and your run are safe; type /gauntlet start to try the round again.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        new ECSGameTimer(player, _ =>
+        {
+            if (!player.IsAlive && player.ObjectState == GameObject.eObjectState.Active && player.Client?.IsPlaying == true)
+            {
+                player.Release(eReleaseType.Normal, true);
+            }
+
+            return 0;
+        }, GauntletRules.AutoReleaseSeconds * 1000);
+    }
+
+    /// <summary>
+    /// /gauntlet leave: removes the champion and returns the player to the won run's act-5 camp. The round and depth
+    /// are kept.
+    /// </summary>
+    public static bool TryLeave(GamePlayer player, out string error)
+    {
+        error = null;
+
+        if (player?.Client == null)
+        {
+            return false;
+        }
+
+        GauntletState state = GetState(player);
+
+        if (state == null && !GauntletArena.IsInside(player))
+        {
+            error = "You are not in the Gauntlet.";
+
+            return false;
+        }
+
+        if (!player.IsAlive)
+        {
+            error = "Release first; you leave the Gauntlet from its entrance.";
+
+            return false;
+        }
+
+        OfflineExpeditionRecord record = state?.Record;
+        Stop(player);
+
+        try
+        {
+            record ??= GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[GAUNTLET] Could not load the run of {player.Name}.", ex);
+            }
+        }
+
+        ActPlan plan = null;
+
+        if (!string.IsNullOrEmpty(record?.ActJson))
+        {
+            try
+            {
+                plan = JsonSerializer.Deserialize<ActPlan>(record.ActJson, ExpeditionJson.Options);
+            }
+            catch (JsonException ex)
+            {
+                if (Log.IsErrorEnabled)
+                {
+                    Log.Error($"[GAUNTLET] The act of {player.Name}'s won run could not be read.", ex);
+                }
+            }
+        }
+
+        // MoveToCamp makes the camp safe first; with no run to save, a moved camp is written back to the row here.
+        int campX = plan?.CampX ?? 0;
+        int campY = plan?.CampY ?? 0;
+
+        if (plan != null && ExpeditionArrival.MoveToCamp(player, null, plan))
+        {
+            if (record != null && (plan.CampX != campX || plan.CampY != campY))
+            {
+                try
+                {
+                    record.ActJson = JsonSerializer.Serialize(plan, ExpeditionJson.Options);
+                    GameServer.Database.SaveObject(record);
+                }
+                catch (Exception ex)
+                {
+                    if (Log.IsErrorEnabled)
+                    {
+                        Log.Error($"[GAUNTLET] The moved camp of {player.Name} could not be saved.", ex);
+                    }
+                }
+            }
+
+            player.Out.SendMessage("You leave the Gauntlet and return to camp.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+            return true;
+        }
+
+        player.MoveToBind();
+        player.Out.SendMessage("You leave the Gauntlet.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        return true;
+    }
+
+    /// <summary>Ends the player's Gauntlet session (quit, region change, leave): the champion goes, the round is saved.</summary>
+    public static void Stop(GamePlayer player)
+    {
+        if (player == null)
+        {
+            return;
+        }
+
+        if (States.TryRemove(player.ObjectId, out GauntletState state))
+        {
+            lock (state)
+            {
+                RemoveChampion(state);
+                StopRest(state);
+                SaveState(state);
+            }
+        }
+
+        GauntletArena.Release(player);
+    }
+
+    /// <summary>The /gauntlet status lines.</summary>
+    public static List<string> StatusLines(GamePlayer player)
+    {
+        List<string> lines = new();
+        GauntletState state = GetState(player);
+
+        if (state != null)
+        {
+            lock (state)
+            {
+                lines.Add($"Round: {state.Round}");
+                lines.Add($"Depth (rounds beaten): {state.Depth}");
+
+                if (state.ChampionOut)
+                {
+                    lines.Add($"Fighting: {state.Champion.Name}");
+                }
+                else if (state.IsResting)
+                {
+                    lines.Add($"Resting: round {state.Round} begins in {Math.Max(1, (state.RestEndsAt - GameLoop.GameLoopTime + 999) / 1000)} seconds");
+                }
+                else
+                {
+                    lines.Add("Waiting: type /gauntlet start to begin the round.");
+                }
+            }
+
+            return lines;
+        }
+
+        OfflineExpeditionRecord record = null;
+
+        try
+        {
+            record = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[GAUNTLET] Could not load the run of {player.Name}.", ex);
+            }
+        }
+
+        if (record == null || record.Status != ExpeditionManager.StatusWon)
+        {
+            lines.Add("The Gauntlet opens to a character that has won its expedition.");
+
+            return lines;
+        }
+
+        GauntletSave save = GauntletSave.Parse(record.GauntletJson);
+        lines.Add($"Round: {save.Round}");
+        lines.Add($"Depth (rounds beaten): {save.Depth}");
+        lines.Add(GauntletArena.IsConfigured ? "Type /gauntlet start to enter." : GauntletArena.NotSetUpMessage);
+
+        return lines;
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private static void StartRest(GamePlayer player, GauntletState state)
+    {
+        lock (state)
+        {
+            StopRest(state);
+            state.RestEndsAt = GameLoop.GameLoopTime + GauntletRules.RestSeconds * 1000L;
+            state.RestTimer = new ECSGameTimer(player, _ => RestTick(player, state), Math.Min(RestAnnounceMs, GauntletRules.RestSeconds * 1000));
+        }
+
+        player.Out.SendMessage($"Rest. Round {state.Round} begins in {GauntletRules.RestSeconds} seconds.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
+
+    private static int RestTick(GamePlayer player, GauntletState state)
+    {
+        if (GetState(player) != state || player.ObjectState != GameObject.eObjectState.Active)
+        {
+            return 0;
+        }
+
+        long remaining;
+
+        lock (state)
+        {
+            remaining = state.RestEndsAt - GameLoop.GameLoopTime;
+
+            if (remaining <= 500)
+            {
+                state.RestTimer = null;
+            }
+        }
+
+        if (remaining <= 500)
+        {
+            BeginRound(player);
+
+            return 0;
+        }
+
+        player.Out.SendMessage($"Round {state.Round} begins in {(remaining + 500) / 1000} seconds.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+        return (int) Math.Min(RestAnnounceMs, remaining);
+    }
+
+    /// <summary>Removes the round's champion without counting a kill. Call under the state's lock.</summary>
+    private static void RemoveChampion(GauntletState state)
+    {
+        GauntletChampion champion = state.Champion;
+        state.Champion = null;
+        champion?.Remove();
+    }
+
+    /// <summary>Call under the state's lock.</summary>
+    private static void StopRest(GauntletState state)
+    {
+        state.RestTimer?.Stop();
+        state.RestTimer = null;
+    }
+
+    /// <summary>Writes round and depth to the won run's row. Call under the state's lock.</summary>
+    private static void SaveState(GauntletState state)
+    {
+        OfflineExpeditionRecord record = state.Record;
+
+        if (record == null)
+        {
+            return;
+        }
+
+        try
+        {
+            record.GauntletJson = state.ToSave().ToJson();
+            GameServer.Database.SaveObject(record);
+        }
+        catch (Exception ex)
+        {
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[GAUNTLET] Could not save the Gauntlet of {record.CharacterName}.", ex);
+            }
+        }
+    }
+
+    #endregion
+}

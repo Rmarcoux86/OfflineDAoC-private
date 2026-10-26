@@ -3,7 +3,8 @@ namespace DOL.GS.Expedition;
 /// <summary>
 /// The named act bosses dressed as the race and class the owner gave them (docs/EXPEDITION-CLASS-BOSSES.md), for looks
 /// only (owner 2026-10-25): a race body, the class's armor and weapon models. They stay ordinary monsters: no styles,
-/// spells, pets or second weapon swings, and an NPC's equipment carries no stats (its damage comes from its level).
+/// spells or pets, and an NPC's equipment carries no stats (its damage comes from its level). Preesh alone also swings
+/// his left-hand mace (dual wield, for the Gauntlet's Blademaster), which applies to the act-5 boss as well.
 /// </summary>
 public static class ExpeditionBossLooks
 {
@@ -15,6 +16,9 @@ public static class ExpeditionBossLooks
 
     /// <summary>A little larger than a player, so the boss stands out.</summary>
     private const byte BossSize = 60;
+
+    /// <summary>Percent of Preesh's swings that also swing his left-hand mace.</summary>
+    private const byte PreeshLeftHandSwingChance = 40;
 
     /// <summary>Dresses the boss when its name is one of the designed bosses. Returns true when it did.</summary>
     public static bool Apply(GameNPC boss, string title)
@@ -61,8 +65,9 @@ public static class ExpeditionBossLooks
             }
             case "Preesh":
             {
-                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand (shown only;
-                // it swings like any monster).
+                // Blademaster: Firbolg in the Blademaster epic and a Celtic scale helm, a mace in each hand. A positive
+                // LeftHandSwingChance makes an NPC swing its left-hand weapon (AttackComponent.CalculateLeftHandSwingCount)
+                // and also stops it blocking (GameLiving's block check), which is right for a dual wielder.
                 boss.Model = FirbolgMale;
                 template.AddNPCEquipment(eInventorySlot.TorsoArmor, 782);
                 template.AddNPCEquipment(eInventorySlot.LegsArmor, 783);
@@ -72,6 +77,7 @@ public static class ExpeditionBossLooks
                 template.AddNPCEquipment(eInventorySlot.HeadArmor, 838);
                 template.AddNPCEquipment(eInventorySlot.RightHandWeapon, 914);
                 template.AddNPCEquipment(eInventorySlot.LeftHandWeapon, 914);
+                boss.LeftHandSwingChance = PreeshLeftHandSwingChance;
                 weaponSlot = eActiveWeaponSlot.Standard;
 
                 break;
