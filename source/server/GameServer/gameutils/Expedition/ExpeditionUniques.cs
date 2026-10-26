@@ -105,31 +105,32 @@ public static class ExpeditionUniques
             eUniqueProc.Lifetap,
             new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Dexterity, 20), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 50), new(eProperty.AllSkills, 3) }),
 
-        // Mid: usable from level 20, sized for level 40 (caps: stats 60, hit points 160, resists 21, skills 9).
+        // Mid: usable from level 20, level 40 caps: stats 60, hit points 160, resists 21, skills 9. Halved (owner 2026-10-25:
+        // "the values seem kind of high"): each line about half of what the caps allow.
         new("Eye of the Sleeping Giant", eUniqueTier.Mid, eUniqueSlot.Jewel,
             "Chipped from the brow of a stone giant who has not woken in a thousand years. Yet.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 45), new(eProperty.MaxHealth, 130), new(eProperty.Resist_Crush, 16), new(eProperty.Resist_Slash, 16), new(eProperty.AllSkills, 6) }),
+            new UniqueLine[] { new(eProperty.Constitution, 23), new(eProperty.MaxHealth, 65), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
         new("Oathbinder's Signet", eUniqueTier.Mid, eUniqueSlot.Ring,
             "Every oath sworn on this ring was kept. The ones who broke them were not.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 42), new(eProperty.Dexterity, 40), new(eProperty.Resist_Thrust, 16), new(eProperty.AllSkills, 5) }),
+            new UniqueLine[] { new(eProperty.Strength, 21), new(eProperty.Dexterity, 20), new(eProperty.Resist_Thrust, 8), new(eProperty.AllSkills, 3) }),
         new("Stormcaller's Wristguard", eUniqueTier.Mid, eUniqueSlot.Bracer,
             "The air crackles around the wearer's hand, and gulls flee before them.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Quickness, 44), new(eProperty.Dexterity, 38), new(eProperty.Resist_Energy, 17), new(eProperty.Resist_Cold, 15) }),
+            new UniqueLine[] { new(eProperty.Quickness, 22), new(eProperty.Dexterity, 19), new(eProperty.Resist_Energy, 9), new(eProperty.Resist_Cold, 8) }),
         new("Shroud of the Pale Tide", eUniqueTier.Mid, eUniqueSlot.Cloak,
             "Drawn up from the sea on the night the tide came in white and took the coast villages.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 40), new(eProperty.MaxHealth, 120), new(eProperty.Resist_Spirit, 17), new(eProperty.Resist_Body, 16), new(eProperty.Resist_Heat, 15) }),
+            new UniqueLine[] { new(eProperty.Constitution, 20), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Spirit, 9), new(eProperty.Resist_Body, 8), new(eProperty.Resist_Heat, 8) }),
         new("Choker of the Wild Hunt", eUniqueTier.Mid, eUniqueSlot.Necklace,
             "Hear the horns once and you join the hunt. Hear them twice and you lead it.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 45), new(eProperty.Quickness, 40), new(eProperty.MaxHealth, 100), new(eProperty.Resist_Matter, 15), new(eProperty.AllSkills, 5) }),
+            new UniqueLine[] { new(eProperty.Strength, 23), new(eProperty.Quickness, 20), new(eProperty.MaxHealth, 50), new(eProperty.Resist_Matter, 8), new(eProperty.AllSkills, 3) }),
         new("Crown of the Cairnwatcher", eUniqueTier.Mid, eUniqueSlot.Helm,
             "The watcher on the cairn never slept. Its helm still keeps one eye open.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 44), new(eProperty.Dexterity, 36), new(eProperty.MaxHealth, 110), new(eProperty.Resist_Body, 16), new(eProperty.AllSkills, 6) }),
+            new UniqueLine[] { new(eProperty.Constitution, 22), new(eProperty.Dexterity, 18), new(eProperty.MaxHealth, 55), new(eProperty.Resist_Body, 8), new(eProperty.AllSkills, 3) }),
 
         // Late: usable from level 40, sized for level 50 (caps: stats 75, hit points 200, resists 26, skills 11).
         new("Heartwood of the First Grove", eUniqueTier.Late, eUniqueSlot.Chest,
@@ -660,6 +661,17 @@ public static class ExpeditionUniques
             CopyBonusLines(item.Template, preview);
             bool bonusChanged = ApplyToaLines(preview, definition, IsCaster(player));
 
+            // The catalog's own lines too (owner 2026-10-25: mid-tier uniques halved).
+            for (int i = 0; i < definition.Lines.Length && i < 8; i++)
+            {
+                (int type, int amount) = BonusLine(item.Template, i + 1);
+
+                if (type != (int) definition.Lines[i].Property || amount != definition.Lines[i].Value)
+                {
+                    bonusChanged = true;
+                }
+            }
+
             if (!lookChanged && !bonusChanged)
             {
                 continue;
@@ -672,6 +684,11 @@ public static class ExpeditionUniques
 
             if (bonusChanged)
             {
+                for (int i = 0; i < definition.Lines.Length && i < 8; i++)
+                {
+                    ExpeditionLoot.SetBonus(item.Template, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
+                }
+
                 ApplyToaLines(item.Template, definition, IsCaster(player));
             }
 

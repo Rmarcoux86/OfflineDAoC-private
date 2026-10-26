@@ -3,7 +3,8 @@
     "tag": "fork-v60",
     "date": "2026-10-25",
     "items": [
-      "Closing the launcher with the X stops a running server first (it is told to save and exit, as Stop does)."
+      "Closing the launcher with the X stops a running server first (it is told to save and exit, as Stop does).",
+      "Mid-tier uniques (level 20 to 40) have about half the stats, hit points, resists and skills they had; their ToA bonuses stay. Mid-tier uniques you already own update at your next login."
     ]
   },
   {
