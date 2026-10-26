@@ -54,6 +54,19 @@ namespace DOL.GS
             // Preserve a deliberate tank taunt, but revalidate at the actual swing.
             Style queued = bot.styleComponent.NextCombatStyle;
             if (preserveQueued && Usable(bot, queued, lastAttack)) return queued;
+            // A Gauntlet champion's signature styles come first whenever they can be used (owner 2026-10-25: Preesh's
+            // parry stun chain).
+            if (bot is DOL.GS.Expedition.Gauntlet.GauntletChampion champion)
+            {
+                foreach (string name in champion.PriorityStyles)
+                {
+                    foreach (Style style in bot.Styles)
+                    {
+                        if (style.Name == name && Usable(bot, style, lastAttack))
+                            return style;
+                    }
+                }
+            }
             Style best = null;
             Style anytime = null;
             foreach (Style style in bot.Styles)

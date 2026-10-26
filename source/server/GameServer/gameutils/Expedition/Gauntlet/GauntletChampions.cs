@@ -52,32 +52,44 @@ public static class GauntletChampions
         return null;
     }
 
+    /// <summary>The champion every cycle ends with (owner 2026-10-25: "Preesh is the final champion").</summary>
+    public const string FinalChampion = "Preesh";
+
     /// <summary>
-    /// The champion of a round (1-based; below 1 counts as 1). Rounds come in cycles of five, each a seeded shuffle of
-    /// the roster, so no champion repeats until all five have been faced; the same (seed, round) always gives the same
-    /// champion, and the last champion of a cycle is never the first of the next.
+    /// The champion of a round (1-based; below 1 counts as 1). Rounds come in cycles of five: the other four in a seeded
+    /// shuffle, then <see cref="FinalChampion"/>. So no champion repeats until all five have been faced, the same (seed,
+    /// round) always gives the same champion, and a cycle (ending with the final champion) never starts with it again.
     /// </summary>
     public static ChampionDefinition ForRound(int seed, int round)
     {
         int index = Math.Max(1, round) - 1;
-        int cycle = index / All.Count;
-        int[] order = Shuffle(seed, cycle);
+        int place = index % All.Count;
 
-        // Only the first two places are ever swapped, so a cycle's last place is always its plain shuffle's last place
-        // and the previous cycle never has to be fixed up in turn.
-        if (cycle > 0 && order[0] == Shuffle(seed, cycle - 1)[All.Count - 1])
+        if (place == All.Count - 1)
         {
-            (order[0], order[1]) = (order[1], order[0]);
+            return Get(FinalChampion);
         }
 
-        return All[order[index % All.Count]];
+        List<ChampionDefinition> others = new();
+
+        foreach (ChampionDefinition champion in All)
+        {
+            if (!string.Equals(champion.Name, FinalChampion, StringComparison.Ordinal))
+            {
+                others.Add(champion);
+            }
+        }
+
+        int[] order = Shuffle(seed, index / All.Count, others.Count);
+
+        return others[order[place]];
     }
 
-    /// <summary>A Fisher-Yates shuffle of the roster's indices, seeded by the run's seed and the cycle.</summary>
-    private static int[] Shuffle(int seed, int cycle)
+    /// <summary>A Fisher-Yates shuffle of <paramref name="count"/> indices, seeded by the run's seed and the cycle.</summary>
+    private static int[] Shuffle(int seed, int cycle, int count)
     {
         Random rng = new(unchecked(seed * 7919 + cycle * 104729 + 31));
-        int[] order = new int[All.Count];
+        int[] order = new int[count];
 
         for (int i = 0; i < order.Length; i++)
         {

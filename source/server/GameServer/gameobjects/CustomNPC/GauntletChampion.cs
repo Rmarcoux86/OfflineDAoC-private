@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using DOL.AI;
 using DOL.AI.Brain;
@@ -39,7 +40,7 @@ public sealed class GauntletChampion : GameBot
     public bool Engaged { get; internal set; }
 
     public GauntletChampion(GamePlayer challenger, ChampionDefinition definition, int round, RoundTier tier)
-        : base((byte) definition.ClassId, definition.Name, (byte) definition.RaceId, (byte) definition.Gender, SpawnLevel)
+        : base((byte) definition.ClassId, definition.Name, (byte) definition.RaceId, (byte) definition.Gender, SpawnLevel, eSpecType.None, BuildFor(definition))
     {
         Challenger = challenger;
         Definition = definition;
@@ -69,11 +70,80 @@ public sealed class GauntletChampion : GameBot
 
         ApplyLooks();
 
+        // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
+        Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
+        RefreshItemBonuses();
+        Health = MaxHealth;
+
         // The leash is measured from SpawnPoint: where it appears (GameNPC.AddToWorld sets it).
         TetherRange = GauntletRules.LeashRadius;
 
         GauntletChampionBrain brain = new() { IsHealer = (Brain as BotBrain)?.IsHealer ?? false };
         SetOwnBrain(brain);
+    }
+
+    /// <summary>
+    /// Styles this champion uses first whenever one can be used, in order (BotMeleeStylePolicy.Select). Preesh's is the
+    /// Blunt parry chain (owner 2026-10-25): Devastating Blow, the 10-second stun that follows Stunning Blow, then
+    /// Stunning Blow itself, the style that opens off a parry.
+    /// </summary>
+    public IReadOnlyList<string> PriorityStyles => string.Equals(Definition?.Name, "Preesh", StringComparison.Ordinal) ? PreeshChain : Array.Empty<string>();
+
+    private static readonly string[] PreeshChain = ["Devastating Blow", "Stunning Blow"];
+
+    /// <summary>A champion's fixed build, or null for its class's usual one.</summary>
+    private static BotSpec BuildFor(ChampionDefinition definition)
+    {
+        return string.Equals(definition?.Name, "Preesh", StringComparison.Ordinal) ? new PreeshBotSpec() : null;
+    }
+
+    /// <summary>The realm rank title for a champion: its class's home realm, its gender, rank 1 to 14.</summary>
+    public static string RankTitle(ChampionDefinition definition, int realmRank)
+    {
+        int realm = 3;
+
+        foreach (KeyValuePair<eRealm, List<eCharacterClass>> entry in GlobalConstants.STARTING_CLASSES_DICT)
+        {
+            if (entry.Value.Contains((eCharacterClass) definition.ClassId))
+            {
+                realm = (int) entry.Key;
+
+                break;
+            }
+        }
+
+        int gender = definition.Gender == (int) eGender.Female ? 1 : 0;
+        int rank = Math.Clamp(realmRank, 1, GauntletEscalation.MaxRealmRank);
+
+        return GlobalConstants.REALM_RANK_NAMES[realm - 1, gender, rank - 1];
+    }
+
+    /// <summary>
+    /// A full template without Trials of Atlantis bonuses (owner 2026-10-25): every stat at the level-50 item cap,
+    /// hit points and resists capped, +11 to all skills, on top of the generated gear (capped, so they don't add up past
+    /// the caps), and every ToA percentage bonus the gear might carry taken off.
+    /// </summary>
+    public override void RefreshItemBonuses()
+    {
+        base.RefreshItemBonuses();
+
+        for (eProperty stat = eProperty.Stat_First; stat <= eProperty.Stat_Last; stat++)
+        {
+            ItemBonus[stat] = Math.Max(ItemBonus[stat], ExpeditionUniques.LineCap(stat, SpawnLevel));
+        }
+
+        for (eProperty resist = eProperty.Resist_First; resist <= eProperty.Resist_Last; resist++)
+        {
+            ItemBonus[resist] = Math.Max(ItemBonus[resist], ExpeditionUniques.LineCap(resist, SpawnLevel));
+        }
+
+        ItemBonus[eProperty.MaxHealth] = Math.Max(ItemBonus[eProperty.MaxHealth], ExpeditionUniques.LineCap(eProperty.MaxHealth, SpawnLevel));
+        ItemBonus[eProperty.AllSkills] = Math.Max(ItemBonus[eProperty.AllSkills], ExpeditionUniques.LineCap(eProperty.AllSkills, SpawnLevel));
+
+        foreach (eProperty toa in new[] { eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed, eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration })
+        {
+            ItemBonus[toa] = 0;
+        }
     }
 
     /// <summary>An attack by the challenger's side starts the fight, bow or no bow.</summary>
@@ -147,7 +217,7 @@ public sealed class GauntletChampion : GameBot
         IGameInventory realInventory = Inventory;
         eActiveWeaponSlot realSlot = ActiveWeaponSlot;
 
-        if (!ExpeditionBossLooks.Apply(this, Name))
+        if (!ExpeditionBossLooks.Apply(this, Definition?.Name ?? Name))
         {
             Inventory = realInventory;
 
@@ -345,5 +415,22 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         base.AddToAggroList(living, aggroAmount);
+    }
+}
+
+/// <summary>
+/// Preesh's build (owner 2026-10-25): a Blademaster with 50 Blunt and 50 Celtic Dual (maces in both hands), the rest in
+/// Parry, as the stock Blademaster dual-wield build spends it (BlademasterBotSpec).
+/// </summary>
+public sealed class PreeshBotSpec : BotSpec
+{
+    public PreeshBotSpec()
+    {
+        SpecType = eSpecType.DualWield;
+        Is2H = false;
+        WeaponOneType = eObjectType.Blunt;
+        Add(Specs.Blunt, 50, 0.8f);
+        Add(Specs.Celtic_Dual, 50, 1.0f);
+        Add(Specs.Parry, 28, 0.2f);
     }
 }

@@ -2324,7 +2324,7 @@ namespace DOL.GS
         /// generated and never saved. The realm is the class's realm, so its gear is picked for that realm; a caller that
         /// wants another realm sets it after this constructor. <paramref name="spec"/> None picks a random build.
         /// </summary>
-        protected GameBot(byte classId, string name, byte raceId, byte genderId, byte level, eSpecType spec = eSpecType.None)
+        protected GameBot(byte classId, string name, byte raceId, byte genderId, byte level, eSpecType spec = eSpecType.None, BotSpec specOverride = null)
         {
             ClassId = classId;
             RaceId = raceId;
@@ -2348,11 +2348,12 @@ namespace DOL.GS
             InitializeBotStats();
             eCharacterClass characterClass = (eCharacterClass)ClassId;
             eSpecType chosenSpec = spec == eSpecType.None ? BotSpec.ChooseRandomSpecialization(characterClass) : spec;
-            BotSpec = characterClass == eCharacterClass.Bonedancer
+            // A scripted fighter may bring its own build (the Gauntlet's Preesh: 50 Blunt, 50 Celtic Dual, the rest Parry).
+            BotSpec = specOverride ?? (characterClass == eCharacterClass.Bonedancer
                 ? new BonedancerBotSpec(chosenSpec, 0, false)
                 : characterClass == eCharacterClass.Sluaghbinder
                     ? new SluaghbinderBotSpec(chosenSpec, 0, false)
-                : BotSpec.GetSpec(characterClass, chosenSpec);
+                : BotSpec.GetSpec(characterClass, chosenSpec));
             LoadClassSpecializations(false);
             SpendSpecPoints(Level, 0);
             RefreshSpecDependantSkills(false);

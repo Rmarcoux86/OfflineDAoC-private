@@ -105,6 +105,23 @@ public class UT_ExpeditionGauntlet
     }
 
     [Test]
+    public void ForRound_PreeshIsTheFinalChampionOfEveryCycle()
+    {
+        foreach (int seed in Seeds)
+        {
+            for (int cycle = 0; cycle < Cycles; cycle++)
+            {
+                Assert.That(GauntletChampions.ForRound(seed, cycle * 5 + 5).Name, Is.EqualTo("Preesh"), $"seed {seed} cycle {cycle}");
+
+                for (int place = 1; place <= 4; place++)
+                {
+                    Assert.That(GauntletChampions.ForRound(seed, cycle * 5 + place).Name, Is.Not.EqualTo("Preesh"), $"seed {seed} cycle {cycle} place {place}");
+                }
+            }
+        }
+    }
+
+    [Test]
     public void ForRound_BelowOne_IsRoundOne()
     {
         Assert.That(GauntletChampions.ForRound(42, 0), Is.SameAs(GauntletChampions.ForRound(42, 1)));
@@ -116,15 +133,15 @@ public class UT_ExpeditionGauntlet
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(1, eLootRarity.Magic, false, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(1, eLootRarity.Magic, false, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(3, eLootRarity.Rare, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(3, eLootRarity.Rare, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(10), Is.EqualTo(new RoundTier(5, eLootRarity.Epic, true, true, true, 0, 0)));
-            Assert.That(GauntletEscalation.For(14), Is.EqualTo(new RoundTier(5, eLootRarity.Epic, true, true, true, 0, 0)));
-            Assert.That(GauntletEscalation.For(15), Is.EqualTo(new RoundTier(7, eLootRarity.Unique, true, true, true, 1, 0)));
-            Assert.That(GauntletEscalation.For(19), Is.EqualTo(new RoundTier(7, eLootRarity.Unique, true, true, true, 1, 0)));
-            Assert.That(GauntletEscalation.For(20), Is.EqualTo(new RoundTier(10, eLootRarity.Unique, true, true, true, 2, 0)));
+            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(1, false, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(4, false, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(5, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(9, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(10), Is.EqualTo(new RoundTier(10, true, true, true, 0, 0)));
+            Assert.That(GauntletEscalation.For(14), Is.EqualTo(new RoundTier(14, true, true, true, 0, 0)));
+            Assert.That(GauntletEscalation.For(15), Is.EqualTo(new RoundTier(14, true, true, true, 1, 0)));
+            Assert.That(GauntletEscalation.For(19), Is.EqualTo(new RoundTier(14, true, true, true, 1, 0)));
+            Assert.That(GauntletEscalation.For(20), Is.EqualTo(new RoundTier(14, true, true, true, 2, 0)));
         });
     }
 
@@ -144,7 +161,7 @@ public class UT_ExpeditionGauntlet
             Assert.That(GauntletEscalation.For(20).StatBonusPercent, Is.EqualTo(0));
             Assert.That(GauntletEscalation.For(21).StatBonusPercent, Is.EqualTo(5));
             Assert.That(GauntletEscalation.For(25).StatBonusPercent, Is.EqualTo(25));
-            Assert.That(GauntletEscalation.For(25).RealmRank, Is.EqualTo(10));
+            Assert.That(GauntletEscalation.For(25).RealmRank, Is.EqualTo(GauntletEscalation.MaxRealmRank));
             Assert.That(GauntletEscalation.For(25).Helpers, Is.EqualTo(2));
         });
     }

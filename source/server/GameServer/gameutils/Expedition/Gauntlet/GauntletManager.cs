@@ -15,7 +15,7 @@ namespace DOL.GS.Expedition.Gauntlet;
 /// champion's death is a beaten round, a rest and the next round; a death keeps the character (no DeathCount, no
 /// experience or constitution loss, GamePlayer's two hooks), removes the champion and releases the player at the arena
 /// entrance with the round unchanged. Round and depth are saved in <see cref="OfflineExpeditionRecord.GauntletJson"/>.
-/// Prototype: every round's champion is Ios (<see cref="PrototypeIosOnly"/>).
+/// The champions come in cycles of five, Preesh last (GauntletChampions.ForRound); <see cref="PrototypeIosOnly"/> makes every round Ios.
 /// </summary>
 public static class GauntletManager
 {
@@ -25,7 +25,7 @@ public static class GauntletManager
     /// Phase 1 fights only Ios (melee only, no pet). When false the round's champion is
     /// GauntletChampions.ForRound(seed, round).
     /// </summary>
-    public static readonly bool PrototypeIosOnly = true;
+    public static readonly bool PrototypeIosOnly = false;
 
     /// <summary>The countdown line during the rest is sent this often.</summary>
     private const int RestAnnounceMs = 30_000;
