@@ -250,7 +250,15 @@ public static class GauntletManager
         }
 
         // A won run has left ExpeditionManager's active runs (GetRun is null for it), so "won" is read from the row.
-        if (record == null || record.Status != ExpeditionManager.StatusWon)
+        // A GM may enter without one for testing (owner 2026-10-25): no row is used, so nothing is saved.
+        bool won = record != null && record.Status == ExpeditionManager.StatusWon;
+
+        if (!won && player.Client?.Account?.PrivLevel > (uint) ePrivLevel.Player)
+        {
+            record = null;
+            player.Out.SendMessage("GM test entry: you have not won an expedition, so this Gauntlet is not saved.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+        else if (!won)
         {
             error = "Only a character that has won its expedition can enter the Gauntlet.";
 
@@ -268,7 +276,7 @@ public static class GauntletManager
 
         if (state == null)
         {
-            GauntletSave save = GauntletSave.Parse(record.GauntletJson);
+            GauntletSave save = GauntletSave.Parse(record?.GauntletJson);
             state = States.GetOrAdd(player.ObjectId, _ => new GauntletState
             {
                 CharacterId = player.ObjectId,
@@ -280,11 +288,11 @@ public static class GauntletManager
         lock (state)
         {
             state.Record = record;
-            state.Seed = record.Seed;
+            state.Seed = record?.Seed ?? player.ObjectId.GetHashCode();
         }
 
         if (!GauntletArena.IsInside(player) &&
-            !player.MoveTo(GauntletArena.RegionId, GauntletArena.CentreX, GauntletArena.CentreY, GauntletArena.CentreZ, GauntletArena.CentreHeading))
+            !player.MoveTo(GauntletArena.RegionId, GauntletArena.PlayerX, GauntletArena.PlayerY, GauntletArena.PlayerZ, GauntletArena.PlayerHeading))
         {
             GauntletArena.Release(player);
             error = "The Gauntlet could not be reached. Please try again.";

@@ -392,8 +392,8 @@ namespace DOL.GS.ServerRules
                 }
             }
 
-            // GMs can't be attacked
-            if (playerDefender != null && playerDefender.Client.Account.PrivLevel > 1)
+            // GMs can't be attacked, except in the Gauntlet (owner 2026-10-25: a GM tests it against its champion)
+            if (playerDefender != null && playerDefender.Client.Account.PrivLevel > 1 && DOL.GS.Expedition.Gauntlet.GauntletManager.GetState(playerDefender) == null)
                 return false;
 
             //flame - Commenting out Safe Area check as it was causing lots of lock contention in the GetAreasOfSpot() code. We currently dont have safe-areas so this doesnt affect anything

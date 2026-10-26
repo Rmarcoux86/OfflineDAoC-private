@@ -290,7 +290,7 @@ namespace DOL.GS
         /// <summary>
         /// Whether or not the player can be attacked.
         /// </summary>
-        public override bool IsAttackable { get { return (Client.Account.PrivLevel <= (uint)ePrivLevel.Player && base.IsAttackable); }}
+        public override bool IsAttackable { get { return ((Client.Account.PrivLevel <= (uint)ePrivLevel.Player || DOL.GS.Expedition.Gauntlet.GauntletManager.GetState(this) != null) && base.IsAttackable); }}
 
         /// <summary>
         /// Can this player use cross realm items
