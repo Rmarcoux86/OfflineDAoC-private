@@ -202,6 +202,27 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
   earlier. All leave together; a dead member releases to the entrance and rejoins at the next round.
 - Likely needs the arena as an instance if two groups can be in the Gauntlet at once; revisit the Phase 0 decision.
 
+## Phase 6: guest champions (owner 2026-10-26)
+
+Owner decision: a player who beats the Gauntlet can submit their character to become an opponent for everyone. A
+submitted champion appears as a **guest round**: each run, one random SmuG member (never Preesh, who stays last) is
+replaced by a random submitted champion. The guest keeps the player's **exact gear, realm abilities and boons**.
+
+- Snapshot (`/gauntlet submit`, offered in the victory window): name, class, race, gender, spec points, realm rank,
+  every equipped item in full (all bonus lines incl. ToA, DPS/AF/SPD, procs and charges, models, glows, colors), trained
+  realm abilities with levels, and the run's boons. Versioned JSON.
+- Sharing: the launcher opens a pre-filled GitHub issue; a workflow validates the JSON and appends it to a guest roster
+  file in the repo that ships with every update (the same pipeline the Hall of Fame needs). A full gear snapshot is a few
+  thousand characters; if it exceeds the pre-filled issue URL limit (~8,000), `/gauntlet submit` writes a file the
+  player attaches to the issue instead.
+- Spawning: a GauntletChampion built from the snapshot (class/race/gender/spec via the ownerless constructor with a
+  snapshot BotSpec; inventory rebuilt item by item instead of generated; no capped template, the gear is the gear).
+- Realm abilities: passives are granted as-is. Bot AI only uses Purge, Ignore Pain, Second Wind and First Aid today
+  (AutonomousBotRealmAbilities); other actives are present but unused until the bot AI learns them.
+- Boons: port each boon to work on a GameBot where it matters in a duel (stat/combat boons first); boons tied to the
+  player (looting, shrines, the act tracker) are skipped with a note.
+- Guest champions use the class's generic bot AI (no hand-made signature).
+
 ## Open questions for the owner (ask when relevant, do not block on them)
 
 1. Exact `/loc` of the arena centre, gate and entrance (blocks Phase 1 only).
