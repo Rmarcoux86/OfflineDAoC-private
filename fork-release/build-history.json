@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v70",
+    "date": "2026-10-26",
+    "items": [
+      "Hall of Fame on the launcher's front page: every shared expedition win, with its player, class, play time and seed. Use SHARE MY WIN to add yours (it opens a pre-filled GitHub post; click Submit and it appears for everyone)."
+    ]
+  },
+  {
     "tag": "fork-v69",
     "date": "2026-10-26",
     "items": [

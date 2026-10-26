@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using DOL.Database;
+using DOL.GS.Expedition;
 using DOL.GS.Expedition.Gauntlet;
 using NUnit.Framework;
 
@@ -147,7 +150,10 @@ public class UT_ExpeditionGauntletSignatures
             Assert.That(preesh.BehindOpener, Is.Null);
             Assert.That(drunkstains.PolearmChain, Is.EqualTo(new[] { "Phalanx", "Defender's Revenge" }));
             Assert.That(drunkstains.ShieldStyle, Is.EqualTo("Slam"));
-            Assert.That(GauntletChampion.SignatureFor("Toothmouth"), Is.SameAs(ChampionSignature.None));
+            Assert.That(GauntletChampion.SignatureFor("Gwyraan").RangedDot, Is.True);
+            Assert.That(GauntletChampion.SignatureFor("Toothmouth").MezRetreat, Is.True);
+            Assert.That(GauntletChampion.SignatureFor("Ios").RangedDot || GauntletChampion.SignatureFor("Ios").MezRetreat, Is.False);
+            Assert.That(GauntletChampion.SignatureFor("Scob Mahob"), Is.SameAs(ChampionSignature.None));
             Assert.That(GauntletChampion.SignatureFor(null), Is.SameAs(ChampionSignature.None));
         });
     }
@@ -440,5 +446,122 @@ public class UT_ExpeditionGauntletSignatures
         RunResult result = RunThrough(0, 0, 0, true);
 
         Assert.That(result.LongestMs, Is.GreaterThanOrEqualTo(1_400));
+    }
+
+    // Gwyraan and Toothmouth (owner 2026-10-25).
+    private static Spell TestSpell(string name, eSpellType type, string target, int level, double castSeconds, double value = 0)
+    {
+        return new Spell(new DbSpell { Name = name, Type = type.ToString(), Target = target, CastTime = castSeconds, Value = value }, level);
+    }
+
+    private static int SpecCost(int level) => level * (level + 1) / 2 - 1;
+
+    [Test]
+    public void GwyraanBuild_IsNature50_AndSpendsADruidsPoints()
+    {
+        GwyraanBotSpec spec = new();
+        Dictionary<string, uint> caps = spec.SpecLines.ToDictionary(line => line.Spec, line => line.SpecCap);
+
+        // GameBot.GetSpecPointsForLevel for a level-50 creation with a Druid's multiplier of 10 (ClassDruid).
+        int budget = 0;
+
+        for (int level = 2; level <= 50; level++)
+        {
+            budget += level > 5 ? 10 * level / 10 : level;
+            budget += level > 40 ? 10 * (level - 1) / 20 : 0;
+        }
+
+        int cost = caps.Values.Sum(cap => SpecCost((int) cap));
+        int cheapestNext = caps.Values.Min(cap => (int) cap + 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(caps[Specs.Nature], Is.EqualTo(50));
+            Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Staff));
+            Assert.That(spec.Is2H, Is.True);
+            Assert.That(budget, Is.EqualTo(1494));
+            Assert.That(cost, Is.LessThanOrEqualTo(budget));
+            Assert.That(budget - cost, Is.LessThan(cheapestNext), "points left over");
+        });
+    }
+
+    [Test]
+    public void ToothmouthBuild_IsTheHealerBard()
+    {
+        ToothmouthBotSpec spec = new();
+        Dictionary<string, uint> caps = spec.SpecLines.ToDictionary(line => line.Spec, line => line.SpecCap);
+
+        Assert.That(caps, Is.EquivalentTo(new Dictionary<string, uint> { [Specs.Music] = 37, [Specs.Nurture] = 43, [Specs.Regrowth] = 33 }));
+        Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Blades));
+    }
+
+    [Test]
+    public void ChampionSpells_PickTheBestRankForTheLevel()
+    {
+        Spell[] spells =
+        [
+            TestSpell("Dilapidation", eSpellType.DamageOverTime, "Enemy", 35, 3),
+            TestSpell("Degeneration", eSpellType.DamageOverTime, "Enemy", 41, 3, 73),
+            TestSpell("Defedation", eSpellType.DamageOverTime, "Enemy", 48, 3, 87),
+            TestSpell("Stingers of the Wild", eSpellType.DamageAdd, "Group", 36, 3),
+            TestSpell("Hooks of the Wild", eSpellType.DamageAdd, "Group", 46, 3, 10.5),
+            TestSpell("Hypnotic Harmony", eSpellType.Mesmerize, "Enemy", 29, 0),
+            TestSpell("Deluding Harmony", eSpellType.Mesmerize, "Enemy", 37, 0),
+            TestSpell("Slow Lullaby", eSpellType.Mesmerize, "Enemy", 40, 2.5),
+            TestSpell("Renascence", eSpellType.Heal, "Realm", 20, 3, 200),
+            TestSpell("Major Renascence", eSpellType.Heal, "Realm", 32, 3.2, 400),
+            TestSpell("Wide Renewal", eSpellType.Heal, "Area", 40, 3, 600),
+            TestSpell("Nature's Ally", eSpellType.SummonDruidPet, "Self", 30, 3)
+        ];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ChampionSpells.Best(spells, eSpellType.DamageOverTime, 50)?.Name, Is.EqualTo("Defedation"));
+            Assert.That(ChampionSpells.Best(spells, eSpellType.DamageOverTime, 45)?.Name, Is.EqualTo("Degeneration"));
+            Assert.That(ChampionSpells.Best(spells, eSpellType.DamageAdd, 50)?.Name, Is.EqualTo("Hooks of the Wild"));
+            Assert.That(ChampionSpells.Best(spells, eSpellType.Mesmerize, 50, true)?.Name, Is.EqualTo("Deluding Harmony"));
+            Assert.That(ChampionSpells.Best(spells, eSpellType.Mesmerize, 30, true)?.Name, Is.EqualTo("Hypnotic Harmony"));
+            Assert.That(ChampionSpells.Best(spells, eSpellType.Mesmerize, 20, true), Is.Null);
+            Assert.That(ChampionSpells.BestSelfHeal(spells, 50)?.Name, Is.EqualTo("Major Renascence"));
+            Assert.That(ChampionSpells.WithoutPetsAndAttacks(spells).Select(spell => spell.Name),
+                Is.EquivalentTo(new[] { "Stingers of the Wild", "Hooks of the Wild", "Renascence", "Major Renascence" }));
+        });
+    }
+
+    [Test]
+    public void RetreatPoint_IsPastTheSpot_AwayFromTheChallenger()
+    {
+        for (int heading = 0; heading < 4096; heading += 97)
+        {
+            (int challengerX, int challengerY) = GauntletPositioning.SpotFor(TargetX, TargetY, (ushort) heading, ChampionSpot.Front, 400);
+            (int x, int y) = GauntletPositioning.RetreatPoint(TargetX, TargetY, challengerX, challengerY, 2000);
+            double fromSpot = Math.Sqrt((double) (x - TargetX) * (x - TargetX) + (double) (y - TargetY) * (y - TargetY));
+            double fromChallenger = Math.Sqrt((double) (x - challengerX) * (x - challengerX) + (double) (y - challengerY) * (y - challengerY));
+
+            Assert.That(fromSpot, Is.EqualTo(2000).Within(2), $"heading {heading}");
+            Assert.That(fromChallenger, Is.EqualTo(2400).Within(2), $"heading {heading}");
+        }
+
+        Assert.That(GauntletPositioning.RetreatPoint(TargetX, TargetY, TargetX, TargetY, 2000), Is.EqualTo((TargetX + 2000, TargetY)));
+    }
+
+    [Test]
+    public void GearRarity_ScalesAcrossTheFiveFights()
+    {
+        Random rng = new(7);
+
+        Assert.That(GauntletChampion.GearRarityFor(1, rng), Is.EqualTo(eLootRarity.Rare));
+        Assert.That(GauntletChampion.GearRarityFor(2, rng), Is.EqualTo(eLootRarity.Rare));
+        Assert.That(GauntletChampion.GearRarityFor(5, rng), Is.EqualTo(eLootRarity.Epic));
+
+        HashSet<eLootRarity> middle = new();
+
+        for (int i = 0; i < 200; i++)
+        {
+            middle.Add(GauntletChampion.GearRarityFor(3, rng));
+            middle.Add(GauntletChampion.GearRarityFor(4, rng));
+        }
+
+        Assert.That(middle, Is.EquivalentTo(new[] { eLootRarity.Rare, eLootRarity.Epic }));
     }
 }

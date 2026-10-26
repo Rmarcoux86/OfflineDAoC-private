@@ -502,6 +502,7 @@ public static class GauntletManager
             }
 
             ExpeditionLoot.DropFor(player, champion, eLootRarity.Rare);
+            Refresh(player);
             StartRest(player, state);
 
             return;
@@ -798,6 +799,32 @@ public static class GauntletManager
     #endregion
 
     #region Helpers
+
+    /// <summary>
+    /// Between fights (owner 2026-10-26): the player is fully healed (health, power, endurance), every harmful effect left
+    /// on them (DoTs, debuffs, snares) ends, and every ability and spell timer is reset, so each challenger meets them fresh.
+    /// </summary>
+    private static void Refresh(GamePlayer player)
+    {
+        if (player == null || !player.IsAlive)
+        {
+            return;
+        }
+
+        foreach (ECSGameSpellEffect effect in player.effectListComponent.GetSpellEffects())
+        {
+            if (!effect.HasPositiveEffect)
+            {
+                effect.End();
+            }
+        }
+
+        player.Health = player.MaxHealth;
+        player.Mana = player.MaxMana;
+        player.Endurance = player.MaxEndurance;
+        player.ResetDisabledSkills();
+        player.Out.SendMessage("You are restored: health, power and endurance full, and every timer reset.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
 
     private static void StartRest(GamePlayer player, GauntletState state)
     {

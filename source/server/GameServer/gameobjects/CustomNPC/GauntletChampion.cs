@@ -37,6 +37,18 @@ public sealed class GauntletChampion : GameBot
     /// </summary>
     internal eActiveWeaponSlot? HeldSlot { get; set; }
 
+    /// <summary>Gwyraan's best damage-over-time spell, cast only by his brain (kept out of <see cref="GameNPC.Spells"/>).</summary>
+    internal Spell SignatureDot { get; private set; }
+
+    /// <summary>Gwyraan's best damage add, kept up on himself.</summary>
+    internal Spell SignatureBuff { get; private set; }
+
+    /// <summary>Toothmouth's best instant mez, cast only by his brain (kept out of <see cref="GameNPC.Spells"/>).</summary>
+    internal Spell SignatureMez { get; private set; }
+
+    /// <summary>Toothmouth's best heal for himself.</summary>
+    internal Spell SignatureHeal { get; private set; }
+
     /// <summary>When it last blocked an attack (GameLoop time); 0 for never.</summary>
     internal long LastBlockTick { get; private set; }
 
@@ -90,7 +102,60 @@ public sealed class GauntletChampion : GameBot
             SwitchWeapon(eActiveWeaponSlot.TwoHanded);
         }
 
+        if (Signature.RangedDot)
+        {
+            // Gwyraan: a staff in both hands, like his look. GameBot.SetWeapons gives a Druid (a hybrid) a one-handed
+            // weapon of WeaponOneType, and no staff is one-handed, so the staff is generated. Whether a Druid may use a
+            // staff is the database's ability table (AbstractServerRules.CheckAbilityToUseItem, "Weaponry: Staves");
+            // if not, he fights with the Blunt one-hander the stock DruidBotSpec uses.
+            eCharacterClass characterClass = (eCharacterClass) definition.ClassId;
+
+            if (Inventory != null && Inventory.GetItem(eInventorySlot.TwoHandWeapon) == null)
+            {
+                BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Staff, eInventorySlot.TwoHandWeapon, eDamageType.Crush);
+            }
+
+            if (Inventory != null && BotWeaponStats.CanUseMelee(this, Inventory.GetItem(eInventorySlot.TwoHandWeapon)))
+            {
+                SwitchWeapon(eActiveWeaponSlot.TwoHanded);
+            }
+            else if (Inventory != null)
+            {
+                BotSpec.WeaponOneType = eObjectType.Blunt;
+                BotSpec.Is2H = false;
+
+                if (Inventory.GetItem(eInventorySlot.RightHandWeapon) == null)
+                {
+                    BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Blunt, eInventorySlot.RightHandWeapon, eDamageType.Crush);
+                }
+
+                SwitchWeapon(eActiveWeaponSlot.Standard);
+            }
+
+            // No pet (owner 2026-10-25), no attack spell but his DoT, which only his brain casts; heals and buffs stay.
+            SignatureDot = ChampionSpells.Best(Spells, eSpellType.DamageOverTime, Level);
+            SignatureBuff = ChampionSpells.Best(Spells, eSpellType.DamageAdd, Level);
+            Spells = ChampionSpells.WithoutPetsAndAttacks(Spells);
+        }
+
+        if (Signature.MezRetreat)
+        {
+            // Toothmouth: the stock Bard plan equips a one-handed blade (SetWeapons' Instrument case) and a shield; a
+            // missing blade is generated so he can always melee.
+            if (Inventory != null && Inventory.GetItem(eInventorySlot.RightHandWeapon) == null)
+            {
+                BotEquipment.SetWeaponROG(this, Realm, (eCharacterClass) definition.ClassId, SpawnLevel, eObjectType.Blades, eInventorySlot.RightHandWeapon, eDamageType.Slash);
+                SwitchWeapon(eActiveWeaponSlot.Standard);
+            }
+
+            // His mez is his signature's alone: the bot's own crowd control never casts it.
+            SignatureMez = ChampionSpells.Best(Spells, eSpellType.Mesmerize, Level, true);
+            SignatureHeal = ChampionSpells.BestSelfHeal(Spells, Level);
+            Spells = Spells.Where(spell => spell.SpellType != eSpellType.Mesmerize).ToList();
+        }
+
         // Gear is picked by realm in the base constructor; only now does the champion leave its realm.
+        _homeRealm = Realm;
         Realm = eRealm.None;
 
         // Escalation (GauntletEscalation), as far as the prototype applies it: the realm rank, and the open-ended stat
@@ -113,6 +178,7 @@ public sealed class GauntletChampion : GameBot
         }
 
         ApplyLooks();
+        RollGear(round);
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
@@ -151,6 +217,8 @@ public sealed class GauntletChampion : GameBot
             "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"], [], null),
             "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"], [], null),
             "Drunkstains" => new ChampionSignature([], null, [], ["Phalanx", "Defender's Revenge"], "Slam"),
+            "Gwyraan" => new ChampionSignature([], null, [], [], null, RangedDot: true),
+            "Toothmouth" => new ChampionSignature([], null, [], [], null, MezRetreat: true),
             _ => ChampionSignature.None
         };
     }
@@ -163,6 +231,8 @@ public sealed class GauntletChampion : GameBot
             "Ios" => new IosBotSpec(),
             "Preesh" => new PreeshBotSpec(),
             "Drunkstains" => new DrunkstainsBotSpec(),
+            "Gwyraan" => new GwyraanBotSpec(),
+            "Toothmouth" => new ToothmouthBotSpec(),
             _ => null
         };
     }
@@ -201,27 +271,70 @@ public sealed class GauntletChampion : GameBot
         return GlobalConstants.REALM_RANK_NAMES[realm - 1, gender, rank - 1];
     }
 
+    /// <summary>The champion's class's own realm (its gear is that realm's); its Realm is None so it can fight anyone.</summary>
+    private readonly eRealm _homeRealm;
+
     /// <summary>
-    /// A full template without Trials of Atlantis bonuses (owner 2026-10-25): every stat at the level-50 item cap,
-    /// hit points and resists capped, +11 to all skills, on top of the generated gear (capped, so they don't add up past
-    /// the caps), and every ToA percentage bonus the gear might carry taken off.
+    /// The champion's gear, scaled across the five fights (owner 2026-10-26, from the drop rates a player finishing act 5
+    /// has seen): fights 1-2 all Rare, 3-4 each piece Rare or Epic at random, 5 (Preesh) all Epic. Every armor and
+    /// jewelry piece is rolled again as an Expedition item of that rarity, type and slot for the champion's class and
+    /// realm, keeping the piece's look. Weapons and shields stay the class's own.
     /// </summary>
+    public static eLootRarity GearRarityFor(int round, Random rng)
+    {
+        if (round <= 2)
+        {
+            return eLootRarity.Rare;
+        }
+
+        if (round <= 4)
+        {
+            return rng.Next(2) == 0 ? eLootRarity.Rare : eLootRarity.Epic;
+        }
+
+        return eLootRarity.Epic;
+    }
+
+    private void RollGear(int round)
+    {
+        if (Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in Inventory.EquippedItems.ToList())
+        {
+            if (item == null)
+            {
+                continue;
+            }
+
+            eInventorySlot slot = (eInventorySlot) item.SlotPosition;
+
+            if (slot is eInventorySlot.RightHandWeapon or eInventorySlot.LeftHandWeapon or eInventorySlot.TwoHandWeapon or eInventorySlot.DistanceWeapon)
+            {
+                continue;
+            }
+
+            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, SpawnLevel, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, GearRarityFor(round, Random.Shared));
+
+            if (rolled == null)
+            {
+                continue;
+            }
+
+            rolled.Model = item.Model;
+            rolled.Color = item.Color;
+            rolled.Effect = item.Effect;
+            rolled.Extension = item.Extension;
+            item.Template = rolled;
+        }
+    }
+
+    /// <summary>The gear's bonuses without any Trials of Atlantis percentage bonus (owner 2026-10-25: no ToA).</summary>
     public override void RefreshItemBonuses()
     {
         base.RefreshItemBonuses();
-
-        for (eProperty stat = eProperty.Stat_First; stat <= eProperty.Stat_Last; stat++)
-        {
-            ItemBonus[stat] = Math.Max(ItemBonus[stat], ExpeditionUniques.LineCap(stat, SpawnLevel));
-        }
-
-        for (eProperty resist = eProperty.Resist_First; resist <= eProperty.Resist_Last; resist++)
-        {
-            ItemBonus[resist] = Math.Max(ItemBonus[resist], ExpeditionUniques.LineCap(resist, SpawnLevel));
-        }
-
-        ItemBonus[eProperty.MaxHealth] = Math.Max(ItemBonus[eProperty.MaxHealth], ExpeditionUniques.LineCap(eProperty.MaxHealth, SpawnLevel));
-        ItemBonus[eProperty.AllSkills] = Math.Max(ItemBonus[eProperty.AllSkills], ExpeditionUniques.LineCap(eProperty.AllSkills, SpawnLevel));
 
         foreach (eProperty toa in new[] { eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed, eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration })
         {
@@ -432,6 +545,18 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>Slam follows a block within this long (the 3 s reactionary window, AttackAction.IsAllowedToTick).</summary>
     private const long SlamWindowMs = 3_000;
 
+    /// <summary>Gwyraan's DoT is for a challenger beyond melee reach: the attack range plus this margin.</summary>
+    private const int DotMeleeMargin = 50;
+
+    /// <summary>A signature cast (DoT, self-buff) is tried again no sooner than this after the last one ended.</summary>
+    private const long SpellRetryMs = 4_000;
+
+    /// <summary>Toothmouth waits this long for his instant mez to show on the challenger before counting it resisted.</summary>
+    private const long MezLandWindowMs = 1_500;
+
+    /// <summary>Toothmouth retreats this share of the leash radius past his spot (owner: "~80% of the leash").</summary>
+    private const double RetreatLeashShare = 0.8;
+
     private enum SignatureStep
     {
         None,
@@ -451,6 +576,12 @@ public sealed class GauntletChampionBrain : BotBrain
     private long _runSwingTick;
     private long _nextPressureTick;
     private int _thinkIntervalBeforeRun;
+    private long _nextDotTick;
+    private long _nextBuffTick;
+    private bool _mezUsed;
+    private long _mezCastTick;
+    private bool _retreating;
+    private Point3D _retreatPoint;
 
     public override void Think()
     {
@@ -469,7 +600,12 @@ public sealed class GauntletChampionBrain : BotBrain
             if (now < champion.BuffUntilTick)
             {
                 // Buffing at the gate: the idle state casts its defensive spells. AddToAggroList refuses everyone until
-                // the fight starts, so nothing pulls it early.
+                // the fight starts, so nothing pulls it early. A signature self-buff (Gwyraan's damage add) goes first.
+                if (MaintainSignatureBuff(champion, now))
+                {
+                    return;
+                }
+
                 base.Think();
 
                 return;
@@ -486,6 +622,11 @@ public sealed class GauntletChampionBrain : BotBrain
             }
 
             // Waiting to be challenged: buffs kept up, facing the challenger, back to its spot if anything moved it.
+            if (MaintainSignatureBuff(champion, now))
+            {
+                return;
+            }
+
             base.Think();
 
             if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
@@ -508,6 +649,8 @@ public sealed class GauntletChampionBrain : BotBrain
             EndRunThrough();
             champion.CurrentPriority = null;
             champion.HeldSlot = null;
+            _retreating = false;
+            _mezCastTick = 0;
             ClearAggroList();
             champion.StopAttack();
             champion.TargetObject = null;
@@ -522,6 +665,12 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         if (champion.IsReturningToSpawnPoint)
+        {
+            return;
+        }
+
+        // Toothmouth's mez and retreat owns the think while it runs: no BotBrain fight touches the mezzed challenger.
+        if (champion.Signature.MezRetreat && ThinkMezRetreat(champion, challenger, now))
         {
             return;
         }
@@ -778,6 +927,205 @@ public sealed class GauntletChampionBrain : BotBrain
     }
 
     /// <summary>
+    /// Gwyraan's spells in the fight (owner 2026-10-25: "attempt to cast a nature dot and just auto attack otherwise"):
+    /// his attack-spell turn (BotBrain.AttackMostWanted, and NpcAttackAction.PrepareMeleeAttack before every swing) is
+    /// only his DoT, and never a crowd control. Heals and buffs stay the class's own (Defensive).
+    /// </summary>
+    public override bool CheckSpells(eCheckSpellType type)
+    {
+        if (Body is not GauntletChampion { Signature.RangedDot: true } champion || type == eCheckSpellType.Defensive)
+        {
+            return base.CheckSpells(type);
+        }
+
+        return type == eCheckSpellType.Offensive && CastSignatureDot(champion, GameLoop.GameLoopTime);
+    }
+
+    /// <summary>
+    /// His best Nature DoT on the challenger when they are beyond melee reach, do not carry it, and he is not already
+    /// casting; a cast that ended (landed or interrupted) waits <see cref="SpellRetryMs"/> before the next try. Before
+    /// the DoT, a missing damage add goes back up.
+    /// </summary>
+    private bool CastSignatureDot(GauntletChampion champion, long now)
+    {
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            _nextDotTick = now + SpellRetryMs;
+
+            return true;
+        }
+
+        GamePlayer challenger = champion.Challenger;
+        Spell dot = champion.SignatureDot;
+
+        if (dot == null || challenger == null || !challenger.IsAlive || challenger.CurrentRegion != champion.CurrentRegion ||
+            champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
+        {
+            return false;
+        }
+
+        if (MaintainSignatureBuff(champion, now))
+        {
+            return true;
+        }
+
+        if (now < _nextDotTick || LivingHasEffect(challenger, dot))
+        {
+            return false;
+        }
+
+        _nextDotTick = now + SpellRetryMs;
+        champion.TargetObject = challenger;
+
+        return champion.CastSpell(dot, m_mobSpellLine);
+    }
+
+    /// <summary>Casts the champion's signature self-buff (Gwyraan's best damage add) when it is missing.</summary>
+    private bool MaintainSignatureBuff(GauntletChampion champion, long now)
+    {
+        Spell buff = champion.SignatureBuff;
+
+        if (buff == null || now < _nextBuffTick || champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true ||
+            LivingHasEffect(champion, buff))
+        {
+            return false;
+        }
+
+        _nextBuffTick = now + SpellRetryMs;
+        GameObject previousTarget = champion.TargetObject;
+        champion.TargetObject = champion;
+        bool cast = champion.CastSpell(buff, m_mobSpellLine);
+
+        if (!cast)
+        {
+            champion.TargetObject = previousTarget;
+        }
+
+        return cast;
+    }
+
+    /// <summary>
+    /// Toothmouth (owner 2026-10-25): once per fight, the first time he is at half health or less, his best instant mez
+    /// on the challenger; if it shows on them, he stops attacking, sprints to a point past his spot away from them (within
+    /// the leash) and heals himself with his best heal until he is full or the mez is gone. A resisted mez, or a
+    /// mez-immune challenger, spends the one use. True while this owns the think (no BotBrain turn: nothing hits the
+    /// mezzed challenger).
+    /// </summary>
+    private bool ThinkMezRetreat(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        bool challengerHere = challenger != null && challenger.IsAlive &&
+            challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
+
+        if (_retreating)
+        {
+            bool full = champion.Health >= champion.MaxHealth;
+
+            if (!challengerHere || !challenger.IsMezzed || full && !champion.IsCasting)
+            {
+                // Back to the fight: the next think is the bot's own again.
+                _retreating = false;
+                EndSprint(champion);
+
+                return false;
+            }
+
+            if (champion.attackComponent.AttackState)
+            {
+                champion.StopAttack();
+            }
+
+            if (!champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
+            {
+                if (!champion.IsMoving)
+                {
+                    StartSprint(champion, now);
+                    champion.PathTo(_retreatPoint, champion.MaxSpeed);
+                }
+
+                return true;
+            }
+
+            EndSprint(champion);
+
+            if (champion.IsMoving)
+            {
+                champion.StopMoving();
+            }
+
+            Spell heal = champion.SignatureHeal;
+
+            if (heal != null && !full && !champion.IsCasting && champion.castingComponent?.HasPendingSkillRequests != true)
+            {
+                champion.TargetObject = champion;
+                champion.CastSpell(heal, m_mobSpellLine);
+            }
+
+            return true;
+        }
+
+        if (_mezCastTick > 0)
+        {
+            if (challengerHere && challenger.IsMezzed)
+            {
+                _mezCastTick = 0;
+                _retreating = true;
+                _sprintUsed = false;
+                (int x, int y) = GauntletPositioning.RetreatPoint(champion.SpawnPoint.X, champion.SpawnPoint.Y, challenger.X, challenger.Y,
+                    (int) (GauntletRules.LeashRadius * RetreatLeashShare));
+                _retreatPoint = new Point3D(x, y, champion.SpawnPoint.Z);
+                champion.StopAttack();
+                champion.StopFollowing();
+                champion.TargetObject = null;
+
+                return true;
+            }
+
+            if (now - _mezCastTick < MezLandWindowMs && challengerHere)
+            {
+                // The instant cast is on its way; hold the swings so nothing breaks a mez that lands.
+                return true;
+            }
+
+            // Resisted: the one use is spent.
+            _mezCastTick = 0;
+
+            return false;
+        }
+
+        Spell mez = champion.SignatureMez;
+
+        if (_mezUsed || mez == null || !challengerHere || champion.HealthPercent > 50)
+        {
+            return false;
+        }
+
+        _mezUsed = true;
+
+        if (challenger.IsMezzed || challenger.effectListComponent.ContainsEffectForEffectType(eEffect.MezImmunity))
+        {
+            return false;
+        }
+
+        champion.StopAttack();
+
+        if (champion.IsCasting)
+        {
+            champion.StopCurrentSpellcast();
+        }
+
+        champion.TargetObject = challenger;
+
+        if (!champion.CastSpell(mez, m_mobSpellLine))
+        {
+            return false;
+        }
+
+        _mezCastTick = now;
+
+        return true;
+    }
+
+    /// <summary>
     /// Ios's run through a challenger who faces her (owner 2026-10-25: get the back stun off a stuck challenger). The
     /// server knows a player's heading only from their client's packets (ClientService.BeginTick, the start of a loop
     /// tick), so right after she passes them their heading still points where she came from. A swing fires on the first
@@ -940,7 +1288,10 @@ public sealed class GauntletChampionBrain : BotBrain
 /// <param name="PolearmChain">A two-handed chain in chain order (its opener may be a front positional), swung with the
 /// polearm, the shield held between swings.</param>
 /// <param name="ShieldStyle">A shield style used after a block; null for none.</param>
-public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] PolearmChain, string ShieldStyle)
+/// <param name="RangedDot">Gwyraan: his best DoT on a challenger beyond melee reach, melee otherwise, no other attack spell.</param>
+/// <param name="MezRetreat">Toothmouth: once, at half health, an instant mez, a retreat and self-heals.</param>
+public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] PolearmChain, string ShieldStyle,
+    bool RangedDot = false, bool MezRetreat = false)
 {
     public static readonly ChampionSignature None = new([], null, [], [], null);
 }
@@ -1101,6 +1452,24 @@ public static class GauntletPositioning
         return ((int) Math.Round(throughX + dx / length * distance), (int) Math.Round(throughY + dy / length * distance));
     }
 
+    /// <summary>
+    /// Toothmouth's retreat point: <paramref name="distance"/> from his spot, on the far side of it from the challenger
+    /// (straight past the spot, +X when the challenger stands on it).
+    /// </summary>
+    public static (int X, int Y) RetreatPoint(int spotX, int spotY, int challengerX, int challengerY, int distance)
+    {
+        double dx = spotX - challengerX;
+        double dy = spotY - challengerY;
+        double length = Math.Sqrt(dx * dx + dy * dy);
+
+        if (length <= 0)
+        {
+            return (spotX + distance, spotY);
+        }
+
+        return ((int) Math.Round(spotX + dx / length * distance), (int) Math.Round(spotY + dy / length * distance));
+    }
+
     /// <summary>The side spot (left or right) nearer to the champion.</summary>
     public static ChampionSpot NearestSide(int targetX, int targetY, ushort targetHeading, int championX, int championY, int distance)
     {
@@ -1149,6 +1518,75 @@ public sealed class DrunkstainsBotSpec : BotSpec
         Add(ObjToSpec(WeaponTwoType), 50, 1.0f);
         Add(Specs.Shields, 42, 0.5f);
         Add(Specs.Parry, 18, 0.1f);
+    }
+}
+
+/// <summary>
+/// Gwyraan's build (owner 2026-10-25): 50 Nature, so Defedation (the level-48 Nature DoT) and Hooks of the Wild (the
+/// level-46 damage add) are his, and the rest in Regrowth with the last few points in Nurture: a Druid has 1494 points
+/// at 50 (GameBot.GetSpecPointsForLevel, multiplier 10, with the creation bonus), Nature 50 costs 1274, Regrowth 20
+/// 209 and Nurture 4 9, leaving 2 (less than any next level). A staff, two-handed, like his look.
+/// </summary>
+public sealed class GwyraanBotSpec : BotSpec
+{
+    public GwyraanBotSpec()
+    {
+        WeaponOneType = eObjectType.Staff;
+        Is2H = true;
+        SpecType = eSpecType.NatureDruid;
+        Add(Specs.Nature, 50, 1.0f);
+        Add(Specs.Regrowth, 20, 0.4f);
+        Add(Specs.Nurture, 4, 0.1f);
+    }
+}
+
+/// <summary>
+/// Toothmouth's build (owner 2026-10-25, the healer bard): the stock BardBotSpec's second variant, 37 Music,
+/// 43 Nurture, 33 Regrowth, with its instruments (SpecType Instrument) and a one-handed blade like his look.
+/// </summary>
+public sealed class ToothmouthBotSpec : BotSpec
+{
+    public ToothmouthBotSpec()
+    {
+        WeaponOneType = eObjectType.Blades;
+        SpecType = eSpecType.Instrument;
+        Add(Specs.Music, 37, 0.4f);
+        Add(Specs.Nurture, 43, 0.9f);
+        Add(Specs.Regrowth, 33, 0.7f);
+    }
+}
+
+/// <summary>Picks the champions' signature spells from a known spell list (pure, unit-tested).</summary>
+public static class ChampionSpells
+{
+    /// <summary>The highest-level spell of <paramref name="type"/> up to <paramref name="level"/>; null for none.</summary>
+    public static Spell Best(IEnumerable<Spell> spells, eSpellType type, int level, bool instantOnly = false)
+    {
+        return spells?
+            .Where(spell => spell != null && spell.SpellType == type && spell.Level <= level && (!instantOnly || spell.CastTime <= 0))
+            .OrderByDescending(spell => spell.Level)
+            .ThenByDescending(spell => spell.Value)
+            .FirstOrDefault();
+    }
+
+    /// <summary>The strongest single heal that can land on oneself (target self, realm or group); null for none.</summary>
+    public static Spell BestSelfHeal(IEnumerable<Spell> spells, int level)
+    {
+        return spells?
+            .Where(spell => spell != null && spell.SpellType == eSpellType.Heal && spell.Level <= level &&
+                spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP)
+            .OrderByDescending(spell => spell.Value)
+            .ThenByDescending(spell => spell.Level)
+            .FirstOrDefault();
+    }
+
+    /// <summary>A spell list without pet summons (AutonomousPetSupport's main pets, minions, field pets) and attack spells.</summary>
+    public static List<Spell> WithoutPetsAndAttacks(IEnumerable<Spell> spells)
+    {
+        return spells?
+            .Where(spell => spell != null && !spell.IsHarmful && !AutonomousPetSupport.IsMainPetSummon(spell.SpellType) &&
+                !AutonomousPetSupport.IsAnimistFieldTurret(spell.SpellType) && spell.SpellType != eSpellType.SummonMinion)
+            .ToList() ?? [];
     }
 }
 
