@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v63",
+    "date": "2026-10-25",
+    "items": [
+      "Unique weapon glows fixed: they use glows real artifact weapons have (Fenwatch Fang a balefire glow, Wyrmbane a dragonfire glow). Weapons you already own update at your next login."
+    ]
+  },
+  {
     "tag": "fork-v62",
     "date": "2026-10-25",
     "items": [
