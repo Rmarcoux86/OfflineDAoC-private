@@ -243,6 +243,25 @@ Looks: reuse `ExpeditionBossLooks.Apply(npc, name)` for all five. Preesh is in t
     stay, so the player may also get experience and realm points for the bot kill (open question 2).
   - `GauntletChampion.cs` is LF like `ExpeditionBoss.cs` (the fork's own files in that folder are LF; the stock ones CRLF).
   - Unit tests for `GauntletSave.Parse`/`ToJson` are not written (the test files belong to the data agent).
+- 2026-10-25, first three signatures (owner's design, not built, not tested in game; `GauntletChampion.cs`, one hook in
+  `BotMeleeStylePolicy.Select`, tests in `UT_ExpeditionGauntletSignatures.cs`):
+  - Signatures are data (`ChampionSignature`: priority, behind opener, side chain, polearm chain, shield style) and
+    `PriorityStyles` is what the brain wants now. `Select` checks the champion's priority before a queued style and
+    lets those styles (only those) through the positional exclusion; `StyleProcessor.CanUseStyle` still decides.
+  - Fixed builds: Ios = stock Valewalker variant 3 (50 Scythe/34 Arboreal/26 Parry), Drunkstains = stock Armsman
+    TwoHandHybrid without its 3 Crossbow; a missing polearm, slashing one-hander or shield is generated with
+    `BotEquipment.SetWeaponROG`.
+  - Sprint: `GameBot.Sprint`'s effect does not speed up an NPC (`MaxSpeedCalculator` applies the 1.3 only to
+    `GamePlayer`), so the champion's sprint is `MaxSpeedBase` × 1.3 for at most 4 s per step, no endurance cost.
+  - The stuck simulation shows a challenger on a perfect /stick is never hittable from behind; with a heading update
+    every U ms the window after running through is under U (worst 90–220 ms for U = 100–500 ms, average 0–155 ms per
+    run-through), a few percent of a 4–5 s swing. So Ios goes behind only when the challenger is not facing her (and
+    not stunned, stun-immune or mezzed), every 20 s; a stun (hers or any) sends her, and Preesh, to the side chain
+    instead. Stun immunity is `CCSpellHandler.CheckSpellResist`'s test: the `eEffect.StunImmunity` effect (a style
+    stun leaves 5× its duration on a player) or the StunImmunity ability.
+  - Drunkstains holds the shield and takes up the polearm when the swing is due within a think interval + 150 ms
+    (the next swing time is the last swinging weapon's interval and survives `SwitchWeapon`); Slam replaces the
+    polearm swing within 3 s of a block when `CanUseStyle` accepts it.
 
 ## Phase 0 findings (2026-10-25)
 

@@ -17,8 +17,10 @@ namespace DOL.GS
             style?.WeaponTypeRequirement == (int)eObjectType.Shield && bot.ActiveWeaponSlot == eActiveWeaponSlot.Standard
                 ? bot.Inventory.GetItem(eInventorySlot.LeftHandWeapon) : bot.ActiveWeapon;
 
-        public static bool Usable(GameBot bot, Style style, AttackData lastAttack) =>
-            IsEligible(style) && style.Level <= bot.Level &&
+        /// <param name="allowPositional">True lets a positional (non-stealth) style through IsEligible; CanUseStyle still checks the position.</param>
+        public static bool Usable(GameBot bot, Style style, AttackData lastAttack, bool allowPositional = false) =>
+            (IsEligible(style) || allowPositional && style?.OpeningRequirementType == Style.eOpening.Positional && !style.StealthRequirement) &&
+            style.Level <= bot.Level &&
             MatchesWeapon(style, bot.ActiveWeapon, bot.Inventory.GetItem(eInventorySlot.LeftHandWeapon), bot.ActiveWeaponSlot) &&
             StyleProcessor.CheckEnduranceCost(bot, Weapon(bot, style), style) &&
             bot.CheckStyleStun(style) &&
@@ -51,22 +53,25 @@ namespace DOL.GS
                     bot.ActiveWeaponSlot == eActiveWeaponSlot.TwoHanded ? eInventorySlot.TwoHandWeapon : eInventorySlot.RightHandWeapon) ||
                 bot.ActiveWeaponSlot == eActiveWeaponSlot.Distance)
                 return null;
-            // Preserve a deliberate tank taunt, but revalidate at the actual swing.
-            Style queued = bot.styleComponent.NextCombatStyle;
-            if (preserveQueued && Usable(bot, queued, lastAttack)) return queued;
-            // A Gauntlet champion's signature styles come first whenever they can be used (owner 2026-10-25: Preesh's
-            // parry stun chain).
+            // A Gauntlet champion's signature styles come first whenever they can be used (owner 2026-10-25), ahead of
+            // a queued style too: a positional depends on where the champion stands at the swing, not at the think that
+            // queued. Only the champion's own signature may be positional; StyleProcessor.CanUseStyle checks the position.
             if (bot is DOL.GS.Expedition.Gauntlet.GauntletChampion champion)
             {
                 foreach (string name in champion.PriorityStyles)
                 {
                     foreach (Style style in bot.Styles)
                     {
-                        if (style.Name == name && Usable(bot, style, lastAttack))
+                        if (style.Name == name && Usable(bot, style, lastAttack, true))
+                        {
                             return style;
+                        }
                     }
                 }
             }
+            // Preserve a deliberate tank taunt, but revalidate at the actual swing.
+            Style queued = bot.styleComponent.NextCombatStyle;
+            if (preserveQueued && Usable(bot, queued, lastAttack)) return queued;
             Style best = null;
             Style anytime = null;
             foreach (Style style in bot.Styles)
