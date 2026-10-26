@@ -684,7 +684,8 @@ public static class ExpeditionUniques
 
             int lookModel = LookModelFor(item.Template, definition, player.Realm);
             int glow = definition.Slot == eUniqueSlot.Weapon ? WeaponGlowFor(definition.Name) : item.Effect;
-            bool lookChanged = (lookModel > 0 && item.Model != lookModel) || item.Effect != glow;
+            int proc = item.Template.ProcSpellID != 0 && definition.Proc != eUniqueProc.None ? ProcSpellFor(definition.Proc, item.Level) : item.Template.ProcSpellID;
+            bool lookChanged = (lookModel > 0 && item.Model != lookModel) || item.Effect != glow || item.Template.ProcSpellID != proc;
             bool worn = item.SlotPosition >= (int) eInventorySlot.MinEquipable && item.SlotPosition <= (int) eInventorySlot.MaxEquipable;
             eInventorySlot slot = (eInventorySlot) item.SlotPosition;
 
@@ -730,6 +731,7 @@ public static class ExpeditionUniques
             }
 
             item.Template.Effect = glow;
+            item.Template.ProcSpellID = proc;
 
             if (bonusChanged && worn)
             {
@@ -1024,6 +1026,22 @@ public static class ExpeditionUniques
     /// </summary>
     public static int ProcSpellFor(eUniqueProc proc, int level)
     {
+        // The damage proc is a heat bolt (owner 2026-10-25: Wyrmbane's proc read "heals for 0%"; the generator's 8020-8027
+        // "DD procs" are body-damage lifedrains with no heal). These are the item table's instant heat damage procs:
+        // ProcDirectDamageHeat20/25/30/35/40/47, 41 to 95 damage.
+        if (proc == eUniqueProc.Damage)
+        {
+            return level switch
+            {
+                >= 47 => 32124,
+                >= 40 => 32116,
+                >= 35 => 32112,
+                >= 30 => 32108,
+                >= 25 => 32104,
+                _ => 32100
+            };
+        }
+
         int first = proc switch
         {
             eUniqueProc.Lifetap => 8010,

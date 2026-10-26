@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v69",
+    "date": "2026-10-26",
+    "items": [
+      "Wyrmbane, the Last Ember now procs a real heat bolt (77 damage at level 40, 95 from level 47) instead of a body-damage lifedrain whose description said it healed for 0%. Wyrmbanes you already own update at your next login."
+    ]
+  },
+  {
     "tag": "fork-v68",
     "date": "2026-10-25",
     "items": [

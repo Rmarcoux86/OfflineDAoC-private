@@ -181,8 +181,11 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Lifetap, 1), Is.EqualTo(8010));
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Lifetap, 14), Is.EqualTo(8011));
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Lifetap, 19), Is.EqualTo(8012));
-        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 20), Is.EqualTo(8023));
-        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 39), Is.EqualTo(8026));
+        // The damage proc is the item table's instant heat bolt ladder (ProcDirectDamageHeat20..47).
+        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 20), Is.EqualTo(32100));
+        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 39), Is.EqualTo(32112));
+        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 47), Is.EqualTo(32124));
+        Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Damage, 50), Is.EqualTo(32124));
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Heal, 40), Is.EqualTo(8037));
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Heal, 50), Is.EqualTo(8037));
         Assert.That(ExpeditionUniques.ProcSpellFor(eUniqueProc.Absorb, 25), Is.EqualTo(8044));
