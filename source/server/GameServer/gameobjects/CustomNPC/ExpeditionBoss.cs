@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Reflection;
 using DOL.AI.Brain;
 using DOL.Database;
@@ -116,6 +117,21 @@ public sealed class ExpeditionBoss : GameNPC
         boss.Y = spec.Y;
         boss.Z = spec.Z;
         boss.Heading = 0;
+
+        // Never out of reach (owner 2026-10-27): a spot in the air, as a flying monster's spawn point can be, is moved
+        // down to the floor beneath it.
+        Zone zone = boss.CurrentRegion?.GetZone(spec.X, spec.Y);
+        IPathfindingMgr nav = PathfindingProvider.Instance;
+
+        if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
+        {
+            Vector3? floor = nav.GetFloorBeneath(zone, new Vector3(spec.X, spec.Y, spec.Z), 2500, nav.DefaultFilters);
+
+            if (floor.HasValue && spec.Z - (int) floor.Value.Z > 50)
+            {
+                boss.Z = (int) floor.Value.Z;
+            }
+        }
 
         if (boss.CurrentRegion == null || !boss.AddToWorld())
         {
