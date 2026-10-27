@@ -98,6 +98,37 @@ namespace DOL.GS
         /// <summary>
         /// Check the range attack state and decides what to do. Called inside the AttackTimerCallback.
         /// </summary>
+        /// <summary>
+        /// Thrown weapons (owner 2026-10-27): the first <see cref="ThrownHeightAllowance"/> units of height between thrower
+        /// and target do not count toward the range, so a thrower can reach a monster up on a ledge (Darkness Falls's
+        /// tempters) as an archer can. Every other ranged weapon measures in 3D as before.
+        /// </summary>
+        public const int ThrownHeightAllowance = 1000;
+
+        /// <summary>The squared distance a ranged attack measures: dz loses the thrown allowance for a thrown weapon.</summary>
+        public static long RangeDistanceSquared(long dx, long dy, long dz, bool thrown)
+        {
+            if (thrown)
+            {
+                dz = Math.Max(0, Math.Abs(dz) - ThrownHeightAllowance);
+            }
+
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        /// <summary>True when the target is within this range of the attacker for its active ranged weapon.</summary>
+        public static bool IsInRange(GameLiving attacker, GameObject target, int range)
+        {
+            if (attacker == null || target == null || range < 0)
+            {
+                return false;
+            }
+
+            bool thrown = attacker.ActiveWeapon?.Object_Type == (int) eObjectType.Thrown;
+
+            return RangeDistanceSquared(attacker.X - target.X, attacker.Y - target.Y, attacker.Z - target.Z, thrown) <= (long) range * range;
+        }
+
         public eCheckRangeAttackStateResult CheckRangeAttackState(GameObject target)
         {
             // Failsafe, but it should never happen.
@@ -126,7 +157,7 @@ namespace DOL.GS
                         if (volley == null)
                             playerOwner.Out.SendMessage(LanguageMgr.GetTranslation(playerOwner.Client.Account.Language, "System.MustSelectTarget"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
                     }
-                    else if (!playerOwner.IsWithinRadius(target, playerOwner.attackComponent.AttackRange))
+                    else if (!IsInRange(playerOwner, target, playerOwner.attackComponent.AttackRange))
                         playerOwner.Out.SendMessage(LanguageMgr.GetTranslation(playerOwner.Client.Account.Language, "GamePlayer.Attack.TooFarAway", target.GetName(0, true)), eChatType.CT_System, eChatLoc.CL_SystemWindow);
                     else if (!playerOwner.TargetInView)  // TODO: Wrong, must be checked with the target parameter and not with the targetObject.
                         playerOwner.Out.SendMessage(LanguageMgr.GetTranslation(playerOwner.Client.Account.Language, "GamePlayer.Attack.CantSeeTarget"), eChatType.CT_System, eChatLoc.CL_SystemWindow);

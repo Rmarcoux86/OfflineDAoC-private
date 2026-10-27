@@ -700,7 +700,7 @@ namespace DOL.GS
 
                         if (_startAttackTarget != null)
                         {
-                            targetMsg = player.IsWithinRadius(_startAttackTarget, AttackRange)
+                            targetMsg = RangeAttackComponent.IsInRange(player, _startAttackTarget, AttackRange)
                                 ? LanguageMgr.GetTranslation(player.Client.Account.Language, "GamePlayer.StartAttack.TargetInRange")
                                 : LanguageMgr.GetTranslation(player.Client.Account.Language, "GamePlayer.StartAttack.TargetOutOfRange");
                         }
