@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v79",
+    "date": "2026-10-27",
+    "items": [
+      "Expedition act bosses never spawn in the air: when the boss's spot is a flying monster's spawn point, it appears on the floor beneath it."
+    ]
+  },
+  {
     "tag": "fork-v78",
     "date": "2026-10-27",
     "items": [
