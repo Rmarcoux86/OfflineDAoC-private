@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v78",
+    "date": "2026-10-27",
+    "items": [
+      "Thrown weapons reach targets above or below you: the first 1,000 units of height no longer count against their range, so the tempters up on Darkness Falls's ledges can be hit with throwing axes.",
+      "Darkness Falls shrines next to a camp of flying demons stand on the floor beside it, not up in the walls. Shrines already placed move there, keeping your kills."
+    ]
+  },
+  {
     "tag": "fork-v77",
     "date": "2026-10-27",
     "items": [
