@@ -4,15 +4,14 @@ using DOL.GS.PacketHandler;
 namespace DOL.GS.Expedition.Gauntlet;
 
 /// <summary>
-/// Act 5 (owner 2026-10-27): now and then, when the player kills something, Preesh (the Gauntlet's final champion)
-/// sends them a taunt, as a /send, foreshadowing the SmuG waiting after Darkness Falls. At most one every
-/// <see cref="CooldownMs"/>, with a <see cref="ChancePercent"/> chance per kill once the cooldown is over.
+/// Act 5 (owner 2026-10-27): Preesh (the Gauntlet's final champion) sends the player a taunt, as a /send, foreshadowing
+/// the SmuG waiting after Darkness Falls. One is ready every <see cref="CooldownMs"/>; it goes out with the player's next
+/// kill (the first kill in act 5 gets one straight away).
 /// </summary>
 public static class GauntletTaunts
 {
     public const string Sender = "Preesh";
-    public const int ChancePercent = 12;
-    public const long CooldownMs = 4 * 60 * 1000;
+    public const long CooldownMs = 10 * 60 * 1000;
 
     private const string NextTauntProperty = "expedition.gauntlet.nextTaunt";
 
@@ -55,7 +54,7 @@ public static class GauntletTaunts
 
         long now = GameLoop.GameLoopTime;
 
-        if (now < player.TempProperties.GetProperty<long>(NextTauntProperty) || Random.Shared.Next(100) >= ChancePercent)
+        if (now < player.TempProperties.GetProperty<long>(NextTauntProperty))
         {
             return;
         }
