@@ -2045,14 +2045,6 @@ namespace DOL.GS
 		/// <returns>true if the npc has been successfully added</returns>
 		public override bool AddToWorld()
 		{
-			// Darkness Falls flyers hovering out of reach come down near the floor (DarknessFallsFlyers).
-			int? loweredZ = DarknessFallsFlyers.LoweredZ(this);
-
-			if (loweredZ.HasValue)
-			{
-				m_z = loweredZ.Value;
-			}
-
 			movementComponent.ForceUpdatePosition();
 
 			if (!base.AddToWorld())
