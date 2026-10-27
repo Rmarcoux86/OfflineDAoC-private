@@ -370,6 +370,11 @@ public static class ActGenerator
             throw new InvalidOperationException($"The camp source has no camps for expedition zone {zone.ZoneId} ({zone.ZoneName}).");
         }
 
+        if (zone.ZoneId == DarknessFallsZoneId)
+        {
+            zoneGoals = NearRealmEntrance(zoneGoals, realm);
+        }
+
         (int ox, int oy) = zoneOffset(zone.ZoneId);
 
         // Area words ("north-east", "heart") are relative to the centre of the zone's goals.
@@ -1000,6 +1005,47 @@ public static class ActGenerator
     {
         return campSource.GetZoneCamps(zone.RegionId, zone.ZoneId)
             .Count(e => e.Levels is { Length: > 0 } && e.Levels.Min() <= maxLevel && e.Levels.Max() >= minLevel);
+    }
+
+    /// <summary>
+    /// Fork (owner 2026-10-27): Darkness Falls is shared by the three realms, each with its own entrance, and the act
+    /// camp stands at the run's realm's entrance (ExpeditionArrival). A Midgard run was sent across the whole dungeon
+    /// for experienced necyomancers, which only spawn on the Albion side. Objectives, the boss and elite packs come
+    /// from the camps within <see cref="DarknessFallsNearRadius"/> of the realm's own entrance, or the nearest
+    /// <see cref="DarknessFallsNearMinimum"/> camps when fewer lie that close (the Hibernia side is sparse).
+    /// </summary>
+    public const int DarknessFallsNearRadius = 14000;
+    public const int DarknessFallsNearMinimum = 12;
+
+    /// <summary>Where each realm's Darkness Falls entrance puts the player (ZonePoint targets, zone-local).</summary>
+    public static (int X, int Y) DarknessFallsEntrance(eRealm realm)
+    {
+        return realm switch
+        {
+            eRealm.Midgard => (18798 - 8192, 18667 - 8192),
+            eRealm.Hibernia => (46325 - 8192, 40969 - 8192),
+            _ => (31211 - 8192, 27924 - 8192)
+        };
+    }
+
+    /// <summary>The camps near the realm's entrance (see <see cref="DarknessFallsNearRadius"/>), in their given order.</summary>
+    public static List<AutonomousCapnBryGoalCatalog.Entry> NearRealmEntrance(List<AutonomousCapnBryGoalCatalog.Entry> goals, eRealm realm)
+    {
+        (int homeX, int homeY) = DarknessFallsEntrance(realm);
+        long radiusSquared = (long) DarknessFallsNearRadius * DarknessFallsNearRadius;
+        List<AutonomousCapnBryGoalCatalog.Entry> near = goals.Where(e => DistanceSquared(e.LocalX, e.LocalY, homeX, homeY) <= radiusSquared).ToList();
+
+        if (near.Count >= DarknessFallsNearMinimum || near.Count == goals.Count)
+        {
+            return near;
+        }
+
+        HashSet<AutonomousCapnBryGoalCatalog.Entry> nearest = goals
+            .OrderBy(e => DistanceSquared(e.LocalX, e.LocalY, homeX, homeY))
+            .Take(DarknessFallsNearMinimum)
+            .ToHashSet();
+
+        return goals.Where(nearest.Contains).ToList();
     }
 
     private static int Median(IEnumerable<int> values)

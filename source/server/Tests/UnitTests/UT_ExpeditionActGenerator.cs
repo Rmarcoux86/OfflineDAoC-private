@@ -647,4 +647,50 @@ public class UT_ExpeditionActGenerator
             }
         }
     }
+
+    [Test]
+    public void DarknessFalls_UsesTheCampsNearTheRealmsOwnEntrance()
+    {
+        // Fork: 16 camps at the Albion entrance and 16 at Midgard's, 30,000 units apart; a Midgard run only sees its own.
+        FakeCampSource source = new FakeCampSource();
+        (int albX, int albY) = ActGenerator.DarknessFallsEntrance(eRealm.Albion);
+        (int midX, int midY) = ActGenerator.DarknessFallsEntrance(eRealm.Midgard);
+
+        for (int i = 0; i < 16; i++)
+        {
+            source.Add(249, 249, $"albion mob {i}", 45 + i % 5, albX + 500 * i, albY + 300 * i);
+            source.Add(249, 249, $"midgard mob {i}", 45 + i % 5, midX + 500 * i, midY + 300 * i);
+        }
+
+        for (int seed = 1; seed <= 20; seed++)
+        {
+            ActPlan plan = ActGenerator.Generate(ActGenerator.ActCount, eRealm.Midgard, seed, -1, FakeOffset, source, entryLevel: 46);
+            IEnumerable<string> names = plan.Objectives.Select(o => o.MobName).Append(plan.Boss?.BaseMobName).Concat((plan.Elites ?? []).Select(e => e.MobName)).Where(n => !string.IsNullOrEmpty(n));
+
+            Assert.That(names, Has.All.StartsWith("midgard"), $"seed {seed}");
+        }
+    }
+
+    [Test]
+    public void DarknessFalls_FallsBackToTheNearestCampsWhenTheEntranceIsSparse()
+    {
+        // Hibernia's side has 2 camps in reach and 20 beyond it: the nearest 12 are kept, in the source's order.
+        FakeCampSource source = new FakeCampSource();
+        (int hibX, int hibY) = ActGenerator.DarknessFallsEntrance(eRealm.Hibernia);
+        source.Add(249, 249, "near a", 45, hibX + 1000, hibY).Add(249, 249, "near b", 45, hibX, hibY + 1000);
+
+        for (int i = 0; i < 20; i++)
+        {
+            source.Add(249, 249, $"far {i}", 45, hibX - 20000 - 1000 * i, hibY - 20000);
+        }
+
+        List<AutonomousCapnBryGoalCatalog.Entry> near = ActGenerator.NearRealmEntrance(source.GetZoneCamps(249, 249).ToList(), eRealm.Hibernia);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(near, Has.Count.EqualTo(ActGenerator.DarknessFallsNearMinimum));
+            Assert.That(near.Select(e => e.Name).Take(2), Is.EqualTo(new[] { "near a", "near b" }));
+            Assert.That(near.Select(e => e.Name).Skip(2), Is.EqualTo(Enumerable.Range(0, 10).Select(i => $"far {i}")));
+        });
+    }
 }
