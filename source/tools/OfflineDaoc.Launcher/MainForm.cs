@@ -536,7 +536,11 @@ internal sealed partial class MainForm : Form
         rvr.Controls.Add(BuildActiveRvrPanel());
         var xpSettings = new TabPage("Options") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         xpSettings.Controls.Add(BuildXpSettingsPanel());
-        // The first and default tab (owner 2026-10-25).
+        // The first and default tab, so the planner is prominent (owner 2026-10-27). Its data loads when it is first shown.
+        var planner = new TabPage("Character Planner") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
+        planner.Controls.Add(new CharacterPlannerPanel(() => new CharacterPlannerData(_database)) { Dock = DockStyle.Fill });
+        tabs.TabPages.Add(planner);
+        // Build History was the first tab from 2026-10-25.
         tabs.TabPages.Add(BuildHistoryTab());
         tabs.TabPages.Add(population);
         tabs.TabPages.Add(groups);
