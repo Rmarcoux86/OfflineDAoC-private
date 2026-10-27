@@ -769,6 +769,9 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>Ios and Gwyraan stop running this far from the challenger to cast (inside their 1,500 spell range).</summary>
     private const int FleeDistance = 900;
 
+    /// <summary>Ios's ranged opener walks in to this far inside her lifedrain's range.</summary>
+    private const int OpenerRangeMargin = 100;
+
     /// <summary>A retreat or kite is given up after this long.</summary>
     private const long ManoeuvreMaxMs = 20_000;
 
@@ -1638,7 +1641,8 @@ public sealed class GauntletChampionBrain : BotBrain
 
     /// <summary>
     /// The ranged opener (owner 2026-10-27): Veil Path, then Cycle of Death again and again, until the challenger is in
-    /// melee range or her cast is interrupted (or she cannot cast: out of range, out of power). False when it is over.
+    /// melee range or her cast is interrupted (or she cannot cast: out of power); out of range she first walks in. False when
+    /// it is over.
     /// </summary>
     private bool ThinkRangedOpener(GauntletChampion champion, GamePlayer challenger, long now)
     {
@@ -1662,6 +1666,17 @@ public sealed class GauntletChampionBrain : BotBrain
         champion.StopAttack();
         champion.StopFollowing();
 
+        if (!champion.IsWithinRadius(challenger, drain.Range - OpenerRangeMargin))
+        {
+            // Out of her spell range (the challenger bows from about 1,700 away): she walks in until she can cast.
+            ApplySpeed(champion, SprintFactor);
+            champion.PathTo(new Point3D(challenger.X, challenger.Y, challenger.Z), champion.MaxSpeed);
+
+            return true;
+        }
+
+        ApplySpeed(champion, 1);
+
         if (champion.IsMoving)
         {
             champion.StopMoving();
@@ -1681,7 +1696,7 @@ public sealed class GauntletChampionBrain : BotBrain
             }
         }
 
-        if (!champion.IsWithinRadius(challenger, drain.Range) || !TryCastOn(champion, drain, challenger))
+        if (!TryCastOn(champion, drain, challenger))
         {
             return false;
         }
