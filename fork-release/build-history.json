@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v72",
+    "date": "2026-10-27",
+    "items": [
+      "Elite packs explain their modifier: the expedition status window lists what each one does (and what every elite gets), and the warning when you approach a pack is followed by the same description."
+    ]
+  },
+  {
     "tag": "fork-v71",
     "date": "2026-10-26",
     "items": [
