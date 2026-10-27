@@ -158,9 +158,11 @@ public sealed class GauntletChampion : GameBot
         _homeRealm = Realm;
         Realm = eRealm.None;
 
-        // Escalation (GauntletEscalation), as far as the prototype applies it: the realm rank, and the open-ended stat
-        // bonus from round 21. Realm abilities, potions, gear tiers, affixes and helpers come in Phase 2.
+        // Escalation (GauntletEscalation): the realm rank, its realm abilities (owner 2026-10-27: Purge first, then
+        // Mastery of Pain, Parrying, Blocking, Ignore Pain...; AutonomousBotRealmAbilities.GrantChampion), and the
+        // open-ended stat bonus from round 21.
         RealmLevel = Math.Max(0, (tier.RealmRank - 1) * 10);
+        AutonomousBotRealmAbilities.GrantChampion(this, AutonomousBotRealmAbilities.Points(Level, RealmLevel));
 
         if (tier.StatBonusPercent > 0)
         {
@@ -179,6 +181,7 @@ public sealed class GauntletChampion : GameBot
 
         ApplyLooks();
         RollGear(round);
+        StripProcs();
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
@@ -331,7 +334,36 @@ public sealed class GauntletChampion : GameBot
         }
     }
 
-    /// <summary>The gear's bonuses without any Trials of Atlantis percentage bonus (owner 2026-10-25: no ToA).</summary>
+    /// <summary>No procs on any of the champion's gear (owner 2026-10-27). A shared template is copied before it changes.</summary>
+    private void StripProcs()
+    {
+        if (Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in Inventory.EquippedItems.ToList())
+        {
+            if (item == null || (item.ProcSpellID == 0 && item.ProcSpellID1 == 0))
+            {
+                continue;
+            }
+
+            item.Template = new DbItemTemplate(item.Template) { ProcSpellID = 0, ProcSpellID1 = 0 };
+        }
+    }
+
+    /// <summary>Stats at their item cap (level x 1.5), resists at theirs (level / 2 + 1) and hits at theirs (level x 4).</summary>
+    public static (int Stat, int Resist, int Hits) TemplateCaps(int level)
+    {
+        return ((int) (level * 1.5), level / 2 + 1, level * 4);
+    }
+
+    /// <summary>
+    /// A full template without Trials of Atlantis (owner 2026-10-27: "template them, but no ToA bonuses"): whatever the
+    /// rolled gear gives, strength, constitution, dexterity, quickness and the class's casting stat are at their item cap,
+    /// every resist at its cap and hits at theirs; no ToA percentage bonus at all.
+    /// </summary>
     public override void RefreshItemBonuses()
     {
         base.RefreshItemBonuses();
@@ -340,6 +372,26 @@ public sealed class GauntletChampion : GameBot
         {
             ItemBonus[toa] = 0;
         }
+
+        (int statCap, int resistCap, int hitsCap) = TemplateCaps(Level);
+        var stats = new List<eProperty> { eProperty.Strength, eProperty.Constitution, eProperty.Dexterity, eProperty.Quickness };
+
+        if (CharacterClass != null && CharacterClass.ManaStat != eStat.UNDEFINED)
+        {
+            stats.Add((eProperty) CharacterClass.ManaStat);
+        }
+
+        foreach (eProperty stat in stats)
+        {
+            ItemBonus[stat] = Math.Max(ItemBonus[stat], statCap);
+        }
+
+        for (eProperty resist = eProperty.Resist_First; resist <= eProperty.Resist_Last; resist++)
+        {
+            ItemBonus[resist] = Math.Max(ItemBonus[resist], resistCap);
+        }
+
+        ItemBonus[eProperty.MaxHealth] = Math.Max(ItemBonus[eProperty.MaxHealth], hitsCap);
     }
 
     /// <summary>Every champion is of the SmuG guild (GameBot.AddToWorld would show its own bot guild otherwise).</summary>
@@ -640,6 +692,9 @@ public sealed class GauntletChampionBrain : BotBrain
 
             return;
         }
+
+        // Purge, Ignore Pain, Second Wind as the fight calls for them (rate-limited inside).
+        AutonomousBotRealmAbilities.UseActives(champion);
 
         if (champion.IsOutOfTetherRange)
         {

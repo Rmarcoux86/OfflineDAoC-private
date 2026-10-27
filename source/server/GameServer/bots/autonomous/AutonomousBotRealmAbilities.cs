@@ -78,6 +78,18 @@ public static class AutonomousBotRealmAbilities
         ("MasteryOfArchery", 2), ("Toughness", 1), ("FalconsEye", 2), ("AugCon", 3), (SecondWind, 1),
         ("MasteryOfPain", 1), ("MasteryOfArchery", 3), ("AvoidanceOfMagic", 1), ("Determination", 1));
 
+    /// <summary>
+    /// Gauntlet champions (owner 2026-10-27): Purge first, then the melee defensive core (Mastery of Pain, Parrying,
+    /// Blocking, Ignore Pain, Determination). Casters and healers take Purge before their own build.
+    /// </summary>
+    private static readonly Step[] ChampionMeleeBuild = Build((PurgeReduced, 1), (Purge, 1), ("AugDex", 2), ("MasteryOfPain", 1),
+        ("MasteryOfParrying", 1), ("MasteryOfBlocking", 1), (FirstAid, 2), (IgnorePainTank, 1), (IgnorePain, 1), ("Determination", 1),
+        ("DeterminationHybrid", 1), ("AugCon", 2), ("Toughness", 1), ("AugStr", 3), ("MasteryOfArms", 1), ("MasteryOfPain", 2),
+        ("MasteryOfParrying", 2), ("MasteryOfBlocking", 2), (SecondWind, 1), ("AvoidanceOfMagic", 1), ("MasteryOfPain", 3),
+        ("MasteryOfParrying", 3), ("MasteryOfBlocking", 3), ("Determination", 3), ("DeterminationHybrid", 3), ("AugQui", 2), ("Dodger", 1));
+
+    private static Step[] PurgeFirst(Step[] build) => Build((PurgeReduced, 1), (Purge, 1)).Concat(build).ToArray();
+
     public static Archetype ArchetypeOf(ICollection<string> available)
     {
         if (available.Contains("AtlasOF_MasteryOfArchery")) return Archetype.Archer;
@@ -95,6 +107,18 @@ public static class AutonomousBotRealmAbilities
     /// points only ever extend the result.
     /// </summary>
     public static Dictionary<string, int> Plan(IReadOnlyDictionary<string, int> available, Archetype archetype, int classId,
+        int points, Func<string, int, int> cost)
+    {
+        Step[] build = archetype switch
+        {
+            Archetype.Caster => CasterBuild, Archetype.Healer => HealerBuild, Archetype.Archer => ArcherBuild, _ => MeleeBuild,
+        };
+
+        return Plan(available, build, classId, points, cost);
+    }
+
+    /// <summary>As above, following this build.</summary>
+    public static Dictionary<string, int> Plan(IReadOnlyDictionary<string, int> available, IReadOnlyList<Step> build, int classId,
         int points, Func<string, int, int> cost)
     {
         var owned = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -117,10 +141,6 @@ public static class AutonomousBotRealmAbilities
             return true;
         }
 
-        Step[] build = archetype switch
-        {
-            Archetype.Caster => CasterBuild, Archetype.Healer => HealerBuild, Archetype.Archer => ArcherBuild, _ => MeleeBuild,
-        };
         foreach (Step step in build)
         {
             if (!available.TryGetValue(step.Key, out int max) || Redundant(step.Key) || !Meets(step.Key)) continue;
@@ -250,6 +270,39 @@ public static class AutonomousBotRealmAbilities
         }
     }
 
+    /// <summary>
+    /// A Gauntlet champion's realm abilities for its points, bought at once (no trainer), with Purge first
+    /// (<see cref="ChampionMeleeBuild"/>). Returns what it has, e.g. "Purge:0->1,AugDex:0->2".
+    /// </summary>
+    public static string GrantChampion(GameBot bot, int points)
+    {
+        if (bot == null || points <= 0)
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            Catalog catalog = CatalogFor(ClassOf(bot));
+            Step[] build = catalog.Archetype switch
+            {
+                Archetype.Caster => PurgeFirst(CasterBuild),
+                Archetype.Healer => PurgeFirst(HealerBuild),
+                Archetype.Archer => PurgeFirst(ArcherBuild),
+                _ => ChampionMeleeBuild,
+            };
+            Dictionary<string, int> plan = Plan(catalog.Available, build, ClassOf(bot), points, (key, level) => catalog.ByKey[key].CostForUpgrade(level));
+
+            return string.Join(",", Grant(bot, plan));
+        }
+        catch (Exception exception)
+        {
+            Log.Warn($"BOT_REALM_ABILITY_FAILED champion={bot.Name} class={ClassOf(bot)} points={points}", exception);
+
+            return string.Empty;
+        }
+    }
+
     private static List<string> Grant(GameBot bot, Dictionary<string, int> plan)
     {
         var gained = new List<string>();
@@ -288,6 +341,8 @@ public static class AutonomousBotRealmAbilities
     private static bool Wanted(GameBot bot, string key) => key switch
     {
         // Crowd control in a fight against other realms (or when it is going badly).
+        // A Gauntlet champion purges the first crowd control of the duel.
+        Purge or PurgeReduced when bot is Expedition.Gauntlet.GauntletChampion { Engaged: true } => bot.IsMezzed || bot.IsStunned,
         Purge or PurgeReduced => (bot.IsMezzed || bot.IsStunned) && (bot.InCombat || bot.HealthPercent < 90) &&
             (AutonomousWorldBotController.IsBattleground(bot) || bot.HealthPercent < 60),
         IgnorePain or IgnorePainTank => bot.InCombat && bot.HealthPercent < 30 && !bot.IsMezzed && !bot.IsStunned,

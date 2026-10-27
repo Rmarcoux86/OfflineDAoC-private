@@ -22,14 +22,15 @@ public static class GauntletEscalation
 
     /// <summary>
     /// The tier of a round (1-based; below 1 counts as 1). Every champion wears a full template without ToA bonuses
-    /// (GauntletChampion). Its realm rank is the round number (owner 2026-10-25: round 1 RR1, each champion one rank
-    /// higher), up to <see cref="MaxRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
+    /// (GauntletChampion). Its realm rank is twice the round number (owner 2026-10-25, raised 2026-10-27), up to
+    /// <see cref="MaxRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
     /// affix; 15-19 one helper; from 20 two helpers and +5% stats for each round over 20.
     /// </summary>
     public static RoundTier For(int round)
     {
         round = Math.Max(1, round);
-        int rank = Math.Min(round, MaxRealmRank);
+        // Two ranks a round (owner 2026-10-27: harder champions): RR2, 4, 6, 8, 10 over the five fights.
+        int rank = Math.Min(round * 2, MaxRealmRank);
 
         if (round < 5)
         {

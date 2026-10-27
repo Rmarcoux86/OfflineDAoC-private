@@ -178,4 +178,14 @@ public class UT_ExpeditionGauntlet
             Assert.That(GauntletRules.AutoReleaseSeconds, Is.GreaterThan(0));
         });
     }
+
+    [Test]
+    public void Champions_RiseTwoRealmRanksARound_AndWearAFullTemplate()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(Enumerable.Range(1, 5).Select(round => GauntletEscalation.For(round).RealmRank), Is.EqualTo(new[] { 2, 4, 6, 8, 10 }));
+            Assert.That(DOL.GS.Expedition.Gauntlet.GauntletChampion.TemplateCaps(50), Is.EqualTo((75, 26, 200)));
+        });
+    }
 }
