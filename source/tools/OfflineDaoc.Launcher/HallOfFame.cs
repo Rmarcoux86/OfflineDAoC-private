@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace OfflineDaoc.Launcher;
 
@@ -309,6 +310,50 @@ internal static class HallOfFame
 
         // The writer's line breaks follow the platform; the issue body uses plain "\n".
         return Encoding.UTF8.GetString(stream.ToArray()).Replace("\r\n", "\n", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The win with the character's spectator look in a "spectator" field (owner 2026-10-27: sharing a win also makes the
+    /// character a Gauntlet spectator), compact so the pre-filled link stays short.
+    /// </summary>
+    internal static string SubmissionJsonWithSpectator(Entry entry, string spectatorJson)
+    {
+        JsonObject win = JsonNode.Parse(SubmissionJson(entry))!.AsObject();
+        win["spectator"] = JsonNode.Parse(spectatorJson);
+
+        return win.ToJsonString();
+    }
+
+    /// <summary>The issue body for a win, with the spectator look when there is one.</summary>
+    internal static string IssueBodyWithSpectator(Entry entry, string? spectatorJson) =>
+        "My Offline DAoC expedition win for the Hall of Fame (with my character's look, to stand as a spectator at the "
+        + "Gauntlet arena). Submit this issue as it is: a bot checks the block below, adds it to the shared lists and "
+        + "closes the issue.\n\n```json\n" + (spectatorJson is null ? SubmissionJson(entry) : SubmissionJsonWithSpectator(entry, spectatorJson)) + "\n```\n";
+
+    /// <summary>The "new issue" page, pre-filled with the win and the spectator look when there is one.</summary>
+    internal static string IssueUrlWithSpectator(string repository, Entry entry, string? spectatorJson) =>
+        $"https://github.com/{repository}/issues/new?title={Uri.EscapeDataString(IssueTitle(entry))}&body={Uri.EscapeDataString(IssueBodyWithSpectator(entry, spectatorJson))}";
+
+    /// <summary>
+    /// The wins the share button offers: those not shared yet, and the newest win of each character not yet sent as a
+    /// spectator from this PC (a win shared before sharing included the look), newest first.
+    /// </summary>
+    internal static IReadOnlyList<Entry> ToShare(IReadOnlyList<Entry> local, IReadOnlyList<Entry> shared, ISet<string> sentIds, ISet<string> spectatorIds)
+    {
+        var offered = new List<Entry>(Unshared(local, shared, sentIds));
+        var characters = new HashSet<string>(offered.Select(GauntletSpectator.CharacterIdOf), StringComparer.Ordinal);
+
+        foreach (Entry entry in local.OrderByDescending(entry => EndedAt(entry.EndedUtc)))
+        {
+            string character = GauntletSpectator.CharacterIdOf(entry);
+
+            if (!spectatorIds.Contains(character) && characters.Add(character))
+            {
+                offered.Add(entry);
+            }
+        }
+
+        return offered.OrderByDescending(entry => EndedAt(entry.EndedUtc)).ToList();
     }
 
     internal static string IssueTitle(Entry entry) => IssueTitlePrefix + entry.Character;

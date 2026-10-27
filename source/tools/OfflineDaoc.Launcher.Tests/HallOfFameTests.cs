@@ -189,4 +189,30 @@ public sealed class HallOfFameTests
         Assert.That(Call("Summary", entry), Is.EqualTo("level 50 Celt Hero, Hibernia"));
         Assert.That((string)Call("Details", rows[0]), Does.StartWith("by friend · 2:01 · seed 9 · "));
     }
+
+    [Test]
+    public void ShareOffersUnsharedWinsAndWinsWhoseCharacterIsNotASpectatorYet()
+    {
+        object shared = Entries(Win("a:1", "Alpha", "2026-10-20T10:00:00Z"));
+        object local = Entries(
+            Win("a:1", "Alpha", "2026-10-20T10:00:00Z"),
+            Win("b:1", "Beta", "2026-10-21T10:00:00Z"));
+
+        List<object> spectatorMissing = Items(Call("ToShare", local, shared, new HashSet<string> { "b:1" }, new HashSet<string>()));
+        List<object> allDone = Items(Call("ToShare", local, shared, new HashSet<string> { "b:1" }, new HashSet<string> { "a", "b" }));
+
+        Assert.That(spectatorMissing.Select(entry => Value(entry, "Character")), Is.EqualTo(new[] { "Beta", "Alpha" }));
+        Assert.That(allDone, Is.Empty);
+    }
+
+    [Test]
+    public void TheWinCarriesTheSpectatorLook()
+    {
+        object win = Items(Entries(Win("a:2026-10-20T10:00:00Z", "Alpha", "2026-10-20T10:00:00Z")))[0];
+        string body = (string)Call("IssueBodyWithSpectator", win, "{\"id\":\"a\",\"name\":\"Alpha\",\"classId\":1,\"items\":[]}");
+        string alone = (string)Call("IssueBodyWithSpectator", win, null!);
+
+        Assert.That(body, Does.Contain("\"spectator\":{\"id\":\"a\",\"name\":\"Alpha\""));
+        Assert.That(alone, Does.Not.Contain("spectator\""));
+    }
 }

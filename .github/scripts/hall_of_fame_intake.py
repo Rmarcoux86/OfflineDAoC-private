@@ -26,8 +26,9 @@ HALL_FILE = "hall-of-fame/hall-of-fame.json"
 GUEST_FILE = "gauntlet/guest-champions.json"
 
 MAX_BODY_CHARS = 200_000
-MAX_HALL_BYTES = 4 * 1024
 MAX_GUEST_BYTES = 60 * 1024
+# A win; since 2026-10-27 it may carry the character's spectator look in a "spectator" field (one submission).
+MAX_HALL_BYTES = 4 * 1024 + MAX_GUEST_BYTES
 
 REALMS = ("Albion", "Midgard", "Hibernia")
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,7})?(Z|[+-]\d{2}:\d{2})$")
@@ -128,7 +129,7 @@ def validate_hall(entry):
     errors = []
 
     for name in entry:
-        if name not in HALL_STRINGS and name not in HALL_INTS and name != "gauntletCleared" and name not in ADDED_BY_WORKFLOW:
+        if name not in HALL_STRINGS and name not in HALL_INTS and name not in ("gauntletCleared", "spectator") and name not in ADDED_BY_WORKFLOW:
             errors.append(f"Unknown field {field_label(name)}.")
 
     for name, required in HALL_STRINGS.items():
@@ -250,6 +251,16 @@ def command_validate(work):
     if entry is not None:
         if meta["kind"] == "hall":
             meta["errors"].extend(validate_hall(entry))
+            spectator = entry.get("spectator")
+
+            if spectator is not None and not meta["errors"]:
+                if not isinstance(spectator, dict):
+                    meta["errors"].append('"spectator" must be an object.')
+                else:
+                    meta["errors"].extend("Spectator: " + error for error in validate_guest(spectator, len(json.dumps(spectator).encode("utf-8"))))
+
+                    if not meta["errors"] and (spectator["id"].strip() != entry["id"].partition(":")[0] or spectator["name"].strip() != entry["character"]):
+                        meta["errors"].append('"spectator" is not the same character as the win.')
         else:
             meta["errors"].extend(validate_guest(entry, len(text.encode("utf-8"))))
 
@@ -258,6 +269,14 @@ def command_validate(work):
 
         if meta["kind"] == "hall":
             payload = {name: entry[name] for name in HALL_ORDER if name in entry}
+            spectator = entry.get("spectator")
+
+            if isinstance(spectator, dict):
+                guest = {name: value for name, value in spectator.items() if name not in ADDED_BY_WORKFLOW}
+                guest["id"] = guest["id"].strip()
+                guest["player"] = author
+                guest["submittedUtc"] = submitted
+                write_json(os.path.join(work, "spectator.json"), guest)
         else:
             payload = {name: value for name, value in entry.items() if name not in ADDED_BY_WORKFLOW}
             payload["id"] = payload["id"].strip()
@@ -288,6 +307,30 @@ def same_entry(old, new):
     return keep(old) == keep(new)
 
 
+def upsert(path, payload, author):
+    """Adds or updates the entry with payload's id in path; the status, and whether the file changed."""
+    data = load_entries(path)
+    entries = data["entries"]
+    index = next((i for i, entry in enumerate(entries) if isinstance(entry, dict) and entry.get("id") == payload["id"]), None)
+
+    if index is None:
+        entries.append(payload)
+        status = "added"
+    elif entries[index].get("player") != author:
+        status = "conflict"
+    elif same_entry(entries[index], payload):
+        status = "unchanged"
+    else:
+        entries[index] = payload
+        status = "updated"
+
+    if status in ("added", "updated"):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        write_json(path, data)
+
+    return status
+
+
 def command_apply(work):
     meta = read_json(os.path.join(work, "meta.json"))
     result = {"status": "invalid"}
@@ -295,29 +338,26 @@ def command_apply(work):
     if meta.get("ok"):
         payload = read_json(os.path.join(work, "payload.json"))
         path = HALL_FILE if meta["kind"] == "hall" else GUEST_FILE
-        data = load_entries(path)
-        entries = data["entries"]
-        index = next((i for i, entry in enumerate(entries) if isinstance(entry, dict) and entry.get("id") == payload["id"]), None)
-
-        if index is None:
-            entries.append(payload)
-            result["status"] = "added"
-        elif entries[index].get("player") != meta["author"]:
-            result["status"] = "conflict"
-        elif same_entry(entries[index], payload):
-            result["status"] = "unchanged"
-        else:
-            entries[index] = payload
-            result["status"] = "updated"
+        result["status"] = upsert(path, payload, meta["author"])
+        changes = []
 
         if result["status"] in ("added", "updated"):
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            write_json(path, data)
             what = "Hall of Fame win" if meta["kind"] == "hall" else "Gauntlet spectator"
-            verb = "Add" if result["status"] == "added" else "Update"
+            changes.append(f"{'Add' if result['status'] == 'added' else 'Update'} {what}")
 
+        # A win's spectator look (owner 2026-10-27): the character joins the Gauntlet's spectators with the same submission.
+        spectator_path = os.path.join(work, "spectator.json")
+
+        if meta["kind"] == "hall" and os.path.exists(spectator_path):
+            result["spectator"] = upsert(GUEST_FILE, read_json(spectator_path), meta["author"])
+
+            if result["spectator"] in ("added", "updated"):
+                changes.append(f"{'add' if result['spectator'] == 'added' else 'update'} the Gauntlet spectator" if changes else
+                               f"{'Add' if result['spectator'] == 'added' else 'Update'} Gauntlet spectator")
+
+        if changes:
             with open(os.path.join(work, "commit-message.txt"), "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(f"{verb} {what} from issue #{int(meta['number'])}\n")
+                handle.write(f"{' and '.join(changes)} from issue #{int(meta['number'])}\n")
 
     write_json(os.path.join(work, "result.json"), result)
 
@@ -354,7 +394,13 @@ def command_report(work):
         return
 
     result_path = os.path.join(work, "result.json")
-    status = read_json(result_path)["status"] if os.path.exists(result_path) else "invalid"
+    result = read_json(result_path) if os.path.exists(result_path) else {"status": "invalid"}
+    status = result["status"]
+    spectator = result.get("spectator")
+
+    # A win already listed whose look was just added: report the spectator.
+    if status == "unchanged" and spectator in ("added", "updated"):
+        status = "spectator-only"
     pushed = os.environ.get("PUSHED", "")
     hall = meta.get("kind") == "hall"
     what = "your win" if hall else "your champion"
@@ -363,7 +409,7 @@ def command_report(work):
 
     if not meta.get("ok"):
         lines = [f"This could not be added to {where}:", ""] + ["- " + error for error in meta.get("errors", [])]
-        source = "the launcher's SHARE MY WIN" if hall else "the launcher's SUBMIT AS SPECTATOR"
+        source = "the launcher's SHARE MY WIN"
         lines += ["", f"Please submit again from {source} (or fix the JSON and edit this issue)."]
         close_reason = "not_planned"
     elif status == "conflict":
@@ -377,10 +423,15 @@ def command_report(work):
             return
 
         lines = [f"This is already in {where}, unchanged."]
+    elif status == "spectator-only" and pushed == "yes":
+        lines = ["Your win was already in the Hall of Fame; your character now joins the Gauntlet's spectators from the next fork update."]
     elif pushed == "yes":
         verb = "added to" if status == "added" else "updated in"
         after = "Launchers show it on their next refresh." if hall else "It watches the Gauntlet from the next fork update."
         lines = [f"Thanks! {what[0].upper() + what[1:]} was {verb} {where}. {after}"]
+
+        if hall and spectator in ("added", "updated"):
+            lines.append("Your character also joins the Gauntlet's spectators from the next fork update.")
     else:
         lines = ["The entry is valid, but saving it failed (the repository changed too often). The owner will re-run it."]
         github("POST", f"/issues/{number}/comments", {"body": "\n".join(lines)})

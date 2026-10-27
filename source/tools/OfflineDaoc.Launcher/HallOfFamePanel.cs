@@ -16,7 +16,6 @@ internal sealed class HallOfFamePanel : Panel
     private readonly Func<string, GauntletSpectator.Snapshot?> _readSpectator;
     private readonly HallOfFameView _view = new();
     private readonly Button _shareButton = new RuneButton { Text = "SHARE MY WIN", Accent = DaocTheme.Gold, Dock = DockStyle.Fill, Margin = new Padding(0, 4, 4, 4) };
-    private readonly Button _spectatorButton = new RuneButton { Text = "SUBMIT AS SPECTATOR", Accent = DaocTheme.Gold, Dock = DockStyle.Fill, Margin = new Padding(0, 0, 4, 4) };
     private readonly LinkLabel _refreshLink = new()
     {
         Text = "Refresh",
@@ -59,12 +58,11 @@ internal sealed class HallOfFamePanel : Panel
         Padding = Padding.Empty;
 
         var frame = new InsetPanel { Dock = DockStyle.Fill, Accent = DaocTheme.Gold, Padding = new Padding(10, 6, 6, 8) };
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, BackColor = Color.Transparent };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, BackColor = Color.Transparent };
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
 
         var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = Padding.Empty, BackColor = Color.Transparent };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -84,14 +82,11 @@ internal sealed class HallOfFamePanel : Panel
         layout.Controls.Add(_view, 0, 1);
         layout.Controls.Add(_status, 0, 2);
         layout.Controls.Add(_shareButton, 0, 3);
-        layout.Controls.Add(_spectatorButton, 0, 4);
         frame.Controls.Add(layout);
         Controls.Add(frame);
 
         _shareButton.Enabled = false;
         _shareButton.Click += (_, _) => ShareClicked();
-        _spectatorButton.Enabled = false;
-        _spectatorButton.Click += (_, _) => SpectatorClicked();
         _refreshLink.LinkClicked += async (_, _) => await RefreshAsync();
         _view.HandleCreated += (_, _) => Render();
         _status.Text = "Loading the shared list...";
@@ -167,8 +162,7 @@ internal sealed class HallOfFamePanel : Panel
     private void Render()
     {
         HashSet<string> sent = HallOfFame.ReadSentIds(_runtimeFolder);
-        _shareButton.Enabled = HallOfFame.Unshared(_local, _shared, sent).Count > 0;
-        _spectatorButton.Enabled = GauntletSpectator.Candidates(_local, GauntletSpectator.ReadSubmittedIds(_runtimeFolder)).Count > 0;
+        _shareButton.Enabled = HallOfFame.ToShare(_local, _shared, sent, GauntletSpectator.ReadSubmittedIds(_runtimeFolder)).Count > 0;
 
         if (_view.IsHandleCreated)
         {
@@ -179,7 +173,8 @@ internal sealed class HallOfFamePanel : Panel
     // One unshared win is shared at once; several open a small picker (newest first).
     private void ShareClicked()
     {
-        IReadOnlyList<HallOfFame.Entry> unshared = HallOfFame.Unshared(_local, _shared, HallOfFame.ReadSentIds(_runtimeFolder));
+        IReadOnlyList<HallOfFame.Entry> unshared = HallOfFame.ToShare(_local, _shared, HallOfFame.ReadSentIds(_runtimeFolder),
+            GauntletSpectator.ReadSubmittedIds(_runtimeFolder));
 
         if (unshared.Count == 0)
         {
@@ -188,7 +183,7 @@ internal sealed class HallOfFamePanel : Panel
 
         if (unshared.Count == 1)
         {
-            Share(unshared[0]);
+            _ = ShareAsync(unshared[0]);
 
             return;
         }
@@ -198,15 +193,42 @@ internal sealed class HallOfFamePanel : Panel
         foreach (HallOfFame.Entry entry in unshared)
         {
             var row = new HallOfFame.Row(entry, HallOfFame.RowState.Local);
-            _picker.Items.Add($"{entry.Character}, {HallOfFame.Summary(entry)} ({HallOfFame.Details(row)})", null, (_, _) => Share(entry));
+            _picker.Items.Add($"{entry.Character}, {HallOfFame.Summary(entry)} ({HallOfFame.Details(row)})", null, (_, _) => _ = ShareAsync(entry));
         }
 
         _picker.Show(_shareButton, new Point(0, _shareButton.Height));
     }
 
-    private void Share(HallOfFame.Entry entry)
+    /// <summary>
+    /// Opens the pre-filled Hall of Fame issue for the win (owner 2026-10-27: one button): it carries the character's
+    /// look too, so the workflow also adds it to the Gauntlet's spectators. The look is read from the database off the
+    /// UI thread; without it, or when the link would be too long, the win goes alone. Never throws.
+    /// </summary>
+    private async Task ShareAsync(HallOfFame.Entry entry)
     {
-        string url = HallOfFame.IssueUrl(ForkUpdater.SourceRepositoryFor(_runtimeFolder), entry);
+        string characterId = GauntletSpectator.CharacterIdOf(entry);
+        string repository = ForkUpdater.SourceRepositoryFor(_runtimeFolder);
+        GauntletSpectator.Snapshot? snapshot = null;
+        _shareButton.Enabled = false;
+
+        try
+        {
+            snapshot = await Task.Run(() => _readSpectator(characterId));
+        }
+        catch (Exception exception)
+        {
+            HallOfFame.Log(_logsDirectory, $"Share: could not read {entry.Character}'s look: {exception.GetType().Name}: {exception.Message}");
+        }
+
+        string? spectatorJson = snapshot is null ? null : GauntletSpectator.SubmissionJson(snapshot);
+        string url = HallOfFame.IssueUrlWithSpectator(repository, entry, spectatorJson);
+
+        if (spectatorJson is not null && url.Length > GauntletSpectator.MaxIssueUrlLength)
+        {
+            HallOfFame.Log(_logsDirectory, $"Share: the link with {entry.Character}'s look is {url.Length} characters; the win is sent alone.");
+            spectatorJson = null;
+            url = HallOfFame.IssueUrlWithSpectator(repository, entry, null);
+        }
 
         try
         {
@@ -215,6 +237,7 @@ internal sealed class HallOfFamePanel : Panel
         catch (Exception exception)
         {
             HallOfFame.Log(_logsDirectory, $"Hall of Fame: could not open the browser: {exception.GetType().Name}: {exception.Message}");
+            Render();
             MessageBox.Show(this, "The browser could not be opened. Check the launcher's logs\\hall-of-fame.log.", "Share my win",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
@@ -222,90 +245,15 @@ internal sealed class HallOfFamePanel : Panel
         }
 
         HallOfFame.RememberSent(_runtimeFolder, entry.Id, _logsDirectory);
-        _status.Text = "Submit the issue in your browser; the win is listed within a few minutes.";
-        Render();
-    }
 
-    // Characters that cleared the Gauntlet and were not submitted yet: one is submitted at once, several open the picker.
-    private void SpectatorClicked()
-    {
-        IReadOnlyList<HallOfFame.Entry> candidates = GauntletSpectator.Candidates(_local, GauntletSpectator.ReadSubmittedIds(_runtimeFolder));
-
-        if (candidates.Count == 0)
+        if (spectatorJson is not null)
         {
-            return;
+            GauntletSpectator.RememberSubmitted(_runtimeFolder, characterId, _logsDirectory);
         }
 
-        if (candidates.Count == 1)
-        {
-            _ = SubmitSpectatorAsync(candidates[0]);
-
-            return;
-        }
-
-        _picker.Items.Clear();
-
-        foreach (HallOfFame.Entry entry in candidates)
-        {
-            _picker.Items.Add(GauntletSpectator.PickerText(entry), null, (_, _) => _ = SubmitSpectatorAsync(entry));
-        }
-
-        _picker.Show(_spectatorButton, new Point(0, _spectatorButton.Height));
-    }
-
-    // Reads the character's look from the database (off the UI thread) and opens the pre-filled issue. Never throws.
-    private async Task SubmitSpectatorAsync(HallOfFame.Entry entry)
-    {
-        string characterId = GauntletSpectator.CharacterIdOf(entry);
-        GauntletSpectator.Snapshot? snapshot = null;
-        _spectatorButton.Enabled = false;
-
-        try
-        {
-            snapshot = await Task.Run(() => _readSpectator(characterId));
-        }
-        catch (Exception exception)
-        {
-            HallOfFame.Log(_logsDirectory, $"Spectator: could not read {entry.Character}: {exception.GetType().Name}: {exception.Message}");
-        }
-
-        if (snapshot is null)
-        {
-            Render();
-            MessageBox.Show(this, $"{entry.Character} could not be read from the game database. Check the launcher's logs\\hall-of-fame.log.",
-                "Submit as spectator", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-            return;
-        }
-
-        string url = GauntletSpectator.IssueUrl(ForkUpdater.SourceRepositoryFor(_runtimeFolder), snapshot);
-
-        if (url.Length > GauntletSpectator.MaxIssueUrlLength)
-        {
-            HallOfFame.Log(_logsDirectory, $"Spectator: the issue link for {entry.Character} is {url.Length} characters, over {GauntletSpectator.MaxIssueUrlLength}.");
-            Render();
-            MessageBox.Show(this, "The spectator is too large to send as a link. Check the launcher's logs\\hall-of-fame.log.",
-                "Submit as spectator", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
-        }
-        catch (Exception exception)
-        {
-            HallOfFame.Log(_logsDirectory, $"Spectator: could not open the browser: {exception.GetType().Name}: {exception.Message}");
-            Render();
-            MessageBox.Show(this, "The browser could not be opened. Check the launcher's logs\\hall-of-fame.log.", "Submit as spectator",
-                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-
-            return;
-        }
-
-        GauntletSpectator.RememberSubmitted(_runtimeFolder, characterId, _logsDirectory);
-        _status.Text = $"Submit the issue in your browser; {entry.Character} watches the Gauntlet from the next fork update.";
+        _status.Text = spectatorJson is null
+            ? "Submit the issue in your browser; the win is listed within a few minutes."
+            : $"Submit the issue in your browser; the win is listed within minutes and {entry.Character} joins the Gauntlet's spectators.";
         Render();
     }
 }
