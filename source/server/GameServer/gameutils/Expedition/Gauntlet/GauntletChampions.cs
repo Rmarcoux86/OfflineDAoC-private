@@ -8,8 +8,9 @@ namespace DOL.GS.Expedition.Gauntlet;
 /// <paramref name="ClassId"/> is an <see cref="eCharacterClass"/> value, <paramref name="RaceId"/> an <see cref="eRace"/>
 /// value and <paramref name="Gender"/> an <see cref="eGender"/> value, as GameBot's constructor takes them (raceId,
 /// genderId). <paramref name="Signature"/> names the champion's signature move (plan, Phase 3).
+/// <paramref name="DoubleHealth"/> doubles the champion's health pool (owner 2026-10-27: Toothmouth).
 /// </summary>
-public sealed record ChampionDefinition(string Name, int ClassId, int RaceId, int Gender, string Signature);
+public sealed record ChampionDefinition(string Name, int ClassId, int RaceId, int Gender, string Signature, bool DoubleHealth = false);
 
 /// <summary>The five Gauntlet champions and the seeded order they are faced in.</summary>
 public static class GauntletChampions
@@ -24,7 +25,7 @@ public static class GauntletChampions
         new("Drunkstains", (int) eCharacterClass.Armsman, (int) eRace.HalfOgre, (int) eGender.Male, "attrition"),
 
         // Damage add and endurance regen; mezzes a player who keeps out of melee range.
-        new("Toothmouth", (int) eCharacterClass.Bard, (int) eRace.Firbolg, (int) eGender.Male, "range-punish"),
+        new("Toothmouth", (int) eCharacterClass.Bard, (int) eRace.Firbolg, (int) eGender.Male, "range-punish", DoubleHealth: true),
 
         // A nature pet that heals him; nearsight on the player at round start.
         new("Gwyraan", (int) eCharacterClass.Druid, (int) eRace.Celt, (int) eGender.Male, "pet-heal"),

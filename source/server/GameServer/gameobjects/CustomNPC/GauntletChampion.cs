@@ -4,6 +4,9 @@ using System.Linq;
 using DOL.AI;
 using DOL.AI.Brain;
 using DOL.Database;
+using DOL.GS.Effects;
+using DOL.GS.PropertyCalc;
+using DOL.GS.RealmAbilities;
 using DOL.GS.Styles;
 
 namespace DOL.GS.Expedition.Gauntlet;
@@ -19,6 +22,18 @@ namespace DOL.GS.Expedition.Gauntlet;
 public sealed class GauntletChampion : GameBot
 {
     public const byte SpawnLevel = 50;
+
+    /// <summary>The Shields style whose short stun the champion purges only half the time (owner 2026-10-27).</summary>
+    public const string NumbStyleName = "Numb";
+
+    /// <summary>A stun counts as Numb's when it starts this soon after a Numb hit.</summary>
+    private const long NumbWindowMs = 3_000;
+
+    /// <summary>Toothmouth's champion-only realm ability (owner 2026-10-27; Bards do not have it in ClassXRealmAbility_Atlas).</summary>
+    public const string SpeedOfSoundKey = "AtlasOF_SpeedOfSound";
+
+    /// <summary>AtlasOF_SpeedOfSound's duration (its m_duration).</summary>
+    private const int SpeedOfSoundMs = 30_000;
 
     /// <summary>The player this champion fights; null once it has been removed.</summary>
     public GamePlayer Challenger { get; private set; }
@@ -37,26 +52,61 @@ public sealed class GauntletChampion : GameBot
     /// </summary>
     internal eActiveWeaponSlot? HeldSlot { get; set; }
 
-    /// <summary>Gwyraan's best damage-over-time spell, cast only by his brain (kept out of <see cref="GameNPC.Spells"/>).</summary>
+    /// <summary>Gwyraan's DoT (Degeneration), cast only by his brain (kept out of <see cref="GameNPC.Spells"/>).</summary>
     internal Spell SignatureDot { get; private set; }
 
     /// <summary>Gwyraan's best damage add, kept up on himself.</summary>
     internal Spell SignatureBuff { get; private set; }
 
-    /// <summary>Toothmouth's best instant mez, cast only by his brain (kept out of <see cref="GameNPC.Spells"/>).</summary>
-    internal Spell SignatureMez { get; private set; }
+    /// <summary>Gwyraan's pet (Call Greater Nature Spirit), summoned before the fight.</summary>
+    internal Spell SignaturePet { get; private set; }
 
-    /// <summary>Toothmouth's best heal for himself.</summary>
+    /// <summary>Gwyraan's instant root (Bursting Undergrowth), cast only by his brain.</summary>
+    internal Spell SignatureRoot { get; private set; }
+
+    /// <summary>Gwyraan's instant heal (Bith's Benison), kept out of the bot's own heals.</summary>
+    internal Spell SignatureInstantHeal { get; private set; }
+
+    /// <summary>The heal a champion casts on itself after a retreat (Gwyraan: Major Restoration; Toothmouth: his best).</summary>
     internal Spell SignatureHeal { get; private set; }
 
-    /// <summary>When it last blocked an attack (GameLoop time); 0 for never.</summary>
-    internal long LastBlockTick { get; private set; }
+    /// <summary>Toothmouth's instant mezzes, best first, cast only by his brain.</summary>
+    internal IReadOnlyList<Spell> SignatureMezzes { get; private set; } = Array.Empty<Spell>();
+
+    /// <summary>Toothmouth's instant shout (Concussive Roar), woven between his swings by his brain.</summary>
+    internal Spell SignatureShout { get; private set; }
+
+    /// <summary>Ios's instant snare (Veil Path), cast only by her brain.</summary>
+    internal Spell SignatureSnare { get; private set; }
+
+    /// <summary>Ios's lifedrain (Cycle of Death, or her best), cast only by her brain.</summary>
+    internal Spell SignatureDrain { get; private set; }
+
+    /// <summary>The buffs it casts before the fight, in order (<see cref="ChampionSpells.PrefightBuffs"/>).</summary>
+    internal IReadOnlyList<Spell> PrefightBuffs { get; private set; } = Array.Empty<Spell>();
+
+    /// <summary>When it last took a Numb hit (GameLoop time); 0 for never.</summary>
+    internal long LastNumbTick { get; private set; }
+
+    /// <summary>The stun spells Numb's hits proc (StyleProcInfo), to tell its stun from any other.</summary>
+    private readonly HashSet<int> _numbStunSpellIds = new();
+
+    /// <summary>The Numb stun the purge coin was last tossed for, and its result: one toss per stun.</summary>
+    private ECSGameEffect _numbStunTossed;
+
+    private bool _numbStunPurges;
 
     /// <summary>The Gauntlet round this champion was spawned for.</summary>
     public int Round { get; }
 
-    /// <summary>When its buffing ends and it waits to be challenged (GameLoop time).</summary>
+    /// <summary>When its minimum buffing time ends (GameLoop time).</summary>
     internal long BuffUntilTick { get; set; }
+
+    /// <summary>
+    /// When it stops waiting for its buffs and is ready whatever is left (GameLoop time): a safety net against a buff
+    /// that can never land; 0 for none.
+    /// </summary>
+    internal long PrefightDeadlineTick { get; set; }
 
     /// <summary>True once it has finished buffing and waits to be challenged (it stays where it appeared).</summary>
     internal bool AtCentre { get; set; }
@@ -74,15 +124,14 @@ public sealed class GauntletChampion : GameBot
         Definition = definition;
         Round = round;
         Signature = SignatureFor(definition?.Name);
+        eCharacterClass characterClass = (eCharacterClass) definition.ClassId;
 
         // Drunkstains fights with a polearm and with a one-hander and shield (owner 2026-10-25). EquipBot draws a
         // TwoHandHybrid Armsman's one-hander, polearm and shield from the item table (GameBot.SetWeapons, SetShield) and
         // leaves a slot empty when the table has nothing that fits; an empty slot gets a generated item from the
         // generator bots use for a missing weapon (BotEquipment.SetWeaponROG, GeneratedUniqueItem).
-        if (Signature.PolearmChain.Length > 0 && Inventory != null)
+        if (Signature.ShieldStun && Inventory != null)
         {
-            eCharacterClass characterClass = (eCharacterClass) definition.ClassId;
-
             if (Inventory.GetItem(eInventorySlot.TwoHandWeapon) == null)
             {
                 BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.PolearmWeapon, eInventorySlot.TwoHandWeapon, eDamageType.Slash);
@@ -102,57 +151,49 @@ public sealed class GauntletChampion : GameBot
             SwitchWeapon(eActiveWeaponSlot.TwoHanded);
         }
 
+        if (Signature.DrainKite)
+        {
+            // Ios (owner 2026-10-27): her snare and lifedrain are her brain's alone (the ranged opener, the kite at 40%).
+            SignatureSnare = ChampionSpells.Named(Spells, "Veil Path") ?? ChampionSpells.Best(Spells, eSpellType.SpeedDecrease, Level, true);
+            SignatureDrain = ChampionSpells.Named(Spells, "Cycle of Death") ?? ChampionSpells.Best(Spells, eSpellType.Lifedrain, Level);
+            Spells = Spells.Where(spell => spell != SignatureSnare && spell != SignatureDrain).ToList();
+        }
+
         if (Signature.RangedDot)
         {
-            // Gwyraan: a staff in both hands, like his look. GameBot.SetWeapons gives a Druid (a hybrid) a one-handed
-            // weapon of WeaponOneType, and no staff is one-handed, so the staff is generated. Whether a Druid may use a
-            // staff is the database's ability table (AbstractServerRules.CheckAbilityToUseItem, "Weaponry: Staves");
-            // if not, he fights with the Blunt one-hander the stock DruidBotSpec uses.
-            eCharacterClass characterClass = (eCharacterClass) definition.ClassId;
-
-            if (Inventory != null && Inventory.GetItem(eInventorySlot.TwoHandWeapon) == null)
-            {
-                BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Staff, eInventorySlot.TwoHandWeapon, eDamageType.Crush);
-            }
-
-            if (Inventory != null && BotWeaponStats.CanUseMelee(this, Inventory.GetItem(eInventorySlot.TwoHandWeapon)))
-            {
-                SwitchWeapon(eActiveWeaponSlot.TwoHanded);
-            }
-            else if (Inventory != null)
-            {
-                BotSpec.WeaponOneType = eObjectType.Blunt;
-                BotSpec.Is2H = false;
-
-                if (Inventory.GetItem(eInventorySlot.RightHandWeapon) == null)
-                {
-                    BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Blunt, eInventorySlot.RightHandWeapon, eDamageType.Crush);
-                }
-
-                SwitchWeapon(eActiveWeaponSlot.Standard);
-            }
-
-            // No pet (owner 2026-10-25), no attack spell but his DoT, which only his brain casts; heals and buffs stay.
-            SignatureDot = ChampionSpells.Best(Spells, eSpellType.DamageOverTime, Level);
+            // Gwyraan (owner 2026-10-27): a mace and a shield (Druids have Weaponry: Blunt and Shield 1 from
+            // NaturalistCareer), his pet, his DoT, root and heals. The pet summon, the attack spells and the instant heal
+            // are his brain's alone; the bot keeps its other heals and buffs.
+            EquipBluntAndShield(characterClass);
+            SignatureDot = ChampionSpells.Named(Spells, "Degeneration") ?? ChampionSpells.Best(Spells, eSpellType.DamageOverTime, Level);
             SignatureBuff = ChampionSpells.Best(Spells, eSpellType.DamageAdd, Level);
-            Spells = ChampionSpells.WithoutPetsAndAttacks(Spells);
+            SignaturePet = ChampionSpells.Named(Spells, "Call Greater Nature Spirit") ?? ChampionSpells.Best(Spells, eSpellType.SummonDruidPet, Level);
+            SignatureRoot = ChampionSpells.Named(Spells, "Bursting Undergrowth") ?? ChampionSpells.BestInstantRoot(Spells, Level);
+            SignatureHeal = ChampionSpells.Named(Spells, "Major Restoration") ?? ChampionSpells.BestSelfHeal(Spells, Level);
+            SignatureInstantHeal = ChampionSpells.Named(Spells, "Bith's Benison") ?? ChampionSpells.BestInstantHeal(Spells, Level);
+            Spells = ChampionSpells.WithoutPetsAndAttacks(Spells).Where(spell => spell != SignatureInstantHeal).ToList();
         }
 
         if (Signature.MezRetreat)
         {
-            // Toothmouth: the stock Bard plan equips a one-handed blade (SetWeapons' Instrument case) and a shield; a
-            // missing blade is generated so he can always melee.
-            if (Inventory != null && Inventory.GetItem(eInventorySlot.RightHandWeapon) == null)
-            {
-                BotEquipment.SetWeaponROG(this, Realm, (eCharacterClass) definition.ClassId, SpawnLevel, eObjectType.Blades, eInventorySlot.RightHandWeapon, eDamageType.Slash);
-                SwitchWeapon(eActiveWeaponSlot.Standard);
-            }
-
-            // His mez is his signature's alone: the bot's own crowd control never casts it.
-            SignatureMez = ChampionSpells.Best(Spells, eSpellType.Mesmerize, Level, true);
+            // Toothmouth (owner 2026-10-27): a mace and a shield (Bards have Weaponry: Blunt and Shield 1 from
+            // NaturalistCareer). His instant mezzes and his shout are his brain's alone.
+            EquipBluntAndShield(characterClass);
+            SignatureMezzes = Spells.Where(spell => spell != null && spell.SpellType == eSpellType.Mesmerize && spell.CastTime <= 0 && spell.Level <= Level)
+                .OrderByDescending(spell => spell.Level)
+                .ToList();
+            SignatureShout = ChampionSpells.Named(Spells, "Concussive Roar") ?? ChampionSpells.Best(Spells, eSpellType.DirectDamage, Level, true);
             SignatureHeal = ChampionSpells.BestSelfHeal(Spells, Level);
-            Spells = Spells.Where(spell => spell.SpellType != eSpellType.Mesmerize).ToList();
+            Spells = Spells.Where(spell => spell.SpellType != eSpellType.Mesmerize && spell != SignatureShout).ToList();
+
+            // Speed of Sound, a champion-only exception for a Bard (owner 2026-10-27), fired by his brain (TrySpeedOfSound).
+            if (SkillBase.GetAbility(SpeedOfSoundKey, 1) is RealmAbility speedOfSound)
+            {
+                AddAbility(speedOfSound, false);
+            }
         }
+
+        PrefightBuffs = ChampionSpells.PrefightBuffs(Spells, Level);
 
         // Gear is picked by realm in the base constructor; only now does the champion leave its realm.
         _homeRealm = Realm;
@@ -196,6 +237,48 @@ public sealed class GauntletChampion : GameBot
     }
 
     /// <summary>
+    /// A one-handed mace in the right hand and a small shield in the left (Gwyraan, Toothmouth; owner 2026-10-27).
+    /// Their BotSpec asks SetWeapons for a Blunt one-hander and SetShield for their Shield 1 (small) shield; whatever the
+    /// item table left out, or filled with another type, is replaced by a generated item.
+    /// </summary>
+    private void EquipBluntAndShield(eCharacterClass characterClass)
+    {
+        if (Inventory == null)
+        {
+            return;
+        }
+
+        DbInventoryItem right = Inventory.GetItem(eInventorySlot.RightHandWeapon);
+
+        if (right != null && right.Object_Type != (int) eObjectType.Blunt)
+        {
+            Inventory.RemoveItem(right);
+            right = null;
+        }
+
+        if (right == null)
+        {
+            BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Blunt, eInventorySlot.RightHandWeapon, eDamageType.Crush);
+        }
+
+        DbInventoryItem left = Inventory.GetItem(eInventorySlot.LeftHandWeapon);
+
+        if (left != null && left.Object_Type != (int) eObjectType.Shield)
+        {
+            Inventory.RemoveItem(left);
+            left = null;
+        }
+
+        if (left == null)
+        {
+            // A shield's Type_Damage is its size (BotEquipment.SetShield); 1 is a small shield, all a Shield 1 class may use.
+            BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Shield, eInventorySlot.LeftHandWeapon, (eDamageType) 1);
+        }
+
+        SwitchWeapon(eActiveWeaponSlot.Standard);
+    }
+
+    /// <summary>
     /// Styles this champion uses first whenever one can be used, in order (BotMeleeStylePolicy.Select, at every swing).
     /// The brain sets them for its current signature step; otherwise they are the signature's own priority. These may be
     /// positional: Select lets the champion's own priority styles through BotMeleeStylePolicy.IsEligible's positional
@@ -204,24 +287,29 @@ public sealed class GauntletChampion : GameBot
     public IReadOnlyList<string> PriorityStyles => CurrentPriority ?? Signature?.Priority ?? Array.Empty<string>();
 
     /// <summary>
-    /// The signatures (owner 2026-10-25), by Style.Name in the server's style table.
-    /// Ios (Scythe): she runs behind her challenger for Damaging Grasp (back positional, 8 s stun), then from the side
-    /// Stunning Blade (side positional), Winter's Scythe, Blizzard Blade.
-    /// Preesh (Blunt, Celtic Dual): Devastating Blow, the 10 s stun that follows Stunning Blow, then Stunning Blow, the
-    /// style that opens off a parry; while the challenger is stunned, from the side Ice Storm (side positional), Tempest,
-    /// Supernova.
-    /// Drunkstains (Polearm, Shields): shield held between polearm swings; the polearm swings Phalanx (front positional),
-    /// then Defender's Revenge (9 s stun); after a block, Slam (9 s stun) from the shield.
+    /// The signatures, by Style.Name in the server's style table (owner 2026-10-25, revised 2026-10-27).
+    /// Ios (Scythe): behind her challenger for Damaging Grasp (back positional, 8 s stun), then from the side Stunning
+    /// Blade (side positional), Winter's Scythe, Blizzard Blade; while the challenger is immune to stuns the fire chain,
+    /// Arboreal Fire (after her evade), Foxfire, Flaming Scythe, Conflagration.
+    /// Preesh (Blunt, Celtic Dual): after his parry Stunning Blow, then Devastating Blow (10 s stun); while the challenger
+    /// is stunned, from the side Ice Storm (side positional), Tempest, Supernova; while the challenger is immune to stuns,
+    /// after his parry Tornado, Meteor Shower, Twin Star.
+    /// Drunkstains (Polearm, Shields): Slam or Numb from the shield whenever the challenger can be stunned; the polearm
+    /// only Defender's Rage (after the challenger's styled hit) and otherwise Crippling Blow.
+    /// Toothmouth (Blunt): behind a mezzed challenger Back Crush, then Crushing Blow.
+    /// Every champion's filler is <see cref="ChampionSignature.Filler"/> or its best anytime style (ChampionStyles).
     /// </summary>
     public static ChampionSignature SignatureFor(string name)
     {
         return name switch
         {
-            "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"], [], null),
-            "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"], [], null),
-            "Drunkstains" => new ChampionSignature([], null, [], ["Phalanx", "Defender's Revenge"], "Slam"),
-            "Gwyraan" => new ChampionSignature([], null, [], [], null, RangedDot: true),
-            "Toothmouth" => new ChampionSignature([], null, [], [], null, MezRetreat: true),
+            "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"],
+                ["Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire"], DrainKite: true),
+            "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"],
+                ["Twin Star", "Meteor Shower", "Tornado"]),
+            "Drunkstains" => new ChampionSignature(["Defender's Rage"], null, [], [], Filler: "Crippling Blow", ShieldStun: true),
+            "Gwyraan" => new ChampionSignature([], null, [], [], RangedDot: true),
+            "Toothmouth" => new ChampionSignature(["Crushing Blow"], "Back Crush", [], [], MezRetreat: true),
             _ => ChampionSignature.None
         };
     }
@@ -239,6 +327,12 @@ public sealed class GauntletChampion : GameBot
             _ => null
         };
     }
+
+    /// <summary>
+    /// Toothmouth has double health (owner 2026-10-27, <see cref="ChampionDefinition.DoubleHealth"/>): every reading of
+    /// MaxHealth (regeneration, heals, HealthPercent) sees the doubled pool.
+    /// </summary>
+    public override int MaxHealth => Definition?.DoubleHealth == true ? base.MaxHealth * 2 : base.MaxHealth;
 
     /// <summary>A melee switch while the brain holds a slot goes to the held slot (see <see cref="HeldSlot"/>).</summary>
     public override void SwitchWeapon(eActiveWeaponSlot slot)
@@ -402,8 +496,8 @@ public sealed class GauntletChampion : GameBot
     }
 
     /// <summary>
-    /// An attack by the challenger's side starts the fight, bow or no bow. A blocked attack is noted for Drunkstains's
-    /// Slam (GameLiving.OnAttackedByEnemy runs for every attack received, whatever its result).
+    /// An attack by the challenger's side starts the fight, bow or no bow. A styled Numb hit is noted with the stun spells
+    /// it procs (GameLiving.OnAttackedByEnemy runs for every attack received), so the purge can tell Numb's stun apart.
     /// </summary>
     public override void OnAttackedByEnemy(AttackData ad)
     {
@@ -412,12 +506,69 @@ public sealed class GauntletChampion : GameBot
             Engaged = true;
         }
 
-        if (ad != null && ad.AttackResult == eAttackResult.Blocked && ad.Target == this)
+        if (ad != null && ad.Target == this && ad.AttackResult == eAttackResult.HitStyle && ad.Style?.Name == NumbStyleName)
         {
-            LastBlockTick = GameLoop.GameLoopTime;
+            LastNumbTick = GameLoop.GameLoopTime;
+
+            foreach (StyleProcInfo proc in ad.Style.Procs)
+            {
+                if (proc.Spell != null && proc.Spell.SpellType == eSpellType.StyleStun)
+                {
+                    _numbStunSpellIds.Add(proc.Spell.ID);
+                }
+            }
         }
 
         base.OnAttackedByEnemy(ad);
+    }
+
+    /// <summary>
+    /// The purge rule (owner 2026-10-27, AutonomousBotRealmAbilities.Wanted): any mez, or any stun but Numb's, is
+    /// purged at once; Numb's stun (Shields, about 2 s) only on a coin toss made once for that stun. A stun is Numb's when
+    /// its spell is one Numb procs and a Numb hit came just before it.
+    /// </summary>
+    internal bool WantsPurge()
+    {
+        bool numbStun = false;
+
+        if (IsStunned && !IsMezzed)
+        {
+            ECSGameEffect stun = EffectListService.GetEffectOnTarget(this, eEffect.Stun);
+            int spellId = stun?.SpellHandler?.Spell?.ID ?? 0;
+            numbStun = spellId != 0 && _numbStunSpellIds.Contains(spellId) && GameLoop.GameLoopTime - LastNumbTick <= NumbWindowMs;
+
+            if (numbStun && stun != _numbStunTossed)
+            {
+                _numbStunTossed = stun;
+                _numbStunPurges = Random.Shared.Next(2) == 0;
+            }
+        }
+
+        return ChampionTactics.PurgeWanted(IsMezzed, IsStunned, numbStun, _numbStunPurges);
+    }
+
+    /// <summary>True while its Speed of Sound runs.</summary>
+    internal bool HasSpeedOfSound => effectListComponent.ContainsEffectForEffectType(eEffect.SpeedOfSound);
+
+    /// <summary>True when it has Speed of Sound and its timer is ready.</summary>
+    internal bool SpeedOfSoundReady => GetAbility(SpeedOfSoundKey) is TimedRealmAbility ability && GetSkillDisabledDuration(ability) <= 0;
+
+    /// <summary>
+    /// Fires Toothmouth's Speed of Sound. AtlasOF_SpeedOfSound.Execute works on a GamePlayer only (it casts its user to
+    /// one), so the champion starts the ability's timer and its effect itself; the effect's speed is applied by the
+    /// brain (MaxSpeedCalculator never reads it for an NPC). False when it is not ready.
+    /// </summary>
+    internal bool TrySpeedOfSound()
+    {
+        if (GetAbility(SpeedOfSoundKey) is not TimedRealmAbility ability || GetSkillDisabledDuration(ability) > 0 || IsIncapacitated || HasSpeedOfSound)
+        {
+            return false;
+        }
+
+        ability.DisableSkill(this);
+        ECSGameEffectFactory.Create(new(this, SpeedOfSoundMs, 1), static (in i) => new SpeedOfSoundECSEffect(i));
+
+        return true;
     }
 
     /// <summary>No corpse: GameNPC.ProcessDeath deletes the body, and RespawnInterval -1 keeps it gone.</summary>
@@ -431,6 +582,8 @@ public sealed class GauntletChampion : GameBot
 
     public override void ProcessDeath(GameObject killer)
     {
+        // Its pet (Gwyraan's) dies with it.
+        ReleasePet();
         base.ProcessDeath(killer);
 
         // Only a real death counts as a kill; Remove() deletes without coming here.
@@ -440,14 +593,24 @@ public sealed class GauntletChampion : GameBot
         }
     }
 
-    /// <summary>Takes the champion out of the world for good, without counting a kill.</summary>
+    /// <summary>Takes the champion (and its pet) out of the world for good, without counting a kill.</summary>
     public void Remove()
     {
         Challenger = null;
+        ReleasePet();
 
         if (ObjectState != eObjectState.Deleted)
         {
             Delete();
+        }
+    }
+
+    /// <summary>Releases its pet through the summon's normal release (GameBot.CommandNpcRelease), which deletes it.</summary>
+    private void ReleasePet()
+    {
+        if (ControlledBrain != null)
+        {
+            CommandNpcRelease();
         }
     }
 
@@ -528,11 +691,12 @@ public sealed class GauntletChampion : GameBot
 }
 
 /// <summary>
-/// The champion's brain: the bot's own combat AI (styles, spells, heals) with three changes. It buffs and waits
-/// before fighting; it fights only its challenger's side and keeps the challenger on its aggro list (BotBrain's AGGRO
-/// state drops out after 6 s without combat); and it is leashed to where it appeared (BotBrain ignores TetherRange).
-/// In the fight it plays its <see cref="ChampionSignature"/>: the positional steps (behind, side) and Drunkstains's
-/// shield/polearm swap.
+/// The champion's brain: the bot's own combat AI (styles, spells, heals) with these changes. It buffs before it can be
+/// challenged and waits; it fights only its challenger's side and keeps the challenger on its aggro list (BotBrain's
+/// AGGRO state drops out after 6 s without combat); and it is leashed to where it appeared (BotBrain ignores
+/// TetherRange). In the fight it plays its <see cref="ChampionSignature"/>: the positional steps (behind, side),
+/// Drunkstains's shield/polearm swap and shield stuns, and the manoeuvres that own the think while they run (Ios's
+/// ranged opener and kite, Gwyraan's root escape, Toothmouth's mez and retreats).
 /// </summary>
 public sealed class GauntletChampionBrain : BotBrain
 {
@@ -555,9 +719,6 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>The behind attempt starts only this close to the challenger.</summary>
     private const int BehindStartRange = 500;
 
-    /// <summary>How long one behind attempt may take before it is given up (a run through waits for a swing it can time).</summary>
-    private const long BehindStepMs = 8_000;
-
     /// <summary>A challenger whose facing is within this many degrees of the champion gets the run through.</summary>
     private const float RunThroughMaxAngle = 30;
 
@@ -573,7 +734,7 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>Meanwhile the bot's own fight (BotBrain.AttackMostWanted) runs at its usual pace.</summary>
     private const long PressureThinkMs = 500;
 
-    /// <summary>The wait after a behind attempt before the next one (owner 2026-10-25: "e.g. every 20 s").</summary>
+    /// <summary>The wait after a landed back stun before the next attempt (owner 2026-10-25: "e.g. every 20 s").</summary>
     private const long BehindRetryMs = 20_000;
 
     /// <summary>How long the side chain may take.</summary>
@@ -585,17 +746,13 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>
     /// A champion's sprint: MaxSpeedCalculator multiplies a player's speed by 1.3 while sprinting (its private SPRINT
     /// constant) but never an NPC's, and a GameBot is a GameNPC, so GameBot.Sprint's effect would not make it faster.
-    /// The sprint is the same factor on MaxSpeedBase (the base speed bots set to PLAYER_BASE_SPEED), for a short burst.
+    /// The sprint is the same factor on MaxSpeedBase (the base speed bots set to PLAYER_BASE_SPEED), which
+    /// MaxSpeedCalculator multiplies by the NPC's speed buffs and snares.
     /// </summary>
     private const double SprintFactor = 1.3;
 
-    private const long SprintMs = 4_000;
-
     /// <summary>Drunkstains takes up the polearm this long before a swing is due, on top of a think interval.</summary>
     private const long SwapMarginMs = 150;
-
-    /// <summary>Slam follows a block within this long (the 3 s reactionary window, AttackAction.IsAllowedToTick).</summary>
-    private const long SlamWindowMs = 3_000;
 
     /// <summary>Gwyraan's DoT is for a challenger beyond melee reach: the attack range plus this margin.</summary>
     private const int DotMeleeMargin = 50;
@@ -603,11 +760,26 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>A signature cast (DoT, self-buff) is tried again no sooner than this after the last one ended.</summary>
     private const long SpellRetryMs = 4_000;
 
-    /// <summary>Toothmouth waits this long for his instant mez to show on the challenger before counting it resisted.</summary>
-    private const long MezLandWindowMs = 1_500;
+    /// <summary>An instant mez or root is given this long to show on the challenger before it counts as resisted.</summary>
+    private const long LandWindowMs = 1_500;
 
     /// <summary>Toothmouth retreats this share of the leash radius past his spot (owner: "~80% of the leash").</summary>
     private const double RetreatLeashShare = 0.8;
+
+    /// <summary>Ios and Gwyraan stop running this far from the challenger to cast (inside their 1,500 spell range).</summary>
+    private const int FleeDistance = 900;
+
+    /// <summary>A retreat or kite is given up after this long.</summary>
+    private const long ManoeuvreMaxMs = 20_000;
+
+    /// <summary>Ios's kite fails when the challenger stays in melee range this long while she runs.</summary>
+    private const long KiteCaughtMs = 4_000;
+
+    /// <summary>A champion slower than this (rooted, or nearly) cannot run away.</summary>
+    private const int MinRunSpeed = 50;
+
+    /// <summary>A pre-fight buff that was cast this often without showing is skipped.</summary>
+    private const int PrefightMaxAttempts = 2;
 
     private enum SignatureStep
     {
@@ -616,24 +788,72 @@ public sealed class GauntletChampionBrain : BotBrain
         Side
     }
 
+    private enum KitePhase
+    {
+        None,
+        Run,
+        Drain
+    }
+
+    private enum EscapePhase
+    {
+        None,
+        Rooting,
+        Run,
+        Heal,
+        Dot
+    }
+
+    private enum MezPurpose
+    {
+        None,
+        Positional,
+        Retreat
+    }
+
     private long _nextHuntTick;
     private SignatureStep _step;
     private long _stepUntil;
     private long _nextBehindTick;
     private bool _sideDone;
-    private bool _sprintUsed;
-    private long _sprintUntil;
-    private short _speedBeforeSprint;
     private bool _behindRunThrough;
     private long _runSwingTick;
     private long _nextPressureTick;
     private int _thinkIntervalBeforeRun;
+    private double _speedFactor = 1;
+    private short _speedBase;
     private long _nextDotTick;
     private long _nextBuffTick;
-    private bool _mezUsed;
+    private readonly Dictionary<(int SpellId, GameLiving Target), int> _prefightAttempts = new();
+
+    // Ios.
+    private bool _rangedOpenerDone;
+    private bool _openerSnareTried;
+    private long _drainCastTick;
+    private bool _kiteUsed;
+    private KitePhase _kitePhase;
+    private long _kiteStartTick;
+    private long _kiteCaughtSince;
+
+    // Gwyraan.
+    private bool _dotOpenerDone;
+    private EscapePhase _escapePhase;
+    private long _escapeTick;
+    private bool _escapeHealStarted;
+
+    // Toothmouth (and the retreat point Ios and Gwyraan run to).
+    private MezPurpose _mezPurpose;
     private long _mezCastTick;
+    private bool _positionalMez;
     private bool _retreating;
+    private bool _retreatBySpeedOfSound;
+    private long _retreatStartTick;
     private Point3D _retreatPoint;
+
+    // Drunkstains.
+    private string _shieldStunChoice;
+    private bool _shieldStunOpenerDone;
+    private AttackData _lastShieldStunAttack;
 
     public override void Think()
     {
@@ -649,46 +869,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (!champion.Engaged)
         {
-            if (now < champion.BuffUntilTick)
-            {
-                // Buffing at the gate: the idle state casts its defensive spells. AddToAggroList refuses everyone until
-                // the fight starts, so nothing pulls it early. A signature self-buff (Gwyraan's damage add) goes first.
-                if (MaintainSignatureBuff(champion, now))
-                {
-                    return;
-                }
-
-                base.Think();
-
-                return;
-            }
-
-            if (!champion.AtCentre)
-            {
-                // It stays where it appeared (owner 2026-10-25: no walk to the middle) and waits there.
-                champion.StopMoving();
-                champion.AtCentre = true;
-                GauntletManager.OnChampionReady(champion);
-
-                return;
-            }
-
-            // Waiting to be challenged: buffs kept up, facing the challenger, back to its spot if anything moved it.
-            if (MaintainSignatureBuff(champion, now))
-            {
-                return;
-            }
-
-            base.Think();
-
-            if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
-            {
-                champion.WalkTo(champion.SpawnPoint, champion.MaxSpeed);
-            }
-            else if (!champion.IsMoving && challenger != null && challenger.CurrentRegion == champion.CurrentRegion)
-            {
-                champion.TurnTo(challenger);
-            }
+            ThinkBeforeFight(champion, challenger, now);
 
             return;
         }
@@ -699,13 +880,7 @@ public sealed class GauntletChampionBrain : BotBrain
         if (champion.IsOutOfTetherRange)
         {
             // Leash: drop the fight and go back to its spot.
-            EndSprint(champion);
-            _step = SignatureStep.None;
-            EndRunThrough();
-            champion.CurrentPriority = null;
-            champion.HeldSlot = null;
-            _retreating = false;
-            _mezCastTick = 0;
+            ResetFight(champion);
             ClearAggroList();
             champion.StopAttack();
             champion.TargetObject = null;
@@ -724,8 +899,12 @@ public sealed class GauntletChampionBrain : BotBrain
             return;
         }
 
-        // Toothmouth's mez and retreat owns the think while it runs: no BotBrain fight touches the mezzed challenger.
-        if (champion.Signature.MezRetreat && ThinkMezRetreat(champion, challenger, now))
+        bool challengerHere = challenger != null && challenger.IsAlive &&
+            challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
+
+        // A manoeuvre (Ios's ranged opener or kite, Gwyraan's escape, Toothmouth's mez or retreat) owns the think while it
+        // runs: no BotBrain fight moves the champion or hits the challenger meanwhile.
+        if (ThinkManoeuvre(champion, challengerHere ? challenger : null, now))
         {
             return;
         }
@@ -738,9 +917,6 @@ public sealed class GauntletChampionBrain : BotBrain
                 RemoveFromAggroList(living);
             }
         }
-
-        bool challengerHere = challenger != null && challenger.IsAlive &&
-            challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
 
         if (challengerHere)
         {
@@ -773,6 +949,183 @@ public sealed class GauntletChampionBrain : BotBrain
         base.Think();
     }
 
+    /// <summary>
+    /// Before the bow (owner 2026-10-27): it buffs where it appeared, and only once every pre-fight buff it can cast is
+    /// up (Gwyraan's pet summoned and buffed too), and at least <see cref="GauntletRules.ChampionBuffSeconds"/> have
+    /// passed, does it announce that it awaits the challenge (GauntletManager.OnChampionReady; /bow is refused until
+    /// then). Then it waits there, buffs kept up, facing the challenger.
+    /// </summary>
+    private void ThinkBeforeFight(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        bool casting = PrefightStep(champion);
+
+        if (!champion.AtCentre)
+        {
+            bool busy = casting || champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true;
+
+            if (ChampionTactics.PrefightDone(now, champion.BuffUntilTick, champion.PrefightDeadlineTick, busy, NextPrefightCast(champion).Spell != null))
+            {
+                // It stays where it appeared (owner 2026-10-25: no walk to the middle) and waits there.
+                champion.StopMoving();
+                champion.AtCentre = true;
+                GauntletManager.OnChampionReady(champion);
+
+                return;
+            }
+
+            if (!busy)
+            {
+                // AddToAggroList refuses everyone until the fight starts, so the idle state's own turn pulls nothing.
+                base.Think();
+            }
+
+            return;
+        }
+
+        // Waiting to be challenged: buffs kept up, facing the challenger, back to its spot if anything moved it.
+        if (casting)
+        {
+            return;
+        }
+
+        base.Think();
+
+        if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
+        {
+            champion.WalkTo(champion.SpawnPoint, champion.MaxSpeed);
+        }
+        else if (!champion.IsMoving && challenger != null && challenger.CurrentRegion == champion.CurrentRegion)
+        {
+            champion.TurnTo(challenger);
+        }
+    }
+
+    /// <summary>
+    /// One pre-fight cast: Gwyraan's pet first, then each pre-fight buff missing on the champion, or on its pet when the
+    /// buff can land on others. True while a cast is on its way (this one or an earlier one).
+    /// </summary>
+    private bool PrefightStep(GauntletChampion champion)
+    {
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return true;
+        }
+
+        (Spell spell, GameLiving target) = NextPrefightCast(champion);
+
+        if (spell == null)
+        {
+            return false;
+        }
+
+        (int, GameLiving) key = (spell.ID, target);
+        _prefightAttempts[key] = Attempts(spell, target) + 1;
+        GameObject previousTarget = champion.TargetObject;
+        champion.TargetObject = target;
+
+        if (champion.CastSpell(spell, m_mobSpellLine))
+        {
+            if (spell == champion.SignaturePet)
+            {
+                // The pet stays out of everything until the fight: it follows and only defends on order.
+                _prefightAttempts.Remove(key);
+            }
+
+            return true;
+        }
+
+        // Refused (power, range, concentration...): not tried again.
+        _prefightAttempts[key] = PrefightMaxAttempts;
+        champion.TargetObject = previousTarget;
+
+        return false;
+    }
+
+    /// <summary>The next pre-fight cast and its target, or (null, null) when every castable one is up.</summary>
+    private (Spell Spell, GameLiving Target) NextPrefightCast(GauntletChampion champion)
+    {
+        GameNPC pet = champion.ControlledBrain?.Body;
+        bool petUp = pet != null && pet.IsAlive && pet.ObjectState == GameObject.eObjectState.Active;
+
+        if (champion.SignaturePet != null && !petUp && Castable(champion, champion.SignaturePet) &&
+            Attempts(champion.SignaturePet, champion) < PrefightMaxAttempts)
+        {
+            return (champion.SignaturePet, champion);
+        }
+
+        foreach (Spell spell in champion.PrefightBuffs)
+        {
+            if (!Castable(champion, spell) || !champion.CanAffordConcentration(spell))
+            {
+                continue;
+            }
+
+            if (!LivingHasEffect(champion, spell) && Attempts(spell, champion) < PrefightMaxAttempts)
+            {
+                return (spell, champion);
+            }
+
+            if (petUp && spell.Target is eSpellTarget.REALM or eSpellTarget.GROUP or eSpellTarget.PET && champion.IsWithinRadius(pet, Math.Max(spell.Range, 500)) &&
+                !LivingHasEffect(pet, spell) && Attempts(spell, pet) < PrefightMaxAttempts)
+            {
+                return (spell, pet);
+            }
+        }
+
+        return (null, null);
+    }
+
+    /// <summary>How often this pre-fight cast was started on this target.</summary>
+    private int Attempts(Spell spell, GameLiving target)
+    {
+        return _prefightAttempts.TryGetValue((spell.ID, target), out int attempts) ? attempts : 0;
+    }
+
+    /// <summary>A spell the champion has the power for and whose timer is ready, and nothing else is being cast.</summary>
+    private static bool Castable(GauntletChampion champion, Spell spell)
+    {
+        return spell != null && champion.Mana >= champion.PowerCost(spell) && champion.GetSkillDisabledDuration(spell) <= 0 &&
+            !champion.IsSilenced && !champion.IsIncapacitated;
+    }
+
+    /// <summary>Casts a spell on a target when <see cref="Castable"/> and nothing else is being cast.</summary>
+    private bool TryCastOn(GauntletChampion champion, Spell spell, GameLiving target)
+    {
+        if (target == null || !Castable(champion, spell) || champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return false;
+        }
+
+        GameObject previousTarget = champion.TargetObject;
+        champion.TargetObject = target;
+
+        if (champion.CastSpell(spell, m_mobSpellLine))
+        {
+            return true;
+        }
+
+        champion.TargetObject = previousTarget;
+
+        return false;
+    }
+
+    /// <summary>The leash or a lost challenger: every step and manoeuvre ends, the pet comes back.</summary>
+    private void ResetFight(GauntletChampion champion)
+    {
+        _step = SignatureStep.None;
+        EndRunThrough();
+        champion.CurrentPriority = null;
+        champion.HeldSlot = null;
+        _kitePhase = KitePhase.None;
+        _escapePhase = EscapePhase.None;
+        _retreating = false;
+        _mezCastTick = 0;
+        _mezPurpose = MezPurpose.None;
+        _positionalMez = false;
+        ApplySpeed(champion, 1);
+        PetStandDown(champion);
+    }
+
     public override void AddToAggroList(GameLiving living, long aggroAmount)
     {
         if (Body is not GauntletChampion champion)
@@ -800,6 +1153,7 @@ public sealed class GauntletChampionBrain : BotBrain
     /// The fight (BotBrain's AGGRO state): the signature step first. A behind or side step moves the champion to its
     /// spot instead of the bot's melee follow; the styles are picked at each swing by BotMeleeStylePolicy.Select from
     /// <see cref="GauntletChampion.PriorityStyles"/>, so a positional lands at the first swing StyleProcessor accepts.
+    /// Out of melee range it sprints to close (owner 2026-10-27: a caster or archer challenger is run down).
     /// </summary>
     public override void AttackMostWanted()
     {
@@ -816,6 +1170,23 @@ public sealed class GauntletChampionBrain : BotBrain
             challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
         UpdateStep(champion, challengerHere ? challenger : null, now);
 
+        if (challengerHere)
+        {
+            InstantSpells(champion, challenger);
+        }
+
+        bool inMelee = challengerHere && champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange);
+
+        if (_step == SignatureStep.Behind && !champion.Signature.MezRetreat)
+        {
+            // Ios's back stun (owner 2026-10-27): a big speed boost until it lands or the attempt is dropped.
+            ApplySpeed(champion, ChampionTactics.BackStunSpeedFactor(true));
+        }
+        else
+        {
+            ApplySpeed(champion, _step != SignatureStep.None || challengerHere && !inMelee ? SprintFactor : 1);
+        }
+
         if (_step == SignatureStep.Behind && _behindRunThrough && !champion.IsIncapacitated)
         {
             RunThrough(champion, challenger, now);
@@ -825,29 +1196,67 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (_step != SignatureStep.None && !champion.IsIncapacitated)
         {
-            MoveForStep(champion, challenger, now);
+            MoveForStep(champion, challenger);
 
             return;
         }
 
-        EndSprint(champion);
         base.AttackMostWanted();
 
-        if (champion.Signature.PolearmChain.Length > 0)
+        if (champion.Signature.ShieldStun)
         {
-            HoldShieldOrPolearm(champion, now);
+            HoldShieldOrPolearm(champion, challengerHere ? challenger : null, now);
         }
+    }
+
+    /// <summary>
+    /// The instant spells a champion weaves into its melee (owner 2026-10-27): Toothmouth's shout between his swings
+    /// whenever it is ready (never on a mezzed challenger: it would break his own mez), and Ios's instant snare on a
+    /// casting challenger (any harmful spell interrupts a cast).
+    /// </summary>
+    private void InstantSpells(GauntletChampion champion, GamePlayer challenger)
+    {
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return;
+        }
+
+        Spell shout = champion.SignatureShout;
+
+        if (shout != null && !challenger.IsMezzed && champion.IsWithinRadius(challenger, shout.Range))
+        {
+            TryCastOn(champion, shout, challenger);
+
+            return;
+        }
+
+        Spell snare = champion.SignatureSnare;
+
+        if (snare != null && _rangedOpenerDone && challenger.IsCasting && champion.IsWithinRadius(challenger, snare.Range) &&
+            !challenger.effectListComponent.ContainsEffectForEffectType(eEffect.SnareImmunity))
+        {
+            TryCastOn(champion, snare, challenger);
+        }
+    }
+
+    /// <summary>True when the challenger is immune to stuns: the same test as CCSpellHandler.CheckSpellResist, which
+    /// StyleStun (a StunSpellHandler) goes through: the StunImmunity effect a stun leaves on a player when it ends
+    /// (StyleStun.OnEffectExpires: five times the stun), or the StunImmunity ability.</summary>
+    private static bool StunImmune(GameLiving living)
+    {
+        return living.effectListComponent.ContainsEffectForEffectType(eEffect.StunImmunity) || living.HasAbility(Abilities.StunImmunity);
     }
 
     /// <summary>
     /// The signature step and the styles it wants first.
     /// Side: while the challenger is stunned (Ios's Damaging Grasp, Preesh's Devastating Blow, or any other stun) it
     /// stands at their side for the side chain; a stunned player cannot turn, so the side stays the side.
-    /// Behind: a challenger facing the champion (/stick) gets a run through timed to her swing (<see cref="RunThrough"/>);
-    /// one facing elsewhere gets a walk to the spot behind them. Either only while the challenger is not stunned (that is
-    /// the side chain's turn), not immune to stuns, and not mezzed (bots do not hit mezzed players, BotPvpCrowdControl),
-    /// at most every 20 s. A rooted challenger can still turn, so a root does not count.
-    /// Otherwise it keeps up the pressure with the signature's priority and the bot's normal picks.
+    /// Behind (Ios, owner 2026-10-27): once the challenger is within reach and not stunned, immune or mezzed, she goes for
+    /// Damaging Grasp and keeps going (ChampionTactics.NextBackStunMove) until it lands: a run through timed to her swing
+    /// against a challenger who faces her (<see cref="RunThrough"/>), otherwise the walk to the spot behind them, again
+    /// after a miss or a turn. Then not again for 20 s.
+    /// Behind (Toothmouth): while his positional mez holds, he walks behind the challenger for Back Crush.
+    /// Otherwise its priority (ChampionTactics.BasePriority: the immunity window has its own).
     /// </summary>
     private void UpdateStep(GauntletChampion champion, GamePlayer challenger, long now)
     {
@@ -863,9 +1272,13 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         bool stunned = challenger.IsStunned;
+        bool stunImmune = StunImmune(challenger);
         AttackData last = champion.attackComponent.attackAction.LastAttackData;
         string lastStyle = last != null && last.AttackResult == eAttackResult.HitStyle ? last.Style?.Name : null;
         int chainIndex = lastStyle == null ? -1 : Array.IndexOf(signature.SideChain, lastStyle);
+        float championAngle = GauntletPositioning.AngleFrom(challenger.X, challenger.Y, challenger.Heading, champion.X, champion.Y);
+        bool facesChampion = championAngle <= RunThroughMaxAngle || championAngle >= 360 - RunThroughMaxAngle;
+        bool championBehind = GauntletPositioning.Classify(championAngle) == TargetArc.Back;
 
         if (!stunned)
         {
@@ -884,45 +1297,62 @@ public sealed class GauntletChampionBrain : BotBrain
                 _sideDone = stunned;
             }
         }
-        else if (_step == SignatureStep.Behind && (stunned || now >= _stepUntil || lastStyle == signature.BehindOpener ||
-            _runSwingTick > 0 && now > _runSwingTick + (long) (2 * GameLoop.TickDuration)))
+        else if (_step == SignatureStep.Behind && signature.MezRetreat)
         {
-            // Landed (a stun-immune challenger is not stunned by it), stunned, out of time, or the timed swing is past.
-            _step = SignatureStep.None;
-            _nextBehindTick = now + BehindRetryMs;
+            if (!challenger.IsMezzed || lastStyle == signature.BehindOpener)
+            {
+                _step = SignatureStep.None;
+                _positionalMez = false;
+            }
+        }
+        else if (_step == SignatureStep.Behind)
+        {
+            // A timed run is over two ticks after its swing; then the next move is chosen afresh.
+            bool runPending = _runSwingTick > 0 && now <= _runSwingTick + (long) (2 * GameLoop.TickDuration);
+            BackStunMove move = ChampionTactics.NextBackStunMove(lastStyle == signature.BehindOpener, stunned, stunImmune, challenger.IsMezzed,
+                facesChampion, championBehind);
+
+            if (move is BackStunMove.Landed or BackStunMove.Drop)
+            {
+                _step = SignatureStep.None;
+                _nextBehindTick = move == BackStunMove.Landed ? now + BehindRetryMs : now;
+            }
+            else if (!runPending)
+            {
+                if (_runSwingTick > 0)
+                {
+                    EndRunThrough();
+                }
+
+                _behindRunThrough = move == BackStunMove.RunThrough;
+            }
         }
 
         if (_step == SignatureStep.None)
         {
             long stunLeft = EffectListService.GetEffectOnTarget(challenger, eEffect.Stun)?.GetRemainingTimeForClient() ?? 0;
-            float championAngle = GauntletPositioning.AngleFrom(challenger.X, challenger.Y, challenger.Heading, champion.X, champion.Y);
-
-            // Owner 2026-10-25: no run for the back stun while the challenger is immune to stuns. The same test as
-            // CCSpellHandler.CheckSpellResist, which StyleStun (a StunSpellHandler) goes through: the StunImmunity
-            // effect a stun leaves on a player when it ends (StyleStun.OnEffectExpires: five times the stun), or the
-            // StunImmunity ability.
-            bool stunImmune = challenger.effectListComponent.ContainsEffectForEffectType(eEffect.StunImmunity) ||
-                challenger.HasAbility(Abilities.StunImmunity);
 
             if (signature.SideChain.Length > 0 && stunned && !_sideDone && stunLeft >= MinStunForSideMs)
             {
                 _step = SignatureStep.Side;
                 _stepUntil = now + SideStepMs;
-                _sprintUsed = false;
+            }
+            else if (signature.MezRetreat)
+            {
+                if (_positionalMez && challenger.IsMezzed && signature.BehindOpener != null)
+                {
+                    _step = SignatureStep.Behind;
+                    _behindRunThrough = false;
+                }
             }
             else if (signature.BehindOpener != null && !stunned && !stunImmune && !challenger.IsMezzed && now >= _nextBehindTick &&
                 champion.IsWithinRadius(challenger, BehindStartRange))
             {
-                bool facingHer = championAngle <= RunThroughMaxAngle || championAngle >= 360 - RunThroughMaxAngle;
-
-                if (facingHer || GauntletPositioning.Classify(championAngle) != TargetArc.Front)
-                {
-                    _step = SignatureStep.Behind;
-                    _stepUntil = now + BehindStepMs;
-                    _sprintUsed = false;
-                    _behindRunThrough = facingHer;
-                    _runSwingTick = 0;
-                }
+                // Owner 2026-10-25: no run for the back stun while the challenger is immune to stuns; and none on a
+                // mezzed challenger (it would break the mez).
+                _step = SignatureStep.Behind;
+                _behindRunThrough = facesChampion && !championBehind;
+                _runSwingTick = 0;
             }
         }
 
@@ -931,24 +1361,27 @@ public sealed class GauntletChampionBrain : BotBrain
             EndRunThrough();
         }
 
+        IReadOnlyList<string> basePriority = ChampionTactics.BasePriority(signature, stunImmune);
         champion.CurrentPriority = _step switch
         {
-            SignatureStep.Side => Enumerable.Reverse(signature.SideChain).Concat(signature.Priority).ToArray(),
-            SignatureStep.Behind => new[] { signature.BehindOpener }.Concat(signature.Priority).ToArray(),
-            _ => signature.Priority.Concat(Enumerable.Reverse(signature.PolearmChain)).ToArray()
+            SignatureStep.Side => Enumerable.Reverse(signature.SideChain).Concat(basePriority).ToArray(),
+            SignatureStep.Behind => new[] { signature.BehindOpener }.Concat(basePriority).ToArray(),
+            _ => basePriority.ToArray()
         };
     }
 
     /// <summary>
-    /// Moves to the step's spot (re-plotted every think as the challenger moves or turns), sprinting on the way: a
-    /// straight walk, so from in front it runs through the challenger to their back. At the spot it stops and faces
-    /// the challenger, as StyleProcessor's positional check also needs the champion to face its target.
+    /// Moves to the step's spot (re-plotted every think as the challenger moves or turns): a straight walk, so from in
+    /// front it runs through the challenger to their back. At the spot it stops and faces the challenger, as
+    /// StyleProcessor's positional check also needs the champion to face its target. Toothmouth holds his swings until
+    /// he is behind his mezzed challenger, so no swing from the front breaks the mez.
     /// </summary>
-    private void MoveForStep(GauntletChampion champion, GamePlayer challenger, long now)
+    private void MoveForStep(GauntletChampion champion, GamePlayer challenger)
     {
+        bool holdSwings = champion.Signature.MezRetreat && _step == SignatureStep.Behind;
         champion.TargetObject = challenger;
 
-        if (!champion.attackComponent.AttackState)
+        if (!holdSwings && !champion.attackComponent.AttackState)
         {
             // The attack starts at the attack component's next tick, with a melee follow; the next think walks again.
             champion.StartAttack(challenger);
@@ -965,13 +1398,15 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (!champion.IsWithinRadius(point, ArrivedDistance, true))
         {
-            StartSprint(champion, now);
+            if (holdSwings && champion.attackComponent.AttackState)
+            {
+                champion.StopAttack();
+            }
+
             champion.WalkTo(point, champion.MaxSpeed);
 
             return;
         }
-
-        EndSprint(champion);
 
         if (champion.IsMoving)
         {
@@ -979,12 +1414,37 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         champion.TurnTo(challenger);
+
+        if (holdSwings && !champion.attackComponent.AttackState)
+        {
+            champion.StartAttack(challenger);
+        }
     }
 
     /// <summary>
-    /// Gwyraan's spells in the fight (owner 2026-10-25: "attempt to cast a nature dot and just auto attack otherwise"):
-    /// his attack-spell turn (BotBrain.AttackMostWanted, and NpcAttackAction.PrepareMeleeAttack before every swing) is
-    /// only his DoT, and never a crowd control. Heals and buffs stay the class's own (Defensive).
+    /// Sets the champion's speed to this factor of its own base speed (MaxSpeedBase, which MaxSpeedCalculator scales by
+    /// the NPC's speed buffs and snares); 1 puts the base back.
+    /// </summary>
+    private void ApplySpeed(GauntletChampion champion, double factor)
+    {
+        if (Math.Abs(factor - _speedFactor) < 0.001)
+        {
+            return;
+        }
+
+        if (Math.Abs(_speedFactor - 1) < 0.001)
+        {
+            _speedBase = champion.MaxSpeedBase;
+        }
+
+        champion.MaxSpeedBase = Math.Abs(factor - 1) < 0.001 ? _speedBase : (short) Math.Round(_speedBase * factor);
+        _speedFactor = factor;
+    }
+
+    /// <summary>
+    /// Gwyraan's spells in the fight (owner 2026-10-27): his attack-spell turn (BotBrain.AttackMostWanted, and
+    /// NpcAttackAction.PrepareMeleeAttack before every swing) is only his DoT, and never a crowd control. Heals and buffs
+    /// stay the class's own (Defensive).
     /// </summary>
     public override bool CheckSpells(eCheckSpellType type)
     {
@@ -997,9 +1457,9 @@ public sealed class GauntletChampionBrain : BotBrain
     }
 
     /// <summary>
-    /// His best Nature DoT on the challenger when they are beyond melee reach, do not carry it, and he is not already
-    /// casting; a cast that ended (landed or interrupted) waits <see cref="SpellRetryMs"/> before the next try. Before
-    /// the DoT, a missing damage add goes back up.
+    /// His DoT on the challenger: first as his opener wherever they stand (owner 2026-10-27: "Degeneration then melee"),
+    /// then whenever they are beyond melee reach and do not carry it. A cast that ended (landed or interrupted) waits
+    /// <see cref="SpellRetryMs"/> before the next try. Before the DoT, a missing damage add goes back up.
     /// </summary>
     private bool CastSignatureDot(GauntletChampion champion, long now)
     {
@@ -1013,8 +1473,14 @@ public sealed class GauntletChampionBrain : BotBrain
         GamePlayer challenger = champion.Challenger;
         Spell dot = champion.SignatureDot;
 
-        if (dot == null || challenger == null || !challenger.IsAlive || challenger.CurrentRegion != champion.CurrentRegion ||
-            champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
+        if (dot == null || challenger == null || !challenger.IsAlive || challenger.CurrentRegion != champion.CurrentRegion)
+        {
+            return false;
+        }
+
+        bool opener = !_dotOpenerDone && champion.IsWithinRadius(challenger, dot.Range);
+
+        if (!opener && champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
         {
             return false;
         }
@@ -1026,13 +1492,21 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (now < _nextDotTick || LivingHasEffect(challenger, dot))
         {
+            _dotOpenerDone = _dotOpenerDone || LivingHasEffect(challenger, dot);
+
             return false;
         }
 
         _nextDotTick = now + SpellRetryMs;
-        champion.TargetObject = challenger;
 
-        return champion.CastSpell(dot, m_mobSpellLine);
+        if (TryCastOn(champion, dot, challenger))
+        {
+            _dotOpenerDone = true;
+
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>Casts the champion's signature self-buff (Gwyraan's best damage add) when it is missing.</summary>
@@ -1047,116 +1521,311 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         _nextBuffTick = now + SpellRetryMs;
-        GameObject previousTarget = champion.TargetObject;
-        champion.TargetObject = champion;
-        bool cast = champion.CastSpell(buff, m_mobSpellLine);
 
-        if (!cast)
+        return TryCastOn(champion, buff, champion);
+    }
+
+    private bool ThinkManoeuvre(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        ChampionSignature signature = champion.Signature;
+
+        if (signature == null)
         {
-            champion.TargetObject = previousTarget;
+            return false;
         }
 
-        return cast;
+        if (signature.DrainKite)
+        {
+            return ThinkIos(champion, challenger, now);
+        }
+
+        if (signature.RangedDot)
+        {
+            return ThinkGwyraan(champion, challenger, now);
+        }
+
+        if (signature.MezRetreat)
+        {
+            return ThinkToothmouth(champion, challenger, now);
+        }
+
+        return false;
+    }
+
+    #region Ios
+
+    /// <summary>
+    /// Ios (owner 2026-10-27): her ranged opener, then her melee (the back stun, side chain and fire chain in
+    /// <see cref="UpdateStep"/>); once, at 40% health, the kite (ChampionTactics.IosLowHealth): she snares the
+    /// challenger, runs off and drains them, or, when she cannot (rooted, out of power), uses Ignore Pain and fights on.
+    /// </summary>
+    private bool ThinkIos(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        if (challenger == null)
+        {
+            _rangedOpenerDone = true;
+            EndKite(champion);
+
+            return false;
+        }
+
+        if (!_rangedOpenerDone)
+        {
+            if (ThinkRangedOpener(champion, challenger, now))
+            {
+                return true;
+            }
+
+            _rangedOpenerDone = true;
+            _drainCastTick = 0;
+        }
+
+        if (_kitePhase != KitePhase.None)
+        {
+            if (ThinkKite(champion, challenger, now))
+            {
+                return true;
+            }
+
+            EndKite(champion);
+
+            return false;
+        }
+
+        bool canKite = champion.SignatureDrain != null && Castable(champion, champion.SignatureDrain) && champion.MaxSpeed >= MinRunSpeed;
+        LowHealthAction action = ChampionTactics.IosLowHealth(champion.HealthPercent, _kiteUsed, canKite);
+
+        if (action == LowHealthAction.None)
+        {
+            return false;
+        }
+
+        _kiteUsed = true;
+
+        if (action == LowHealthAction.IgnorePain)
+        {
+            AutonomousBotRealmAbilities.TryUse(champion, AutonomousBotRealmAbilities.IgnorePain, AutonomousBotRealmAbilities.IgnorePainTank);
+
+            return false;
+        }
+
+        // The kite: snare (an instant, when the challenger can be snared), then run.
+        _kitePhase = KitePhase.Run;
+        _kiteStartTick = now;
+        _kiteCaughtSince = 0;
+        _drainCastTick = 0;
+        champion.StopAttack();
+        champion.StopFollowing();
+        _retreatPoint = RetreatPointFrom(champion, challenger);
+
+        if (!challenger.effectListComponent.ContainsEffectForEffectType(eEffect.SnareImmunity) && champion.IsWithinRadius(challenger, champion.SignatureSnare?.Range ?? 0))
+        {
+            TryCastOn(champion, champion.SignatureSnare, challenger);
+        }
+
+        return true;
     }
 
     /// <summary>
-    /// Toothmouth (owner 2026-10-25): once per fight, the first time he is at half health or less, his best instant mez
-    /// on the challenger; if it shows on them, he stops attacking, sprints to a point past his spot away from them (within
-    /// the leash) and heals himself with his best heal until he is full or the mez is gone. A resisted mez, or a
-    /// mez-immune challenger, spends the one use. True while this owns the think (no BotBrain turn: nothing hits the
-    /// mezzed challenger).
+    /// The ranged opener (owner 2026-10-27): Veil Path, then Cycle of Death again and again, until the challenger is in
+    /// melee range or her cast is interrupted (or she cannot cast: out of range, out of power). False when it is over.
     /// </summary>
-    private bool ThinkMezRetreat(GauntletChampion champion, GamePlayer challenger, long now)
+    private bool ThinkRangedOpener(GauntletChampion champion, GamePlayer challenger, long now)
     {
-        bool challengerHere = challenger != null && challenger.IsAlive &&
-            challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
+        Spell drain = champion.SignatureDrain;
 
-        if (_retreating)
+        if (drain == null || champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
         {
-            bool full = champion.Health >= champion.MaxHealth;
+            return false;
+        }
 
-            if (!challengerHere || !challenger.IsMezzed || full && !champion.IsCasting)
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return true;
+        }
+
+        if (DrainInterrupted(champion, drain, now))
+        {
+            return false;
+        }
+
+        champion.StopAttack();
+        champion.StopFollowing();
+
+        if (champion.IsMoving)
+        {
+            champion.StopMoving();
+        }
+
+        champion.TurnTo(challenger);
+
+        if (!_openerSnareTried)
+        {
+            _openerSnareTried = true;
+
+            if (!challenger.effectListComponent.ContainsEffectForEffectType(eEffect.SnareImmunity) &&
+                champion.IsWithinRadius(challenger, champion.SignatureSnare?.Range ?? 0) &&
+                TryCastOn(champion, champion.SignatureSnare, challenger))
             {
-                // Back to the fight: the next think is the bot's own again.
-                _retreating = false;
-                EndSprint(champion);
+                return true;
+            }
+        }
 
+        if (!champion.IsWithinRadius(challenger, drain.Range) || !TryCastOn(champion, drain, challenger))
+        {
+            return false;
+        }
+
+        _drainCastTick = now;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Her last drain ended early: she is being interrupted (GameLiving.IsBeingInterruptedByOther) or the cast stopped
+    /// in less than half its casting time.
+    /// </summary>
+    private bool DrainInterrupted(GauntletChampion champion, Spell drain, long now)
+    {
+        return _drainCastTick > 0 && (champion.IsBeingInterruptedByOther || now - _drainCastTick < drain.CastTime / 2);
+    }
+
+    /// <summary>The kite: run until far enough, then drain while the challenger stays out of melee range.</summary>
+    private bool ThinkKite(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        Spell drain = champion.SignatureDrain;
+
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return true;
+        }
+
+        bool caught = champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin);
+
+        if (_kitePhase == KitePhase.Run)
+        {
+            if (now - _kiteStartTick > ManoeuvreMaxMs || champion.MaxSpeed < MinRunSpeed)
+            {
                 return false;
             }
 
-            if (champion.attackComponent.AttackState)
+            if (caught)
             {
-                champion.StopAttack();
+                _kiteCaughtSince = _kiteCaughtSince == 0 ? now : _kiteCaughtSince;
+
+                if (now - _kiteCaughtSince > KiteCaughtMs)
+                {
+                    // A challenger she cannot snare keeps up: the kite fails.
+                    return false;
+                }
+            }
+            else
+            {
+                _kiteCaughtSince = 0;
             }
 
-            if (!champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
+            if (!champion.IsWithinRadius(challenger, FleeDistance) || champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
             {
+                _kitePhase = KitePhase.Drain;
+            }
+            else
+            {
+                ApplySpeed(champion, SprintFactor);
+
                 if (!champion.IsMoving)
                 {
-                    StartSprint(champion, now);
                     champion.PathTo(_retreatPoint, champion.MaxSpeed);
                 }
 
                 return true;
             }
-
-            EndSprint(champion);
-
-            if (champion.IsMoving)
-            {
-                champion.StopMoving();
-            }
-
-            Spell heal = champion.SignatureHeal;
-
-            if (heal != null && !full && !champion.IsCasting && champion.castingComponent?.HasPendingSkillRequests != true)
-            {
-                champion.TargetObject = champion;
-                champion.CastSpell(heal, m_mobSpellLine);
-            }
-
-            return true;
         }
 
-        if (_mezCastTick > 0)
-        {
-            if (challengerHere && challenger.IsMezzed)
-            {
-                _mezCastTick = 0;
-                _retreating = true;
-                _sprintUsed = false;
-                (int x, int y) = GauntletPositioning.RetreatPoint(champion.SpawnPoint.X, champion.SpawnPoint.Y, challenger.X, challenger.Y,
-                    (int) (GauntletRules.LeashRadius * RetreatLeashShare));
-                _retreatPoint = new Point3D(x, y, champion.SpawnPoint.Z);
-                champion.StopAttack();
-                champion.StopFollowing();
-                champion.TargetObject = null;
-
-                return true;
-            }
-
-            if (now - _mezCastTick < MezLandWindowMs && challengerHere)
-            {
-                // The instant cast is on its way; hold the swings so nothing breaks a mez that lands.
-                return true;
-            }
-
-            // Resisted: the one use is spent.
-            _mezCastTick = 0;
-
-            return false;
-        }
-
-        Spell mez = champion.SignatureMez;
-
-        if (_mezUsed || mez == null || !challengerHere || champion.HealthPercent > 50)
+        // Drain: from where she stopped, while the challenger is out of melee range and her casts go through.
+        if (caught || DrainInterrupted(champion, drain, now))
         {
             return false;
         }
 
-        _mezUsed = true;
+        ApplySpeed(champion, 1);
 
-        if (challenger.IsMezzed || challenger.effectListComponent.ContainsEffectForEffectType(eEffect.MezImmunity))
+        if (champion.IsMoving)
+        {
+            champion.StopMoving();
+        }
+
+        champion.TurnTo(challenger);
+
+        if (!champion.IsWithinRadius(challenger, drain.Range) || !TryCastOn(champion, drain, challenger))
+        {
+            return false;
+        }
+
+        _drainCastTick = now;
+
+        return true;
+    }
+
+    /// <summary>The kite is over: she fights on, after Ignore Pain when she is still at 40% or less.</summary>
+    private void EndKite(GauntletChampion champion)
+    {
+        if (_kitePhase == KitePhase.None)
+        {
+            return;
+        }
+
+        _kitePhase = KitePhase.None;
+        _drainCastTick = 0;
+        ApplySpeed(champion, 1);
+
+        if (champion.HealthPercent <= ChampionTactics.IosKitePercent)
+        {
+            AutonomousBotRealmAbilities.TryUse(champion, AutonomousBotRealmAbilities.IgnorePain, AutonomousBotRealmAbilities.IgnorePainTank);
+        }
+    }
+
+    #endregion
+
+    #region Gwyraan
+
+    /// <summary>
+    /// Gwyraan below half health (owner 2026-10-27, ChampionTactics.GwyraanLowHealth): whenever his instant root is
+    /// ready and the challenger can be rooted, the escape (root, pet off, run, Major Restoration, Degeneration, pet and
+    /// melee back in); otherwise his instant heal when it is ready.
+    /// </summary>
+    private bool ThinkGwyraan(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        if (challenger == null)
+        {
+            EndEscape(champion, null);
+
+            return false;
+        }
+
+        if (_escapePhase != EscapePhase.None)
+        {
+            if (ThinkEscape(champion, challenger, now))
+            {
+                return true;
+            }
+
+            EndEscape(champion, challenger);
+
+            return false;
+        }
+
+        Spell root = champion.SignatureRoot;
+        bool rootReady = root != null && Castable(champion, root) && champion.IsWithinRadius(challenger, root.Range);
+        bool rootImmune = challenger.effectListComponent.ContainsEffectForEffectType(eEffect.SnareImmunity);
+        bool instantHealReady = champion.SignatureInstantHeal != null && Castable(champion, champion.SignatureInstantHeal);
+        LowHealthAction action = ChampionTactics.GwyraanLowHealth(champion.HealthPercent, rootReady, rootImmune, instantHealReady);
+
+        if (action == LowHealthAction.InstantHeal)
+        {
+            return TryCastOn(champion, champion.SignatureInstantHeal, champion);
+        }
+
+        if (action != LowHealthAction.RootEscape)
         {
             return false;
         }
@@ -1168,16 +1837,333 @@ public sealed class GauntletChampionBrain : BotBrain
             champion.StopCurrentSpellcast();
         }
 
-        champion.TargetObject = challenger;
+        if (!TryCastOn(champion, root, challenger))
+        {
+            return false;
+        }
 
-        if (!champion.CastSpell(mez, m_mobSpellLine))
+        _escapePhase = EscapePhase.Rooting;
+        _escapeTick = now;
+        _escapeHealStarted = false;
+
+        // The pet leaves the challenger so its hits do not break the root (Passive: it disengages and follows him).
+        PetStandDown(champion);
+
+        return true;
+    }
+
+    private bool ThinkEscape(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return true;
+        }
+
+        bool rooted = challenger.effectListComponent.ContainsEffectForEffectType(eEffect.MovementSpeedDebuff);
+        bool caught = champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin);
+
+        switch (_escapePhase)
+        {
+            case EscapePhase.Rooting:
+            {
+                if (rooted)
+                {
+                    _escapePhase = EscapePhase.Run;
+                    _escapeTick = now;
+                    _retreatPoint = RetreatPointFrom(champion, challenger);
+                    champion.StopFollowing();
+
+                    return true;
+                }
+
+                // Resisted: back to the fight.
+                return now - _escapeTick < LandWindowMs;
+            }
+            case EscapePhase.Run:
+            {
+                if (!rooted && caught || now - _escapeTick > ManoeuvreMaxMs || champion.MaxSpeed < MinRunSpeed)
+                {
+                    return false;
+                }
+
+                if (!champion.IsWithinRadius(challenger, FleeDistance) || champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
+                {
+                    ApplySpeed(champion, 1);
+
+                    if (champion.IsMoving)
+                    {
+                        champion.StopMoving();
+                    }
+
+                    _escapePhase = EscapePhase.Heal;
+
+                    return true;
+                }
+
+                ApplySpeed(champion, SprintFactor);
+
+                if (!champion.IsMoving)
+                {
+                    champion.PathTo(_retreatPoint, champion.MaxSpeed);
+                }
+
+                return true;
+            }
+            case EscapePhase.Heal:
+            {
+                if (!_escapeHealStarted && champion.Health < champion.MaxHealth && TryCastOn(champion, champion.SignatureHeal, champion))
+                {
+                    _escapeHealStarted = true;
+
+                    return true;
+                }
+
+                _escapePhase = EscapePhase.Dot;
+
+                return true;
+            }
+            case EscapePhase.Dot:
+            {
+                Spell dot = champion.SignatureDot;
+
+                if (dot != null && champion.IsWithinRadius(challenger, dot.Range))
+                {
+                    champion.TurnTo(challenger);
+                    TryCastOn(champion, dot, challenger);
+                }
+
+                _escapePhase = EscapePhase.None;
+
+                return true;
+            }
+            default:
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>The escape is over: the pet goes back in on the challenger and he closes to melee (the bot's fight).</summary>
+    private void EndEscape(GauntletChampion champion, GamePlayer challenger)
+    {
+        bool wasEscaping = _escapePhase != EscapePhase.None;
+        _escapePhase = EscapePhase.None;
+        _escapeHealStarted = false;
+        ApplySpeed(champion, 1);
+
+        if (challenger != null && champion.ControlledBrain is ControlledMobBrain petBrain && petBrain.Body?.IsAlive == true)
+        {
+            petBrain.Attack(challenger);
+        }
+        else if (wasEscaping)
+        {
+            PetStandDown(champion);
+        }
+    }
+
+    /// <summary>The pet stops fighting and follows (ControlledMobBrain's Passive state disengages and follows the owner).</summary>
+    private static void PetStandDown(GauntletChampion champion)
+    {
+        if (champion.ControlledBrain is ControlledMobBrain petBrain && petBrain.Body?.IsAlive == true)
+        {
+            petBrain.SetAggressionState(eAggressionState.Passive);
+        }
+    }
+
+    #endregion
+
+    #region Toothmouth
+
+    /// <summary>
+    /// Toothmouth (owner 2026-10-27, replacing the once-per-fight rule). Below half health
+    /// (ChampionTactics.ToothmouthLowHealth): whenever an instant mez is ready and lands, he retreats and heals; with no
+    /// mez, Speed of Sound and the same retreat. Above half health, a ready mez sets up his positional: he walks behind the
+    /// mezzed challenger (<see cref="UpdateStep"/>) for Back Crush, then Crushing Blow. His shout is woven into his melee
+    /// (<see cref="InstantSpells"/>). True while this owns the think.
+    /// </summary>
+    private bool ThinkToothmouth(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        if (challenger == null)
+        {
+            _retreating = false;
+            _mezCastTick = 0;
+            _positionalMez = false;
+            ApplySpeed(champion, 1);
+
+            return false;
+        }
+
+        if (_retreating)
+        {
+            if (ThinkRetreat(champion, challenger, now))
+            {
+                return true;
+            }
+
+            _retreating = false;
+            ApplySpeed(champion, 1);
+
+            return false;
+        }
+
+        if (_mezCastTick > 0)
+        {
+            if (challenger.IsMezzed)
+            {
+                _mezCastTick = 0;
+
+                if (_mezPurpose == MezPurpose.Retreat)
+                {
+                    StartRetreat(champion, challenger, now, false);
+
+                    return true;
+                }
+
+                // The positional: UpdateStep walks him behind the mezzed challenger.
+                _positionalMez = true;
+
+                return false;
+            }
+
+            if (now - _mezCastTick < LandWindowMs)
+            {
+                // The instant cast is on its way; hold the swings so nothing breaks a mez that lands.
+                return true;
+            }
+
+            // Resisted.
+            _mezCastTick = 0;
+
+            return false;
+        }
+
+        if (_positionalMez || champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
+        {
+            return false;
+        }
+
+        Spell mez = champion.SignatureMezzes.FirstOrDefault(spell => Castable(champion, spell) && champion.IsWithinRadius(challenger, spell.Range));
+        bool mezImmune = challenger.effectListComponent.ContainsEffectForEffectType(eEffect.MezImmunity);
+        LowHealthAction action = ChampionTactics.ToothmouthLowHealth(champion.HealthPercent, mez != null, mezImmune, challenger.IsMezzed,
+            champion.SpeedOfSoundReady);
+
+        if (action == LowHealthAction.MezRetreat)
+        {
+            return CastMez(champion, challenger, mez, MezPurpose.Retreat, now);
+        }
+
+        if (action == LowHealthAction.SpeedOfSoundRetreat)
+        {
+            if (!champion.TrySpeedOfSound())
+            {
+                return false;
+            }
+
+            StartRetreat(champion, challenger, now, true);
+
+            return true;
+        }
+
+        if (ChampionTactics.ToothmouthPositionalMez(champion.HealthPercent, mez != null, mezImmune, challenger.IsMezzed, challenger.IsStunned))
+        {
+            return CastMez(champion, challenger, mez, MezPurpose.Positional, now);
+        }
+
+        return false;
+    }
+
+    private bool CastMez(GauntletChampion champion, GamePlayer challenger, Spell mez, MezPurpose purpose, long now)
+    {
+        champion.StopAttack();
+
+        if (champion.IsCasting)
+        {
+            champion.StopCurrentSpellcast();
+        }
+
+        if (!TryCastOn(champion, mez, challenger))
         {
             return false;
         }
 
         _mezCastTick = now;
+        _mezPurpose = purpose;
 
         return true;
+    }
+
+    private void StartRetreat(GauntletChampion champion, GamePlayer challenger, long now, bool bySpeedOfSound)
+    {
+        _retreating = true;
+        _retreatBySpeedOfSound = bySpeedOfSound;
+        _retreatStartTick = now;
+        _positionalMez = false;
+        _step = SignatureStep.None;
+        _retreatPoint = RetreatPointFrom(champion, challenger);
+        champion.StopAttack();
+        champion.StopFollowing();
+        champion.TargetObject = null;
+    }
+
+    /// <summary>
+    /// The retreat: he runs (sprinting, or at Speed of Sound's speed while it lasts) to a point past his spot away from
+    /// the challenger, within the leash, and heals himself with his best heal until he is full. A mez retreat ends when
+    /// the mez does; a Speed of Sound retreat when the challenger catches him or after <see cref="ManoeuvreMaxMs"/>.
+    /// </summary>
+    private bool ThinkRetreat(GauntletChampion champion, GamePlayer challenger, long now)
+    {
+        bool full = champion.Health >= champion.MaxHealth;
+        bool caught = champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange);
+        bool over = _retreatBySpeedOfSound ? caught && !champion.IsCasting || now - _retreatStartTick > ManoeuvreMaxMs : !challenger.IsMezzed;
+
+        if (over || full && !champion.IsCasting)
+        {
+            return false;
+        }
+
+        if (champion.attackComponent.AttackState)
+        {
+            champion.StopAttack();
+        }
+
+        if (!champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
+        {
+            ApplySpeed(champion, champion.HasSpeedOfSound ? MaxSpeedCalculator.SPEED4 : SprintFactor);
+
+            if (!champion.IsMoving)
+            {
+                champion.PathTo(_retreatPoint, champion.MaxSpeed);
+            }
+
+            return true;
+        }
+
+        ApplySpeed(champion, 1);
+
+        if (champion.IsMoving)
+        {
+            champion.StopMoving();
+        }
+
+        Spell heal = champion.SignatureHeal;
+
+        if (heal != null && !full)
+        {
+            TryCastOn(champion, heal, champion);
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    /// <summary>A point past the champion's spot away from the challenger, within the leash (80% of it).</summary>
+    private static Point3D RetreatPointFrom(GauntletChampion champion, GamePlayer challenger)
+    {
+        (int x, int y) = GauntletPositioning.RetreatPoint(champion.SpawnPoint.X, champion.SpawnPoint.Y, challenger.X, challenger.Y,
+            (int) (GauntletRules.LeashRadius * RetreatLeashShare));
+
+        return new Point3D(x, y, champion.SpawnPoint.Z);
     }
 
     /// <summary>
@@ -1186,10 +2172,11 @@ public sealed class GauntletChampionBrain : BotBrain
     /// tick), so right after she passes them their heading still points where she came from. A swing fires on the first
     /// loop tick within half a tick of AttackAction.NextTick (GameServiceUtils.ShouldTick), in AttackService, which runs
     /// before MovementService: it sees her where the tick before moved her. She keeps fighting until the tick from which
-    /// a walk, at up to sprint speed, puts her half a tick's travel past the challenger on the tick before that swing
-    /// (GauntletPositioning.RunThroughSpeed), then walks straight through them and stops 20 units past, so the swing
+    /// a walk, at up to her (boosted) speed, puts her half a tick's travel past the challenger on the tick before that
+    /// swing (GauntletPositioning.RunThroughSpeed), then walks straight through them and stops 20 units past, so the swing
     /// checks Damaging Grasp from behind (within 32 units she counts as facing them). It fails only when the
-    /// challenger's client sends a heading in that last tick (UT_ExpeditionGauntletSignatures measures the rates).
+    /// challenger's client sends a heading in that last tick (UT_ExpeditionGauntletSignatures measures the rates); then
+    /// <see cref="UpdateStep"/> picks her next move.
     /// </summary>
     private void RunThrough(GauntletChampion champion, GamePlayer challenger, long now)
     {
@@ -1208,7 +2195,9 @@ public sealed class GauntletChampionBrain : BotBrain
         long swingDue = champion.attackComponent.attackAction.NextTick;
         double dx = challenger.X - champion.X;
         double dy = challenger.Y - champion.Y;
-        double topSpeed = Math.Floor(champion.Endurance > 10 && !_sprintUsed ? champion.MaxSpeed * SprintFactor : champion.MaxSpeed);
+
+        // Her top speed already carries the back-stun boost (AttackMostWanted).
+        double topSpeed = champion.MaxSpeed;
 
         // The timing assumes both stand still at the start (a moving challenger moves the line; a following champion
         // moves once more before the walk starts).
@@ -1232,12 +2221,6 @@ public sealed class GauntletChampionBrain : BotBrain
         _runSwingTick = swingDue;
         champion.TargetObject = challenger;
         champion.StopFollowing();
-
-        if (speed > champion.MaxSpeed)
-        {
-            StartSprint(champion, now);
-        }
-
         champion.WalkTo(new Point3D(x, y, challenger.Z), (short) Math.Min(champion.MaxSpeed, Math.Ceiling(speed)));
     }
 
@@ -1253,77 +2236,59 @@ public sealed class GauntletChampionBrain : BotBrain
         }
     }
 
-    /// <summary>One sprint burst per step (see <see cref="SprintFactor"/>); it needs some endurance, as GameBot.Sprint does.</summary>
-    private void StartSprint(GauntletChampion champion, long now)
-    {
-        if (_sprintUntil > 0)
-        {
-            if (now >= _sprintUntil)
-            {
-                EndSprint(champion);
-            }
-
-            return;
-        }
-
-        if (_sprintUsed || champion.Endurance <= 10)
-        {
-            return;
-        }
-
-        _sprintUsed = true;
-        _speedBeforeSprint = champion.MaxSpeedBase;
-        champion.MaxSpeedBase = (short) Math.Round(_speedBeforeSprint * SprintFactor);
-        _sprintUntil = now + SprintMs;
-    }
-
-    private void EndSprint(GauntletChampion champion)
-    {
-        if (_sprintUntil == 0)
-        {
-            return;
-        }
-
-        champion.MaxSpeedBase = _speedBeforeSprint;
-        _sprintUntil = 0;
-    }
-
     /// <summary>
-    /// Drunkstains: the one-hander and shield (Standard) between swings so he can block, the polearm (TwoHanded) for the
-    /// swing. The next swing's time does not depend on the slot: AttackAction adds the interval of the weapon that last
-    /// swung (FinalizeMeleeAttack, AttackSpeed(_weapon)) to _nextMeleeTick, and GameNPC.SwitchWeapon's StopAttack and
-    /// RequestStartAttack leave _nextMeleeTick alone (OnStopAttack only resets the ranged tick). So the polearm is taken
-    /// up when the swing is due within a think interval (plus a margin), and the shield again at the next think after
-    /// it. After a block, Slam is wanted when StyleProcessor would accept it; he then keeps the shield for that swing.
+    /// Drunkstains (owner 2026-10-27): the one-hander and shield (Standard) between swings so he can block, the polearm
+    /// (TwoHanded) for the swing. The next swing's time does not depend on the slot: AttackAction adds the interval of the
+    /// weapon that last swung (FinalizeMeleeAttack, AttackSpeed(_weapon)) to _nextMeleeTick, and GameNPC.SwitchWeapon's
+    /// StopAttack and RequestStartAttack leave _nextMeleeTick alone (OnStopAttack only resets the ranged tick). So the
+    /// polearm is taken up when the swing is due within a think interval (plus a margin), and the shield again at the next
+    /// think after it. Whenever the challenger can be stunned (not stunned, not immune) his swing is a shield stun
+    /// instead, from the shield: Slam first, then Slam or Numb at even odds (ChampionTactics.ShieldStun), chosen once per
+    /// stun swung. No shield style after a block any more.
     /// </summary>
-    private void HoldShieldOrPolearm(GauntletChampion champion, long now)
+    private void HoldShieldOrPolearm(GauntletChampion champion, GamePlayer challenger, long now)
     {
         IGameInventory inventory = champion.Inventory;
         DbInventoryItem shield = inventory?.GetItem(eInventorySlot.LeftHandWeapon);
         bool kit = inventory?.GetItem(eInventorySlot.TwoHandWeapon) != null && inventory.GetItem(eInventorySlot.RightHandWeapon) != null &&
             shield?.Object_Type == (int) eObjectType.Shield;
 
-        if (!kit || !champion.attackComponent.AttackState || champion.ActiveWeaponSlot == eActiveWeaponSlot.Distance)
+        if (!kit || challenger == null || !champion.attackComponent.AttackState || champion.ActiveWeaponSlot == eActiveWeaponSlot.Distance)
         {
             champion.HeldSlot = null;
 
             return;
         }
 
-        string slamName = champion.Signature.ShieldStyle;
-        Style slam = slamName == null ? null : champion.Styles?.FirstOrDefault(style => style.Name == slamName);
         AttackData last = champion.attackComponent.attackAction.LastAttackData;
-        bool slamNow = slam != null && now - champion.LastBlockTick <= SlamWindowMs && slam.Level <= champion.Level &&
-            StyleProcessor.CheckEnduranceCost(champion, shield, slam) && champion.CheckStyleStun(slam) &&
-            StyleProcessor.CanUseStyle(last, champion, slam, shield);
 
-        if (slamNow)
+        if (_shieldStunChoice != null && last != null && last != _lastShieldStunAttack && last.Style?.Name == _shieldStunChoice)
         {
-            champion.CurrentPriority = champion.PriorityStyles.Append(slamName).ToArray();
+            // Swung: the next shield stun is chosen afresh.
+            _lastShieldStunAttack = last;
+            _shieldStunChoice = null;
+            _shieldStunOpenerDone = true;
+        }
+
+        bool stunImmune = StunImmune(challenger);
+
+        if (_shieldStunChoice == null)
+        {
+            _shieldStunChoice = ChampionTactics.ShieldStun(stunImmune, challenger.IsStunned, _shieldStunOpenerDone, Random.Shared.Next(2) == 0);
+        }
+
+        string stunName = !stunImmune && !challenger.IsStunned ? _shieldStunChoice : null;
+        Style stunStyle = stunName == null ? null : champion.Styles?.FirstOrDefault(style => style.Name == stunName);
+        bool stunNow = stunStyle != null && stunStyle.Level <= champion.Level && StyleProcessor.CheckEnduranceCost(champion, shield, stunStyle) &&
+            champion.CheckStyleStun(stunStyle) && StyleProcessor.CanUseStyle(last, champion, stunStyle, shield);
+
+        if (stunNow)
+        {
+            champion.CurrentPriority = new[] { stunName }.Concat(champion.PriorityStyles).ToArray();
         }
 
         long untilSwing = champion.attackComponent.attackAction.NextTick - now;
-        eActiveWeaponSlot wanted = !slamNow && untilSwing <= ThinkInterval + SwapMarginMs ? eActiveWeaponSlot.TwoHanded : eActiveWeaponSlot.Standard;
+        eActiveWeaponSlot wanted = !stunNow && untilSwing <= ThinkInterval + SwapMarginMs ? eActiveWeaponSlot.TwoHanded : eActiveWeaponSlot.Standard;
 
         if (champion.HeldSlot != wanted || champion.ActiveWeaponSlot != wanted)
         {
@@ -1334,21 +2299,239 @@ public sealed class GauntletChampionBrain : BotBrain
 }
 
 /// <summary>
-/// A champion's signature as data (owner 2026-10-25), by Style.Name in the server's style table.
+/// A champion's signature as data (owner 2026-10-25, revised 2026-10-27), by Style.Name in the server's style table.
 /// </summary>
 /// <param name="Priority">Styles used first whenever one can be used, in order.</param>
 /// <param name="BehindOpener">A back positional the champion goes behind its challenger to land; null for none.</param>
 /// <param name="SideChain">A side positional and its follow-ups, in chain order, swung from the challenger's side while the
 /// challenger is stunned.</param>
-/// <param name="PolearmChain">A two-handed chain in chain order (its opener may be a front positional), swung with the
-/// polearm, the shield held between swings.</param>
-/// <param name="ShieldStyle">A shield style used after a block; null for none.</param>
-/// <param name="RangedDot">Gwyraan: his best DoT on a challenger beyond melee reach, melee otherwise, no other attack spell.</param>
-/// <param name="MezRetreat">Toothmouth: once, at half health, an instant mez, a retreat and self-heals.</param>
-public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] PolearmChain, string ShieldStyle,
-    bool RangedDot = false, bool MezRetreat = false)
+/// <param name="ImmunePriority">Styles used first instead of <paramref name="Priority"/> while the challenger is immune to
+/// stuns, follow-ups first; empty to keep <paramref name="Priority"/>.</param>
+/// <param name="Filler">The style swung when no priority style can be; null for the champion's best anytime style
+/// (<see cref="ChampionStyles.BestFiller"/>).</param>
+/// <param name="ShieldStun">Drunkstains: the shield held between polearm swings, and Slam or Numb from it whenever the
+/// challenger can be stunned.</param>
+/// <param name="RangedDot">Gwyraan: his pet, his DoT as opener and on a challenger beyond melee reach, and his root escape.</param>
+/// <param name="MezRetreat">Toothmouth: his instant mezzes (positional set-up, retreat and heal), shouts, Speed of Sound.</param>
+/// <param name="DrainKite">Ios: her ranged opener (snare, lifedrains) and her kite at 40% health.</param>
+public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] ImmunePriority, string Filler = null,
+    bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false)
 {
-    public static readonly ChampionSignature None = new([], null, [], [], null);
+    public static readonly ChampionSignature None = new([], null, [], []);
+}
+
+/// <summary>What a champion's back-stun attempt does next (<see cref="ChampionTactics.NextBackStunMove"/>).</summary>
+public enum BackStunMove
+{
+    /// <summary>The back stun landed (or the challenger is stunned): the attempt is over.</summary>
+    Landed,
+
+    /// <summary>The challenger became immune to stuns (or is mezzed): the attempt is dropped.</summary>
+    Drop,
+
+    /// <summary>A timed run through a challenger who faces the champion.</summary>
+    RunThrough,
+
+    /// <summary>To (or stay at) the spot behind the challenger.</summary>
+    MoveBehind
+}
+
+/// <summary>What a champion does about its low health (<see cref="ChampionTactics"/>).</summary>
+public enum LowHealthAction
+{
+    None,
+    Kite,
+    IgnorePain,
+    RootEscape,
+    InstantHeal,
+    MezRetreat,
+    SpeedOfSoundRetreat
+}
+
+/// <summary>The champions' decisions as pure functions of the fight's state (owner 2026-10-27; unit-tested).</summary>
+public static class ChampionTactics
+{
+    /// <summary>Ios's speed while she goes for her back stun (owner 2026-10-27: "e.g. ~2x her run speed").</summary>
+    public const double BackStunBoost = 2.0;
+
+    /// <summary>Ios kites at this health or less.</summary>
+    public const int IosKitePercent = 40;
+
+    /// <summary>Gwyraan and Toothmouth act on their low health below this.</summary>
+    public const int LowHealthPercent = 50;
+
+    public const string Slam = "Slam";
+
+    public const string Numb = GauntletChampion.NumbStyleName;
+
+    /// <summary>
+    /// The purge (owner 2026-10-27): a mez, or a stun that is not Numb's, at once; Numb's stun only when the coin tossed
+    /// for it says so (50%).
+    /// </summary>
+    public static bool PurgeWanted(bool mezzed, bool stunned, bool numbStun, bool numbCoinPurges)
+    {
+        return mezzed || stunned && (!numbStun || numbCoinPurges);
+    }
+
+    /// <summary>The champion's priority outside its steps: the immunity window's own while the challenger is stun-immune.</summary>
+    public static IReadOnlyList<string> BasePriority(ChampionSignature signature, bool stunImmune)
+    {
+        if (signature == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        return stunImmune && signature.ImmunePriority.Length > 0 ? signature.ImmunePriority : signature.Priority;
+    }
+
+    /// <summary>
+    /// Ios's back-stun attempt (owner 2026-10-27): it goes on, after a miss or a turn, until Damaging Grasp lands (or the
+    /// challenger is stunned some other way); it is dropped when the challenger becomes immune to stuns or is mezzed.
+    /// Meanwhile a challenger who faces her gets the run through, any other the walk to (or the stay at) their back.
+    /// </summary>
+    public static BackStunMove NextBackStunMove(bool landed, bool challengerStunned, bool stunImmune, bool challengerMezzed,
+        bool challengerFacesChampion, bool championBehind)
+    {
+        if (landed || challengerStunned)
+        {
+            return BackStunMove.Landed;
+        }
+
+        if (stunImmune || challengerMezzed)
+        {
+            return BackStunMove.Drop;
+        }
+
+        return challengerFacesChampion && !championBehind ? BackStunMove.RunThrough : BackStunMove.MoveBehind;
+    }
+
+    /// <summary>Ios's speed factor: <see cref="BackStunBoost"/> while she goes for her back stun, her own otherwise.</summary>
+    public static double BackStunSpeedFactor(bool attempting)
+    {
+        return attempting ? BackStunBoost : 1.0;
+    }
+
+    /// <summary>
+    /// Drunkstains's shield stun (owner 2026-10-27): none while the challenger is stunned or immune; Slam as his opener;
+    /// then Numb or Slam at even odds.
+    /// </summary>
+    public static string ShieldStun(bool stunImmune, bool challengerStunned, bool openerDone, bool numbCoin)
+    {
+        if (stunImmune || challengerStunned)
+        {
+            return null;
+        }
+
+        if (!openerDone)
+        {
+            return Slam;
+        }
+
+        return numbCoin ? Numb : Slam;
+    }
+
+    /// <summary>Ios at 40% health, once: the kite when she can, Ignore Pain when she cannot.</summary>
+    public static LowHealthAction IosLowHealth(int healthPercent, bool kiteUsed, bool canKite)
+    {
+        if (kiteUsed || healthPercent > IosKitePercent)
+        {
+            return LowHealthAction.None;
+        }
+
+        return canKite ? LowHealthAction.Kite : LowHealthAction.IgnorePain;
+    }
+
+    /// <summary>Gwyraan below half health: the root escape whenever it is possible, else his instant heal when ready.</summary>
+    public static LowHealthAction GwyraanLowHealth(int healthPercent, bool rootReady, bool challengerRootImmune, bool instantHealReady)
+    {
+        if (healthPercent >= LowHealthPercent)
+        {
+            return LowHealthAction.None;
+        }
+
+        if (rootReady && !challengerRootImmune)
+        {
+            return LowHealthAction.RootEscape;
+        }
+
+        return instantHealReady ? LowHealthAction.InstantHeal : LowHealthAction.None;
+    }
+
+    /// <summary>Toothmouth below half health: a mez and a retreat whenever a mez is ready, else Speed of Sound and a retreat.</summary>
+    public static LowHealthAction ToothmouthLowHealth(int healthPercent, bool mezReady, bool challengerMezImmune, bool challengerMezzed,
+        bool speedOfSoundReady)
+    {
+        if (healthPercent >= LowHealthPercent)
+        {
+            return LowHealthAction.None;
+        }
+
+        if (mezReady && !challengerMezImmune && !challengerMezzed)
+        {
+            return LowHealthAction.MezRetreat;
+        }
+
+        return speedOfSoundReady ? LowHealthAction.SpeedOfSoundRetreat : LowHealthAction.None;
+    }
+
+    /// <summary>Toothmouth's positional set-up (his opener and his loop): a ready mez on a challenger he can mez.</summary>
+    public static bool ToothmouthPositionalMez(int healthPercent, bool mezReady, bool challengerMezImmune, bool challengerMezzed, bool challengerStunned)
+    {
+        return healthPercent >= LowHealthPercent && mezReady && !challengerMezImmune && !challengerMezzed && !challengerStunned;
+    }
+
+    /// <summary>
+    /// Pre-fight buffing is done (owner 2026-10-27): the minimum time is over and nothing is being cast or left to cast;
+    /// or the safety deadline has passed (0 for none).
+    /// </summary>
+    public static bool PrefightDone(long now, long buffUntilTick, long deadlineTick, bool busy, bool buffMissing)
+    {
+        if (now < buffUntilTick)
+        {
+            return false;
+        }
+
+        return !busy && !buffMissing || deadlineTick > 0 && now >= deadlineTick;
+    }
+}
+
+/// <summary>The champions' filler style (owner 2026-10-27; pure, unit-tested).</summary>
+public static class ChampionStyles
+{
+    /// <summary>An anytime style: no opening (no preceding style, attack result or position) and no stealth.</summary>
+    public static bool IsAnytime(Style style)
+    {
+        return style != null && style.OpeningRequirementType == Style.eOpening.Offensive && style.OpeningRequirementValue == 0 &&
+            style.AttackResultRequirement == Style.eAttackResultRequirement.Any && !style.StealthRequirement;
+    }
+
+    /// <summary>The better filler: the higher growth rate, then the higher to-hit bonus.</summary>
+    public static bool Better(Style candidate, Style current)
+    {
+        return current == null || candidate.GrowthRate > current.GrowthRate ||
+            candidate.GrowthRate == current.GrowthRate && candidate.BonusToHit > current.BonusToHit;
+    }
+
+    /// <summary>
+    /// The filler among <paramref name="styles"/> that pass <paramref name="usable"/>: the one named
+    /// <paramref name="fillerName"/>, or for none the best anytime style; null for none.
+    /// </summary>
+    public static Style BestFiller(IEnumerable<Style> styles, string fillerName, Func<Style, bool> usable)
+    {
+        Style best = null;
+
+        foreach (Style style in styles ?? Enumerable.Empty<Style>())
+        {
+            bool candidate = fillerName != null ? style?.Name == fillerName : IsAnytime(style);
+
+            if (candidate && usable(style) && Better(style, best))
+            {
+                best = style;
+            }
+        }
+
+        return best;
+    }
 }
 
 /// <summary>Where a champion goes around its target: behind it, at either side, or in front.</summary>
@@ -1577,43 +2760,85 @@ public sealed class DrunkstainsBotSpec : BotSpec
 }
 
 /// <summary>
-/// Gwyraan's build (owner 2026-10-25): 50 Nature, so Defedation (the level-48 Nature DoT) and Hooks of the Wild (the
-/// level-46 damage add) are his, and the rest in Regrowth with the last few points in Nurture: a Druid has 1494 points
-/// at 50 (GameBot.GetSpecPointsForLevel, multiplier 10, with the creation bonus), Nature 50 costs 1274, Regrowth 20
-/// 209 and Nurture 4 9, leaving 2 (less than any next level). A staff, two-handed, like his look.
+/// Gwyraan's build (owner 2026-10-27): 41 Nature (Degeneration, Bursting Undergrowth, Call Greater Nature Spirit), 23
+/// Regrowth (Major Restoration, Bith's Benison) and 26 Nurture (Strength of the Wood, Squall's Dance, Hunter's Offense,
+/// the resist buffs). A Druid has 1494 points at 50 (GameBot.GetSpecPointsForLevel, multiplier 10, with the creation
+/// bonus); these cost 860 + 275 + 350 = 1485, leaving 9 (less than any next level). A mace (Blunt one-hander) and a
+/// small shield: SetWeapons gives a Druid (a hybrid) a one-handed weapon of WeaponOneType, SetShield its Shield 1 shield.
 /// </summary>
 public sealed class GwyraanBotSpec : BotSpec
 {
     public GwyraanBotSpec()
     {
-        WeaponOneType = eObjectType.Staff;
-        Is2H = true;
+        WeaponOneType = eObjectType.Blunt;
+        Is2H = false;
         SpecType = eSpecType.NatureDruid;
-        Add(Specs.Nature, 50, 1.0f);
-        Add(Specs.Regrowth, 20, 0.4f);
-        Add(Specs.Nurture, 4, 0.1f);
+        Add(Specs.Nature, 41, 1.0f);
+        Add(Specs.Nurture, 26, 0.6f);
+        Add(Specs.Regrowth, 23, 0.5f);
     }
 }
 
 /// <summary>
-/// Toothmouth's build (owner 2026-10-25, the healer bard): the stock BardBotSpec's second variant, 37 Music,
-/// 43 Nurture, 33 Regrowth, with its instruments (SpecType Instrument) and a one-handed blade like his look.
+/// Toothmouth's build (owner 2026-10-27): 44 Blunt (Back Crush, Crushing Blow), 44 Music (Deluding Harmony, Concussive
+/// Roar), 17 Regrowth, 13 Nurture. A Bard has 2223 points at 50 (multiplier 15, with the creation bonus); these cost
+/// 989 + 989 + 152 + 90 = 2220. A mace: SetWeapons' Instrument case gives the Bard a one-hander of WeaponOneType (and his
+/// instruments), SetShield his Shield 1 (small) shield.
 /// </summary>
 public sealed class ToothmouthBotSpec : BotSpec
 {
     public ToothmouthBotSpec()
     {
-        WeaponOneType = eObjectType.Blades;
+        WeaponOneType = eObjectType.Blunt;
         SpecType = eSpecType.Instrument;
-        Add(Specs.Music, 37, 0.4f);
-        Add(Specs.Nurture, 43, 0.9f);
-        Add(Specs.Regrowth, 33, 0.7f);
+        Add(Specs.Blunt, 44, 0.9f);
+        Add(Specs.Music, 44, 0.9f);
+        Add(Specs.Regrowth, 17, 0.4f);
+        Add(Specs.Nurture, 13, 0.3f);
     }
 }
 
 /// <summary>Picks the champions' signature spells from a known spell list (pure, unit-tested).</summary>
 public static class ChampionSpells
 {
+    /// <summary>
+    /// The buffs a champion casts before its fight, in order (owner 2026-10-27: the spec buffs first, strength and
+    /// constitution, dexterity and quickness, haste; then the damage add, resists, armor and the rest): helpful, not
+    /// pulsing, no instrument, on itself or others, lasting (concentration or a minute or more).
+    /// </summary>
+    private static readonly eSpellType[] PrefightOrder =
+    [
+        eSpellType.StrengthConstitutionBuff, eSpellType.DexterityQuicknessBuff, eSpellType.CombatSpeedBuff, eSpellType.DamageAdd,
+        eSpellType.HeatResistBuff, eSpellType.ColdResistBuff, eSpellType.MatterResistBuff, eSpellType.BodyResistBuff,
+        eSpellType.SpiritResistBuff, eSpellType.EnergyResistBuff, eSpellType.BodySpiritEnergyBuff, eSpellType.HeatColdMatterBuff,
+        eSpellType.AllMagicResistBuff, eSpellType.BaseArmorFactorBuff, eSpellType.SpecArmorFactorBuff, eSpellType.PaladinArmorFactorBuff,
+        eSpellType.AFHitsBuff, eSpellType.ArmorAbsorptionBuff, eSpellType.StrengthBuff, eSpellType.ConstitutionBuff,
+        eSpellType.DexterityBuff, eSpellType.AcuityBuff, eSpellType.OffensiveProc, eSpellType.DefensiveProc,
+        eSpellType.AblativeArmor, eSpellType.HealthRegenBuff
+    ];
+
+    /// <summary>A buff lasts long enough to cast before a fight: concentration (no duration) or a minute or more.</summary>
+    private const int MinPrefightDurationMs = 60_000;
+
+    public static List<Spell> PrefightBuffs(IEnumerable<Spell> spells, int level)
+    {
+        return spells?
+            .Where(spell => spell != null && spell.Level <= level && !spell.IsHarmful && !spell.IsPulsing && !spell.NeedInstrument &&
+                Array.IndexOf(PrefightOrder, spell.SpellType) >= 0 &&
+                spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP or eSpellTarget.PET &&
+                (spell.Duration == 0 ? spell.Concentration > 0 : spell.Duration >= MinPrefightDurationMs))
+            .Distinct()
+            .OrderBy(spell => Array.IndexOf(PrefightOrder, spell.SpellType))
+            .ThenByDescending(spell => spell.Level)
+            .ToList() ?? [];
+    }
+
+    /// <summary>The spell with this name; null for none.</summary>
+    public static Spell Named(IEnumerable<Spell> spells, string name)
+    {
+        return spells?.FirstOrDefault(spell => spell != null && spell.Name == name);
+    }
+
     /// <summary>The highest-level spell of <paramref name="type"/> up to <paramref name="level"/>; null for none.</summary>
     public static Spell Best(IEnumerable<Spell> spells, eSpellType type, int level, bool instantOnly = false)
     {
@@ -1624,14 +2849,33 @@ public static class ChampionSpells
             .FirstOrDefault();
     }
 
+    /// <summary>The highest-level instant root (an instant SpeedDecrease of 99% or more); null for none.</summary>
+    public static Spell BestInstantRoot(IEnumerable<Spell> spells, int level)
+    {
+        return spells?
+            .Where(spell => spell != null && spell.SpellType == eSpellType.SpeedDecrease && spell.CastTime <= 0 && spell.Value >= 99 && spell.Level <= level)
+            .OrderByDescending(spell => spell.Level)
+            .FirstOrDefault();
+    }
+
     /// <summary>The strongest single heal that can land on oneself (target self, realm or group); null for none.</summary>
     public static Spell BestSelfHeal(IEnumerable<Spell> spells, int level)
     {
         return spells?
-            .Where(spell => spell != null && spell.SpellType == eSpellType.Heal && spell.Level <= level &&
+            .Where(spell => spell != null && spell.SpellType == eSpellType.Heal && spell.Level <= level && spell.CastTime > 0 &&
                 spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP)
             .OrderByDescending(spell => spell.Value)
             .ThenByDescending(spell => spell.Level)
+            .FirstOrDefault();
+    }
+
+    /// <summary>The highest-level instant heal that can land on oneself; null for none.</summary>
+    public static Spell BestInstantHeal(IEnumerable<Spell> spells, int level)
+    {
+        return spells?
+            .Where(spell => spell != null && spell.SpellType == eSpellType.Heal && spell.Level <= level && spell.CastTime <= 0 &&
+                spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP)
+            .OrderByDescending(spell => spell.Level)
             .FirstOrDefault();
     }
 

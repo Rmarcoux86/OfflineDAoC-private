@@ -68,6 +68,11 @@ namespace DOL.GS
                         }
                     }
                 }
+
+                // Otherwise its filler (owner 2026-10-27): the signature's own, or its best anytime style (highest growth
+                // rate, then highest to-hit); no other reactive, chain or positional style, and none for a plain swing.
+                return DOL.GS.Expedition.Gauntlet.ChampionStyles.BestFiller(bot.Styles, champion.Signature?.Filler,
+                    style => Usable(bot, style, lastAttack));
             }
             // Preserve a deliberate tank taunt, but revalidate at the actual swing.
             Style queued = bot.styleComponent.NextCombatStyle;

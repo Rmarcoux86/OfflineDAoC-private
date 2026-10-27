@@ -140,19 +140,26 @@ public class UT_ExpeditionGauntletSignatures
         ChampionSignature ios = GauntletChampion.SignatureFor("Ios");
         ChampionSignature preesh = GauntletChampion.SignatureFor("Preesh");
         ChampionSignature drunkstains = GauntletChampion.SignatureFor("Drunkstains");
+        ChampionSignature toothmouth = GauntletChampion.SignatureFor("Toothmouth");
 
         Assert.Multiple(() =>
         {
             Assert.That(ios.BehindOpener, Is.EqualTo("Damaging Grasp"));
             Assert.That(ios.SideChain, Is.EqualTo(new[] { "Stunning Blade", "Winter's Scythe", "Blizzard Blade" }));
+            Assert.That(ios.ImmunePriority, Is.EqualTo(new[] { "Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire" }));
+            Assert.That(ios.DrainKite, Is.True);
             Assert.That(preesh.Priority, Is.EqualTo(new[] { "Devastating Blow", "Stunning Blow" }));
             Assert.That(preesh.SideChain, Is.EqualTo(new[] { "Ice Storm", "Tempest", "Supernova" }));
+            Assert.That(preesh.ImmunePriority, Is.EqualTo(new[] { "Twin Star", "Meteor Shower", "Tornado" }));
             Assert.That(preesh.BehindOpener, Is.Null);
-            Assert.That(drunkstains.PolearmChain, Is.EqualTo(new[] { "Phalanx", "Defender's Revenge" }));
-            Assert.That(drunkstains.ShieldStyle, Is.EqualTo("Slam"));
+            Assert.That(drunkstains.Priority, Is.EqualTo(new[] { "Defender's Rage" }));
+            Assert.That(drunkstains.Filler, Is.EqualTo("Crippling Blow"));
+            Assert.That(drunkstains.ShieldStun, Is.True);
+            Assert.That(toothmouth.BehindOpener, Is.EqualTo("Back Crush"));
+            Assert.That(toothmouth.Priority, Is.EqualTo(new[] { "Crushing Blow" }));
+            Assert.That(toothmouth.MezRetreat, Is.True);
             Assert.That(GauntletChampion.SignatureFor("Gwyraan").RangedDot, Is.True);
-            Assert.That(GauntletChampion.SignatureFor("Toothmouth").MezRetreat, Is.True);
-            Assert.That(GauntletChampion.SignatureFor("Ios").RangedDot || GauntletChampion.SignatureFor("Ios").MezRetreat, Is.False);
+            Assert.That(ios.RangedDot || ios.MezRetreat || ios.ShieldStun, Is.False);
             Assert.That(GauntletChampion.SignatureFor("Scob Mahob"), Is.SameAs(ChampionSignature.None));
             Assert.That(GauntletChampion.SignatureFor(null), Is.SameAs(ChampionSignature.None));
         });
@@ -456,43 +463,62 @@ public class UT_ExpeditionGauntletSignatures
 
     private static int SpecCost(int level) => level * (level + 1) / 2 - 1;
 
-    [Test]
-    public void GwyraanBuild_IsNature50_AndSpendsADruidsPoints()
+    /// <summary>GameBot.GetSpecPointsForLevel for a level-50 creation with this class multiplier.</summary>
+    private static int SpecBudget(int multiplier)
     {
-        GwyraanBotSpec spec = new();
-        Dictionary<string, uint> caps = spec.SpecLines.ToDictionary(line => line.Spec, line => line.SpecCap);
-
-        // GameBot.GetSpecPointsForLevel for a level-50 creation with a Druid's multiplier of 10 (ClassDruid).
         int budget = 0;
 
         for (int level = 2; level <= 50; level++)
         {
-            budget += level > 5 ? 10 * level / 10 : level;
-            budget += level > 40 ? 10 * (level - 1) / 20 : 0;
+            budget += level > 5 ? multiplier * level / 10 : level;
+            budget += level > 40 ? multiplier * (level - 1) / 20 : 0;
         }
 
+        return budget;
+    }
+
+    [Test]
+    public void GwyraanBuild_IsNature41_WithAMace_AndSpendsADruidsPoints()
+    {
+        GwyraanBotSpec spec = new();
+        Dictionary<string, uint> caps = spec.SpecLines.ToDictionary(line => line.Spec, line => line.SpecCap);
+
+        // A Druid's multiplier is 10 (ClassDruid).
+        int budget = SpecBudget(10);
         int cost = caps.Values.Sum(cap => SpecCost((int) cap));
         int cheapestNext = caps.Values.Min(cap => (int) cap + 1);
 
         Assert.Multiple(() =>
         {
-            Assert.That(caps[Specs.Nature], Is.EqualTo(50));
-            Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Staff));
-            Assert.That(spec.Is2H, Is.True);
+            Assert.That(caps, Is.EquivalentTo(new Dictionary<string, uint> { [Specs.Nature] = 41, [Specs.Regrowth] = 23, [Specs.Nurture] = 26 }));
+            Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Blunt));
+            Assert.That(spec.Is2H, Is.False);
             Assert.That(budget, Is.EqualTo(1494));
-            Assert.That(cost, Is.LessThanOrEqualTo(budget));
+            Assert.That(cost, Is.EqualTo(1485));
             Assert.That(budget - cost, Is.LessThan(cheapestNext), "points left over");
         });
     }
 
     [Test]
-    public void ToothmouthBuild_IsTheHealerBard()
+    public void ToothmouthBuild_IsBlunt44Music44_WithAMace_AndSpendsABardsPoints()
     {
         ToothmouthBotSpec spec = new();
         Dictionary<string, uint> caps = spec.SpecLines.ToDictionary(line => line.Spec, line => line.SpecCap);
 
-        Assert.That(caps, Is.EquivalentTo(new Dictionary<string, uint> { [Specs.Music] = 37, [Specs.Nurture] = 43, [Specs.Regrowth] = 33 }));
-        Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Blades));
+        // A Bard's multiplier is 15 (ClassBard).
+        int budget = SpecBudget(15);
+        int cost = caps.Values.Sum(cap => SpecCost((int) cap));
+        int cheapestNext = caps.Values.Min(cap => (int) cap + 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(caps, Is.EquivalentTo(new Dictionary<string, uint>
+                { [Specs.Blunt] = 44, [Specs.Music] = 44, [Specs.Regrowth] = 17, [Specs.Nurture] = 13 }));
+            Assert.That(spec.WeaponOneType, Is.EqualTo(eObjectType.Blunt));
+            Assert.That(budget, Is.EqualTo(2223));
+            Assert.That(cost, Is.EqualTo(2220));
+            Assert.That(budget - cost, Is.LessThan(cheapestNext), "points left over");
+        });
     }
 
     [Test]

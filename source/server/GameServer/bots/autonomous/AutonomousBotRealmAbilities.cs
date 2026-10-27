@@ -338,11 +338,37 @@ public static class AutonomousBotRealmAbilities
         }
     }
 
+    /// <summary>
+    /// Uses the first of these actives the bot has whose timer is ready, now (a Gauntlet champion's brain decides when,
+    /// e.g. Ignore Pain when its own plan fails). True when one was used.
+    /// </summary>
+    public static bool TryUse(GameBot bot, params string[] keys)
+    {
+        if (bot == null || !bot.IsAlive)
+        {
+            return false;
+        }
+
+        foreach (string key in keys)
+        {
+            if (bot.GetAbility(key) is not TimedRealmAbility ability || bot.GetSkillDisabledDuration(ability) > 0)
+            {
+                continue;
+            }
+
+            ability.Execute(bot);
+
+            return bot.GetSkillDisabledDuration(ability) > 0;
+        }
+
+        return false;
+    }
+
     private static bool Wanted(GameBot bot, string key) => key switch
     {
         // Crowd control in a fight against other realms (or when it is going badly).
-        // A Gauntlet champion purges the first crowd control of the duel.
-        Purge or PurgeReduced when bot is Expedition.Gauntlet.GauntletChampion { Engaged: true } => bot.IsMezzed || bot.IsStunned,
+        // A Gauntlet champion purges any mez or stun at once, but Numb's stun only half the time (owner 2026-10-27).
+        Purge or PurgeReduced when bot is Expedition.Gauntlet.GauntletChampion { Engaged: true } champion => champion.WantsPurge(),
         Purge or PurgeReduced => (bot.IsMezzed || bot.IsStunned) && (bot.InCombat || bot.HealthPercent < 90) &&
             (AutonomousWorldBotController.IsBattleground(bot) || bot.HealthPercent < 60),
         IgnorePain or IgnorePainTank => bot.InCombat && bot.HealthPercent < 30 && !bot.IsMezzed && !bot.IsStunned,
