@@ -3,13 +3,6 @@
     "tag": "fork-v73",
     "date": "2026-10-27",
     "items": [
-      "Darkness Falls (act 5): objectives, the boss and elite packs are chosen from the camps near your own realm's entrance, instead of anywhere in the dungeon. Runs already in act 5 keep their current objectives."
-    ]
-  },
-  {
-    "tag": "fork-v73",
-    "date": "2026-10-27",
-    "items": [
       "Darkness Falls (act 5): objectives, the boss and elite packs are now chosen from the camps near your own realm's entrance, so a Midgard run is no longer sent across the dungeon for monsters that only spawn on the Albion side. Runs already in act 5 keep their current objectives."
     ]
   },
