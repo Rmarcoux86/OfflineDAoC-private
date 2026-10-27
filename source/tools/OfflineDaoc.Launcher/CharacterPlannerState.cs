@@ -74,11 +74,15 @@ internal sealed class CharacterPlannerState
     /// <summary>Sets the character level (clamped to 1-50). Lines above it drop to it; autotrained lines rise to their new free level.</summary>
     public void SetLevel(int level)
     {
+        // A line still at its floor (untrained, or only its free autotrain levels) follows the floor to the new level.
+        HashSet<string> atFloor = Specs.Where(spec => SpecLevel(spec.KeyName) <= SpecMinimum(spec.KeyName)).Select(spec => spec.KeyName).ToHashSet();
         Level = Math.Clamp(level, 1, CharacterPlannerRules.MaxLevel);
 
         foreach (PlannerSpec spec in Specs)
         {
-            _specLevels[spec.KeyName] = Math.Clamp(SpecLevel(spec.KeyName), SpecMinimum(spec.KeyName), SpecMaximum(spec.KeyName));
+            int minimum = SpecMinimum(spec.KeyName);
+            int current = atFloor.Contains(spec.KeyName) ? minimum : SpecLevel(spec.KeyName);
+            _specLevels[spec.KeyName] = Math.Clamp(current, minimum, SpecMaximum(spec.KeyName));
         }
     }
 

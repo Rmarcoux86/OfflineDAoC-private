@@ -82,7 +82,7 @@ public sealed class CharacterPlannerDataTests
         object armsman = Named(classes, "Name", "Armsman");
         object paladin = Named(classes, "Name", "Paladin");
 
-        Assert.That(classes, Has.Count.EqualTo(39));
+        Assert.That(classes, Has.Count.EqualTo(40));
         Assert.That(Value(armsman, "Id"), Is.EqualTo(2));
         Assert.That(Value(armsman, "Realm"), Is.EqualTo("Albion"));
         Assert.That(Value(armsman, "BaseClassName"), Is.EqualTo("Fighter"));
@@ -126,7 +126,7 @@ public sealed class CharacterPlannerDataTests
         object data = Activator.CreateInstance(DataType, path)!;
 
         Assert.That(DataType.GetProperty("LoadError")!.GetValue(data), Does.Contain("not found"));
-        Assert.That(Items(DataType.GetProperty("Classes")!.GetValue(data)!), Has.Count.EqualTo(39));
+        Assert.That(Items(DataType.GetProperty("Classes")!.GetValue(data)!), Has.Count.EqualTo(40));
         Assert.That(Call(data, "SpecsFor", 2), Is.Empty);
         Assert.That(Call(data, "SpellsFor", 1, "Chants"), Is.Empty);
         Assert.That(Call(data, "StylesFor", 2, "Polearm"), Is.Empty);
