@@ -447,7 +447,8 @@ internal sealed partial class MainForm : Form
     /// goals, the exchange; online bots, realm bot generation, bot AI delay; bot XP and the realm announcements). Hidden
     /// (owner 2026-10-27: the launcher is about the Expedition); they are still built, so flip this to show them again.
     /// </summary>
-    private const bool ShowBotFeatures = false;
+    // Static, not const: the launcher tests turn it on to keep covering those pages.
+    private static bool ShowBotFeatures = false;
 
     private Control BuildCards()
     {
