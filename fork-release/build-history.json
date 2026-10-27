@@ -1,5 +1,14 @@
 [
   {
+    "tag": "fork-v75",
+    "date": "2026-10-27",
+    "items": [
+      "Hibernian expeditions can visit the Shrouded Isles again, in the acts their monsters fit: Domnann (acts 1-2), Caillte Garran (2-3), Vigilant Rock (3-4) and Allta Fearann (4).",
+      "Every realm: an act's camp now stands among monsters of the act's levels, not the zone's lowest (in many zones it was among gray monsters far from the objectives). Acts already planned keep their camp.",
+      "Character Planner: style details in their own columns (fatigue, growth rate, to-hit, defense, effect), and SPECS / REALM ABILITIES buttons so each view gets the full width. The updates tab is first again."
+    ]
+  },
+  {
     "tag": "fork-v74",
     "date": "2026-10-27",
     "items": [
