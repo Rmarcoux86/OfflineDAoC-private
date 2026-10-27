@@ -32,9 +32,10 @@ public static class GauntletEscalation
         // Two ranks a round (owner 2026-10-27: harder champions): RR2, 4, 6, 8, 10 over the five fights.
         int rank = Math.Min(round * 2, MaxRealmRank);
 
+        // Realm abilities from the first round (owner 2026-10-27).
         if (round < 5)
         {
-            return new RoundTier(rank, false, false, false, 0, 0);
+            return new RoundTier(rank, true, false, false, 0, 0);
         }
 
         if (round < 10)
