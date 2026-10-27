@@ -370,6 +370,9 @@ public static class ActGenerator
             throw new InvalidOperationException($"The camp source has no camps for expedition zone {zone.ZoneId} ({zone.ZoneName}).");
         }
 
+        // Shrines may stand anywhere in the zone, Darkness Falls included (owner 2026-10-27: scattered is the challenge).
+        List<AutonomousCapnBryGoalCatalog.Entry> shrineCamps = zoneGoals;
+
         if (zone.ZoneId == DarknessFallsZoneId)
         {
             zoneGoals = NearRealmEntrance(zoneGoals, realm);
@@ -601,8 +604,6 @@ public static class ActGenerator
 
         // Elite packs come last, so the seed's earlier choices are the same as before elites existed.
         List<EliteCamp> elites = ChooseElites(rng, zoneGoals, objectives, bossName, minLevel, maxLevel, zone.RegionId, ox, oy, campX, campY);
-        // Act 5 (owner 2026-10-27): shrines only at camps of the act's levels (near the realm's entrance, see above).
-        List<AutonomousCapnBryGoalCatalog.Entry> shrineCamps = zone.ZoneId == DarknessFallsZoneId ? inBand : zoneGoals;
         List<ShrineSpec> shrines = ExpeditionShrines.Choose(rng, shrineCamps.Select(e => (ox + e.LocalX, oy + e.LocalY, e.Z)).ToList(),
             (campX, campY), objectives, elites, zone.RegionId, (x, y) => DescribeFromCamp(campX, campY, x, y));
 
