@@ -1173,6 +1173,11 @@ public sealed class GauntletChampionBrain : BotBrain
         if (challengerHere)
         {
             InstantSpells(champion, challenger);
+
+            if (champion.Signature.RangedDot)
+            {
+                PetAttack(champion, challenger);
+            }
         }
 
         bool inMelee = challengerHere && champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange);
@@ -1343,6 +1348,11 @@ public sealed class GauntletChampionBrain : BotBrain
                 {
                     _step = SignatureStep.Behind;
                     _behindRunThrough = false;
+                }
+                else if (!challenger.IsMezzed)
+                {
+                    // The mez broke before he got behind: the next ready mez may set up another.
+                    _positionalMez = false;
                 }
             }
             else if (signature.BehindOpener != null && !stunned && !stunImmune && !challenger.IsMezzed && now >= _nextBehindTick &&
@@ -1951,13 +1961,25 @@ public sealed class GauntletChampionBrain : BotBrain
         _escapeHealStarted = false;
         ApplySpeed(champion, 1);
 
-        if (challenger != null && champion.ControlledBrain is ControlledMobBrain petBrain && petBrain.Body?.IsAlive == true)
+        if (challenger != null)
         {
-            petBrain.Attack(challenger);
+            PetAttack(champion, challenger);
         }
         else if (wasEscaping)
         {
             PetStandDown(champion);
+        }
+    }
+
+    /// <summary>
+    /// Gwyraan's pet on the challenger. BotBrain never orders a Druid's pet to attack (AutonomousPetSupport
+    /// .IsDefensiveOnlyPetClass), so his brain does; ControlledMobBrain.Attack ignores a repeated order.
+    /// </summary>
+    private static void PetAttack(GauntletChampion champion, GamePlayer challenger)
+    {
+        if (champion.ControlledBrain is ControlledMobBrain petBrain && petBrain.Body?.IsAlive == true && petBrain.OrderedAttackTarget != challenger)
+        {
+            petBrain.Attack(challenger);
         }
     }
 

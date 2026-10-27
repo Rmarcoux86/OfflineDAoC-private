@@ -31,11 +31,15 @@ public class UT_ExpeditionGauntletTactics
         }, null);
     }
 
+    /// <summary>Spells are equal by ID (Skill.Equals), so every test spell gets its own.</summary>
+    private static int _nextSpellId = 90_000;
+
     private static Spell TestSpell(string name, eSpellType type, string target, int level, double castSeconds, int durationSeconds = 0, int concentration = 0,
         double value = 0)
     {
         return new Spell(new DbSpell
         {
+            SpellID = ++_nextSpellId,
             Name = name,
             Type = type.ToString(),
             Target = target,
