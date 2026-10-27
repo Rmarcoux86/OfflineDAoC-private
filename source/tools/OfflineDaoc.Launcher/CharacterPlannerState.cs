@@ -84,13 +84,26 @@ internal sealed class CharacterPlannerState
             int current = atFloor.Contains(spec.KeyName) ? minimum : SpecLevel(spec.KeyName);
             _specLevels[spec.KeyName] = Math.Clamp(current, minimum, SpecMaximum(spec.KeyName));
         }
+
+        // A realm ability that needs a higher character level (Striking the Soul: 40) is untrained.
+        foreach (PlannerRealmAbility ability in RealmAbilities)
+        {
+            bool tooYoung = ability.Prerequisites.Select(ParsePrerequisite)
+                .Any(prerequisite => prerequisite.Key == CharacterPlannerRealmAbilities.CharacterLevelRequirement && prerequisite.Level > Level);
+
+            if (tooYoung)
+            {
+                _realmAbilityLevels.Remove(ability.KeyName);
+            }
+        }
     }
 
     /// <summary>Sets the realm rank (clamped to 1-14) and the realm level within it (clamped to 0-9). Trained abilities are kept.</summary>
     public void SetRealmRank(int realmRank, int realmLevel)
     {
         RealmRank = Math.Clamp(realmRank, 1, CharacterPlannerRules.MaxRealmRank);
-        RealmLevel = Math.Clamp(realmLevel, 0, MaxRealmLevelWithinRank);
+        // The server's realm levels end at 130 (RR14 L0), so RR14 has no levels within it.
+        RealmLevel = Math.Clamp(realmLevel, 0, Math.Min(MaxRealmLevelWithinRank, CharacterPlannerRules.MaxRealmLevel - (RealmRank - 1) * 10));
     }
 
     /// <summary>Untrains every line (back to its floor) and every realm ability; the class, level and realm rank stay.</summary>

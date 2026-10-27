@@ -288,6 +288,20 @@ internal sealed class CharacterPlannerPanel : Panel
             return;
         }
 
+        try
+        {
+            ShowClasses(source);
+        }
+        catch (Exception exception)
+        {
+            _body.Visible = false;
+            _message.Visible = true;
+            _message.Text = $"The character planner could not start.\n({exception.GetType().Name}: {exception.Message})";
+        }
+    }
+
+    private void ShowClasses(ICharacterPlannerSource source)
+    {
         _source = source;
         IReadOnlyList<PlannerClass> classes = source.Classes;
         string[] realms = RealmOrder
@@ -745,6 +759,7 @@ internal sealed class CharacterPlannerPanel : Panel
         {
             _level.Value = _state.Level;
             _realmRank.Value = _state.RealmRank;
+            _realmLevel.Maximum = _state.RealmRank == CharacterPlannerRules.MaxRealmRank ? 0 : CharacterPlannerState.MaxRealmLevelWithinRank;
             _realmLevel.Value = _state.RealmLevel;
             _specPoints.Text = CharacterPlannerFormat.PointsText("Spec points", _state.SpecPointsSpent, _state.SpecPointsTotal);
             _specPoints.ForeColor = CharacterPlannerFormat.PointsColor(_state.SpecPointsSpent, _state.SpecPointsTotal);

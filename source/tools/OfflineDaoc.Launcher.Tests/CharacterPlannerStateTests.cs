@@ -274,7 +274,12 @@ public sealed class CharacterPlannerStateTests
 
         planner.Call("SetRealmRank", 20, 15);
 
+        // The server's realm levels end at RR14 L0.
         Assert.That(planner.Get<int>("RealmRank"), Is.EqualTo(14));
+        Assert.That(planner.Get<int>("RealmLevel"), Is.EqualTo(0));
+
+        planner.Call("SetRealmRank", 13, 15);
+
         Assert.That(planner.Get<int>("RealmLevel"), Is.EqualTo(9));
 
         planner.Call("SetRealmRank", 0, -1);
