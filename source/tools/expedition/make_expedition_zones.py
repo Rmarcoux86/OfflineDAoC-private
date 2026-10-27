@@ -60,7 +60,9 @@ REALMS = {
         4: [(107, 100, []), (116, 100, []), (153, 151, []), (152, 151, [])],
         5: [(249, 249, ["naburite drinker", "cursed necyomancer"])],
     },
-    # Hibernia's Shrouded Isles zones (region 181, Hy Brasil) were taken out on the owner's request (2026-10-24).
+    # Hibernia's Shrouded Isles zones (region 181, Hy Brasil) were taken out on the owner's request (2026-10-24); four came
+    # back on 2026-10-27 in the acts their monster levels fit: Domnann 1-2, Caillte Garran 2-3, Vigilant Rock 3-4,
+    # Allta Fearann 4. Vale of Balor, Cothrom Gorge and World's End stay out (levels 33-66). The table is edited by hand.
     "Hibernia": {
         1: [(200, 200, ["dergan fury", "dergan enchanter", "whistler", "anger sprite"]),
             (207, 200, ["large eirebug", "wild lucradan"])],

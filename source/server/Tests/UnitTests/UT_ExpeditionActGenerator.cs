@@ -693,4 +693,43 @@ public class UT_ExpeditionActGenerator
             Assert.That(near.Select(e => e.Name).Skip(2), Is.EqualTo(Enumerable.Range(0, 10).Select(i => $"far {i}")));
         });
     }
+
+    [Test]
+    public void Camp_StandsAmongTheActsBandNotTheZonesLowestMonsters()
+    {
+        // Midgard act 2 (levels 10-20) in West Svealand: level-2 camps in one corner and the band's camps in the other.
+        // The camp goes to the band's lowest camps, not to the gray ones (Domnann's camp was among level 1-2 monsters).
+        FakeCampSource source = new FakeCampSource()
+            .Add(100, 102, "rat", 2, 5000, 5000)
+            .Add(100, 102, "rat", 2, 6000, 5000)
+            .Add(100, 102, "rat", 2, 5000, 6000)
+            .Add(100, 102, "wolf", 12, 50000, 50000)
+            .Add(100, 102, "wolf", 12, 51000, 50000)
+            .Add(100, 102, "bear", 15, 50000, 52000)
+            .Add(100, 102, "troll", 18, 53000, 53000);
+        (int ox, int oy) = FakeOffset(102);
+        ActPlan plan = ActGenerator.Generate(2, eRealm.Midgard, 5, -1, FakeOffset, source);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.ZoneId, Is.EqualTo(102));
+            Assert.That(plan.CampX - ox, Is.InRange(50000, 51000));
+            Assert.That(plan.CampY - oy, Is.EqualTo(50000));
+        });
+    }
+
+    [Test]
+    public void Hibernia_UsesTheHyBrasilZonesWhoseLevelsFitTheAct()
+    {
+        int[] HyBrasil(int act) => ActGenerator.GetCandidates(act, eRealm.Hibernia).Where(z => z.RegionId == 181).Select(z => z.ZoneId).OrderBy(z => z).ToArray();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(HyBrasil(1), Is.EqualTo(new[] { 181 }), "act 1: Domnann");
+            Assert.That(HyBrasil(2), Is.EqualTo(new[] { 181, 182 }), "act 2: Domnann, Caillte Garran");
+            Assert.That(HyBrasil(3), Is.EqualTo(new[] { 182, 186 }), "act 3: Caillte Garran, Vigilant Rock");
+            Assert.That(HyBrasil(4), Is.EqualTo(new[] { 186, 187 }), "act 4: Vigilant Rock, Allta Fearann");
+            Assert.That(HyBrasil(5), Is.Empty, "act 5 is Darkness Falls");
+        });
+    }
 }

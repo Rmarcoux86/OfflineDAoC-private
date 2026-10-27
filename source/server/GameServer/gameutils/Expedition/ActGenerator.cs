@@ -398,7 +398,9 @@ public static class ActGenerator
                 .ToList();
         }
 
-        // Camp: the lowest-level goal nearest the median of the zone's lowest-level goals.
+        // Camp: the lowest-level goal nearest the median of the lowest-level goals of the act's band. Fork (owner
+        // 2026-10-27): it was the zone's lowest goals, which in a zone whose levels climb across it (Domnann 1-20) put
+        // the camp among gray monsters with the objectives far away and purple.
         int campLocalX;
         int campLocalY;
         int campZ;
@@ -413,12 +415,12 @@ public static class ActGenerator
         }
         else
         {
-            int lowest = zoneGoals.Min(e => e.Levels.Min());
-            List<AutonomousCapnBryGoalCatalog.Entry> lowGoals = zoneGoals.Where(e => e.Levels.Min() <= lowest + 1).ToList();
+            int lowest = inBand.Min(e => e.Levels.Min());
+            List<AutonomousCapnBryGoalCatalog.Entry> lowGoals = inBand.Where(e => e.Levels.Min() <= lowest + 1).ToList();
 
             if (lowGoals.Count < 3)
             {
-                lowGoals = zoneGoals.OrderBy(e => e.Levels.Min()).Take(3).ToList();
+                lowGoals = inBand.OrderBy(e => e.Levels.Min()).Take(3).ToList();
             }
 
             int medianX = Median(lowGoals.Select(e => e.LocalX));

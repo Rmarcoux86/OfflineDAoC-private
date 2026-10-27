@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "_comment": "Expedition act zones per realm, made by source/tools/expedition/make_expedition_zones.py. Zone ids, names and regions are from Zones.xml; old frontier zones are excluded. At generation a zone needs >= 3 monster camps in the act's band (world Mob table, else the CapnBry catalog). camp null = computed (median of the zone's lowest-level camps). bossCandidates are catalog mob names checked for that zone; empty = computed (a rare named mob at or above the band, else the band's most common top mob).",
+  "_comment": "Expedition act zones per realm, made by source/tools/expedition/make_expedition_zones.py. Zone ids, names and regions are from Zones.xml; old frontier zones are excluded. At generation a zone needs >= 3 monster camps in the act's band (world Mob table, else the CapnBry catalog). camp null = computed (median of the lowest-level camps in the act's band). bossCandidates are catalog mob names checked for that zone; empty = computed (a rare named mob at or above the band, else the band's most common top mob).",
   "realms": [
     {
       "realm": "Albion",
@@ -437,6 +437,15 @@
                 "large eirebug",
                 "wild lucradan"
               ]
+            },
+            {
+              "zoneId": 181,
+              "zoneName": "Domnann",
+              "regionId": 181,
+              "minLevel": 1,
+              "maxLevel": 10,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -468,6 +477,24 @@
               "zoneId": 204,
               "zoneName": "Lough Gur",
               "regionId": 200,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 181,
+              "zoneName": "Domnann",
+              "regionId": 181,
+              "minLevel": 10,
+              "maxLevel": 20,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 182,
+              "zoneName": "Caillte Garran",
+              "regionId": 181,
               "minLevel": 10,
               "maxLevel": 20,
               "camp": null,
@@ -533,6 +560,24 @@
               "maxLevel": 32,
               "camp": null,
               "bossCandidates": []
+            },
+            {
+              "zoneId": 182,
+              "zoneName": "Caillte Garran",
+              "regionId": 181,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 186,
+              "zoneName": "Vigilant Rock",
+              "regionId": 181,
+              "minLevel": 20,
+              "maxLevel": 32,
+              "camp": null,
+              "bossCandidates": []
             }
           ]
         },
@@ -570,6 +615,24 @@
               "zoneId": 216,
               "zoneName": "Sheeroe Hills",
               "regionId": 200,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 186,
+              "zoneName": "Vigilant Rock",
+              "regionId": 181,
+              "minLevel": 32,
+              "maxLevel": 44,
+              "camp": null,
+              "bossCandidates": []
+            },
+            {
+              "zoneId": 187,
+              "zoneName": "Allta Fearann",
+              "regionId": 181,
               "minLevel": 32,
               "maxLevel": 44,
               "camp": null,
