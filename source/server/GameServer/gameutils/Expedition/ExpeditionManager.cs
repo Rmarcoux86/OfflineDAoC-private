@@ -1150,7 +1150,9 @@ public static class ExpeditionManager
             }
 
             lines.Add($"{ExpeditionBuffs.ShrineName(shrine.Group)}{guarded}");
-            lines.Add($"{Indent}{(shrine.Used ? "blessing received" : "not yet used")}");
+            lines.Add($"{Indent}{(shrine.Used ? "blessing received"
+                : ExpeditionShrines.IsDormant(shrine) ? $"dormant: slay {shrine.Kills}/{shrine.KillsNeeded} {shrine.CampMob} nearby"
+                : "not yet used")}");
             AddLoc(lines, null, shrine.RegionId, shrine.X, shrine.Y);
         }
     }

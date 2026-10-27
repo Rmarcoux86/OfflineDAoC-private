@@ -112,6 +112,17 @@ public sealed class ShrineSpec
     public string Direction = string.Empty;
     public bool Discovered;
     public bool Used;
+
+    /// <summary>
+    /// Act 5 (owner 2026-10-27): the shrine stands just outside a monster camp, dormant until <see cref="KillsNeeded"/>
+    /// of that camp's monster (<see cref="CampMob"/>, near <see cref="CampX"/>, <see cref="CampY"/>) are slain.
+    /// KillsNeeded 0 is an ordinary shrine. <see cref="Placed"/> is set once the camp and the spot are chosen in the world.
+    /// </summary>
+    public bool Placed;
+    public string CampMob = string.Empty;
+    public int CampX, CampY;
+    public int KillsNeeded;
+    public int Kills;
 }
 
 /// <summary>

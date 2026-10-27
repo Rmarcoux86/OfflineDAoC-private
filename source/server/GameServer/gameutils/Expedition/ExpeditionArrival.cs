@@ -276,6 +276,67 @@ public static class ExpeditionArrival
         return started;
     }
 
+    /// <summary>
+    /// A floor spot between <paramref name="minRadius"/> and <paramref name="maxRadius"/> of <paramref name="centre"/>, in
+    /// the zone, outside every aggressive monster's reach (the camp's safety check): the nearest such spot, else the one
+    /// the fewest monsters reach. Null without a navmesh for the zone.
+    /// </summary>
+    public static (int X, int Y, int Z)? FindSpotNear(Region region, int zoneId, (int X, int Y, int Z) centre, eRealm realm, int minRadius, int maxRadius)
+    {
+        Zone zone = region?.Zones?.FirstOrDefault(z => z.ID == zoneId);
+        IPathfindingMgr nav = PathfindingProvider.Instance;
+
+        if (zone == null || nav == null || !nav.IsAvailable || !nav.HasNavmesh(zone))
+        {
+            return null;
+        }
+
+        float zRange = region.IsDungeon || zone.IsDungeon ? 256 : 2048;
+        var candidates = new List<(int X, int Y, int Z)>();
+
+        for (int radius = minRadius; radius <= maxRadius; radius += 200)
+        {
+            int count = Math.Max(12, radius / 100);
+
+            for (int i = 0; i < count; i++)
+            {
+                double angle = 2 * Math.PI * i / count;
+                int x = centre.X + (int) Math.Round(radius * Math.Cos(angle));
+                int y = centre.Y + (int) Math.Round(radius * Math.Sin(angle));
+                Zone ringZone = region.GetZone(x, y);
+
+                if (ringZone == null || ringZone.ID != zoneId)
+                {
+                    continue;
+                }
+
+                Vector3? floor = nav.GetClosestPoint(ringZone, new Vector3(x, y, centre.Z), 128, 128, zRange, nav.DefaultFilters);
+
+                if (floor.HasValue)
+                {
+                    candidates.Add(((int) floor.Value.X, (int) floor.Value.Y, (int) floor.Value.Z));
+                }
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        List<Hazard> hazards = CollectHazards(region, centre, realm);
+        (int X, int Y, int Z)? clear = ChooseNearestSafe(centre, candidates, (x, y, z) => IsClear(x, y, z, hazards));
+
+        if (clear != null)
+        {
+            return clear;
+        }
+
+        int Reaching((int X, int Y, int Z) c) => hazards.Count(h => !IsClear(c.X, c.Y, c.Z, [h]));
+
+        return candidates.OrderBy(Reaching).ThenBy(c => DistanceSquared(c.X, c.Y, centre.X, centre.Y)).First();
+    }
+
     /// <summary>Live aggressive monsters and aggressive spawn points around <paramref name="origin"/>.</summary>
     private static List<Hazard> CollectHazards(Region region, (int X, int Y, int Z) origin, eRealm realm)
     {

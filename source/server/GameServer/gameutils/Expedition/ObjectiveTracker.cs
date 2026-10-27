@@ -384,6 +384,8 @@ public static class ObjectiveTracker
         bool dropped = ExpeditionLoot.OnKill(player, target, firstObjectiveKill ? eLootRarity.Magic : null);
         ExpeditionRealm.OnKill(player, target);
         BoonEffects.OnKill(player, target);
+        ExpeditionShrines.OnKill(player, run, plan, target);
+        Gauntlet.GauntletTaunts.OnKill(player, plan, target);
 
         if (objective == null)
         {
