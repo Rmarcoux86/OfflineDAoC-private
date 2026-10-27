@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v74",
+    "date": "2026-10-27",
+    "items": [
+      "Character Planner tab in the launcher: pick a class, level and realm rank, train spec lines and see the spells, styles and abilities each level unlocks, and buy realm abilities with their real costs and prerequisites. COPY BUILD puts the build on the clipboard."
+    ]
+  },
+  {
     "tag": "fork-v73",
     "date": "2026-10-27",
     "items": [
