@@ -41,9 +41,6 @@ public static class GauntletRules
     /// <summary>The champions' guild, shown under their names: the expedition's ultimate test.</summary>
     public const string GuildName = "SmuG";
 
-    /// <summary>Seconds after the expedition is won before the winner is taken to the Gauntlet (time to read and loot).</summary>
-    public const int StartAfterWinSeconds = 20;
-
     /// <summary>Seconds after the last champion falls before the winner is taken back to camp.</summary>
     public const int ReturnAfterVictorySeconds = 15;
 }

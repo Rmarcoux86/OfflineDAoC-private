@@ -554,8 +554,8 @@ public static class GauntletManager
     }
 
     /// <summary>
-    /// The expedition was just won (ExpeditionManager): after <see cref="GauntletRules.StartAfterWinSeconds"/> the winner
-    /// is taken to the Gauntlet and its first challenger.
+    /// The expedition was just won (ExpeditionManager). Owner 2026-10-27: the winner is not taken to the Gauntlet; they
+    /// are told how to go when they are ready (/run gauntlet or /gauntlet start), so they can finish what they are doing.
     /// </summary>
     private const int RetryMs = 5000;
     private const int RetryTries = 36;
@@ -567,44 +567,8 @@ public static class GauntletManager
             return;
         }
 
-        player.Out.SendMessage($"Your journey is not over. In {GauntletRules.StartAfterWinSeconds} seconds you will be taken to face your ultimate test.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-
-        // A player who is dead (released or not), loading or linkdead when the time comes is taken once they are back,
-        // within a few minutes; after that they are told how to go themselves.
-        int tries = 0;
-
-        new ECSGameTimer(player, _ =>
-        {
-            if (GetState(player) != null || player.Client == null)
-            {
-                return 0;
-            }
-
-            bool ready = player.IsAlive && player.ObjectState == GameObject.eObjectState.Active &&
-                         player.Client.ClientState == GameClient.eClientState.Playing;
-
-            if (!ready)
-            {
-                if (++tries < RetryTries)
-                {
-                    return RetryMs;
-                }
-
-                if (player.ObjectState == GameObject.eObjectState.Active)
-                {
-                    player.Out.SendMessage("Your ultimate test awaits: type /gauntlet start when you are ready.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-                }
-
-                return 0;
-            }
-
-            if (!TryStart(player, out string error) && error != null)
-            {
-                player.Out.SendMessage(error, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-            }
-
-            return 0;
-        }, GauntletRules.StartAfterWinSeconds * 1000);
+        player.Out.SendMessage("Your journey is not over: the SmuG guild awaits. Type /run gauntlet when you are ready.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"Your journey is not over. Your ultimate test awaits: the {GauntletRules.GuildName} guild. When you are ready, type /run gauntlet (or /gauntlet start) to be taken there.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
     }
 
     /// <summary>

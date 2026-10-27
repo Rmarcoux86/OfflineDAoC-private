@@ -18,6 +18,7 @@ namespace DOL.GS.Commands;
     "/run reroll",
     "/run seed",
     "/run abandon",
+    "/run gauntlet",
     "/run debug")]
 public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
 {
@@ -255,6 +256,17 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
 
                     ExpeditionManager.Abandon(dialogPlayer);
                 });
+
+                return;
+            }
+
+            case "gauntlet":
+            {
+                // The Gauntlet, once the expedition is won (same as /gauntlet start).
+                if (!DOL.GS.Expedition.Gauntlet.GauntletManager.TryStart(player, out string error) && !string.IsNullOrEmpty(error))
+                {
+                    client.Out.SendMessage(error, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                }
 
                 return;
             }
