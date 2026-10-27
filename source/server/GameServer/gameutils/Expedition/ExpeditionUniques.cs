@@ -759,7 +759,7 @@ public static class ExpeditionUniques
     /// <summary>
     /// Trials of Atlantis artifact looks for uniques (owner 2026-10-25: "make every unique look like an artifact"),
     /// from the artifact models the model changer offers (scripts/customnpc/ItemModel.cs). A unique picks one of the
-    /// fitting models by its name, so each unique always has the same look. Jewelry has no look in the world.
+    /// fitting models by its name, so each unique always has the same look. Jewelry's artifact model is ModelFor's.
     /// Armor models are Albion / Hibernia / Midgard.
     /// </summary>
     private static readonly int[][] ArtifactChests =
@@ -857,6 +857,12 @@ public static class ExpeditionUniques
         if (SpecialLooks.TryGetValue(definition.Name, out int special))
         {
             return special;
+        }
+
+        // Jewelry (not the cloak): the artifact jewelry model of its slot, so uniques found earlier change too at login.
+        if (IsJewelry(definition.Slot) && definition.Slot != eUniqueSlot.Cloak)
+        {
+            return ModelFor(definition.Slot);
         }
 
         int artifact = ArtifactModelFor(item, definition, realm);
@@ -1078,17 +1084,22 @@ public static class ExpeditionUniques
         };
     }
 
-    /// <summary>The jewelry model, one of the generator's own (GeneratedUniqueItem.GenerateItemNameModel, Magical); 0 otherwise.</summary>
+    /// <summary>
+    /// The jewelry model. Owner 2026-10-27: unique jewelry looks like Trials of Atlantis artifacts on the paper doll, so
+    /// every unique worn stands out at a glance. The item table's artifact jewelry models: Goddess Necklace 1887, Gem of
+    /// Lost Memories 1886, Jacina's Sash 1884, Crocodile Tear Ring 1888, Band of Stars 1885. The cloak keeps the
+    /// generator's 559 (its look comes from <see cref="SpecialLooks"/> or the artifact cloaks).
+    /// </summary>
     public static int ModelFor(eUniqueSlot slot)
     {
         return slot switch
         {
-            eUniqueSlot.Necklace => 101,
+            eUniqueSlot.Necklace => 1887,
             eUniqueSlot.Cloak => 559,
-            eUniqueSlot.Jewel => 115,
-            eUniqueSlot.Belt => 597,
-            eUniqueSlot.Ring => 103,
-            eUniqueSlot.Bracer => 598,
+            eUniqueSlot.Jewel => 1886,
+            eUniqueSlot.Belt => 1884,
+            eUniqueSlot.Ring => 1888,
+            eUniqueSlot.Bracer => 1885,
             _ => 0
         };
     }

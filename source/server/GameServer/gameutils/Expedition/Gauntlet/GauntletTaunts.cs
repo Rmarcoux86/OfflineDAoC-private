@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Expedition.Gauntlet;
@@ -14,6 +15,7 @@ public static class GauntletTaunts
     public const long CooldownMs = 10 * 60 * 1000;
 
     private const string NextTauntProperty = "expedition.gauntlet.nextTaunt";
+    private const string TauntBagProperty = "expedition.gauntlet.tauntBag";
 
     /// <summary>The taunts; {0} is the monster just killed, {1} the player's name.</summary>
     public static readonly string[] Lines =
@@ -60,6 +62,31 @@ public static class GauntletTaunts
         }
 
         player.TempProperties.SetProperty(NextTauntProperty, now + CooldownMs);
-        ChatUtil.SendSendMessage(player, "Social.ReceiveMessage.Private.Sends", Sender, Line(Random.Shared.Next(Lines.Length), target?.Name, player.Name));
+
+        // A shuffled bag of every line (owner 2026-10-27: the same few kept coming up): none repeats until all are said.
+        Queue<int> bag = player.TempProperties.GetProperty<Queue<int>>(TauntBagProperty);
+
+        if (bag == null || bag.Count == 0)
+        {
+            bag = new Queue<int>(Shuffled(Random.Shared));
+            player.TempProperties.SetProperty(TauntBagProperty, bag);
+        }
+
+        ChatUtil.SendSendMessage(player, "Social.ReceiveMessage.Private.Sends", Sender, Line(bag.Dequeue(), target?.Name, player.Name));
+    }
+
+    /// <summary>Every line's index once, in a random order.</summary>
+    public static int[] Shuffled(Random rng)
+    {
+        int[] order = new int[Lines.Length];
+
+        for (int i = 0; i < order.Length; i++)
+        {
+            order[i] = i;
+        }
+
+        rng.Shuffle(order);
+
+        return order;
     }
 }

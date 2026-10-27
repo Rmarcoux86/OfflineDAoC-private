@@ -72,4 +72,25 @@ public class UT_ExpeditionDormantShrines
             Assert.That(() => GauntletTaunts.Line(i, "m", "p"), Throws.Nothing, $"line {i}");
         }
     }
+
+    [Test]
+    public void Taunts_ComeFromAShuffledBagOfEveryLine()
+    {
+        int[] order = GauntletTaunts.Shuffled(new System.Random(7));
+
+        Assert.That(order, Is.EquivalentTo(System.Linq.Enumerable.Range(0, GauntletTaunts.Lines.Length)));
+    }
+
+    [Test]
+    public void UniqueJewelry_UsesTheArtifactJewelryModels()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(ExpeditionUniques.ModelFor(eUniqueSlot.Necklace), Is.EqualTo(1887));
+            Assert.That(ExpeditionUniques.ModelFor(eUniqueSlot.Jewel), Is.EqualTo(1886));
+            Assert.That(ExpeditionUniques.ModelFor(eUniqueSlot.Belt), Is.EqualTo(1884));
+            Assert.That(ExpeditionUniques.ModelFor(eUniqueSlot.Ring), Is.EqualTo(1888));
+            Assert.That(ExpeditionUniques.ModelFor(eUniqueSlot.Bracer), Is.EqualTo(1885));
+        });
+    }
 }
