@@ -26,10 +26,11 @@ public static class GauntletRules
     public const int AutoReleaseSeconds = 10;
 
     /// <summary>
-    /// While the Gauntlet is being tested (owner 2026-10-25), any character without the Hardcore flag may enter, not only
-    /// one that has won its expedition; such a session is not saved. Set false to require a won run.
+    /// While the Gauntlet was being tested (owner 2026-10-25), any character without the Hardcore flag could enter, not
+    /// only one that has won its expedition; such a session is not saved. Off since 2026-10-27 (owner: winners only, it
+    /// was an escape teleport and a way to farm drops). A GM may still enter without a won run.
     /// </summary>
-    public const bool TestEntryForAnyCharacter = true;
+    public const bool TestEntryForAnyCharacter = false;
 
     /// <summary>
     /// The Gauntlet is one fight against each champion (owner 2026-10-25: "it should just end after fighting each boss
