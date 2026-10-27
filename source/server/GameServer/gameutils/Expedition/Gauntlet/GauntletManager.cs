@@ -302,7 +302,7 @@ public static class GauntletManager
 
         // Players' Gauntlet champions watch from the edge of the arena while the session lasts (GauntletSpectators).
         GauntletSpectators.Show(player);
-        player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly: the champion prepares, walks in and waits. Target it and type /bow to begin.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"You enter the Gauntlet. Round {state.Round} begins shortly: the champion prepares and waits. Target it and type /bow to begin.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         // Nothing is spawned or shown until the client has loaded the arena (ExpeditionManager.WhenSettled).
         ExpeditionManager.WhenSettled(player, GauntletArena.RegionId, () => BeginRound(player));
@@ -394,7 +394,7 @@ public static class GauntletManager
                     "- Attacking it also starts the fight.",
                     "- Win, and the next challenger steps forward after a short rest.",
                     "- If you fall, you return here with no death penalty; type /gauntlet start to face the same challenger again.",
-                    "- /gauntlet status shows where you are; /gauntlet leave takes you back to camp."
+                    "- /gauntlet status shows where you are; /gauntlet leave takes you to your bind point."
                 }
                 : new List<string>
                 {
@@ -511,7 +511,7 @@ public static class GauntletManager
 
     /// <summary>
     /// The last champion fell: the Gauntlet is won. A unique drops, the box congratulates the player, the next Gauntlet
-    /// would start from the first challenger again, and the player is taken back to camp shortly.
+    /// would start from the first challenger again, and the player is taken to their bind point shortly.
     /// </summary>
     private static void Complete(GamePlayer player, GauntletState state, GauntletChampion champion)
     {
@@ -529,17 +529,27 @@ public static class GauntletManager
             string.Empty,
             $"All {GauntletRules.Rounds} of its members have fallen before you. You have passed the ultimate test.",
             string.Empty,
-            $"You return to camp in {GauntletRules.ReturnAfterVictorySeconds} seconds."
+            $"You are taken to your bind point in {GauntletRules.ReturnAfterVictorySeconds} seconds."
         });
+
+        // Waits (up to a few minutes) while the player is dead or loading, so a victory traded with a death still leaves.
+        int tries = 0;
 
         new ECSGameTimer(player, _ =>
         {
-            if (GetState(player) == state && player.IsAlive && player.ObjectState == GameObject.eObjectState.Active)
+            if (GetState(player) != state)
             {
-                TryLeave(player, out string leaveError);
+                return 0;
             }
 
-            return 0;
+            if (player.IsAlive && player.ObjectState == GameObject.eObjectState.Active)
+            {
+                TryLeave(player, out string leaveError);
+
+                return 0;
+            }
+
+            return ++tries < RetryTries ? RetryMs : 0;
         }, GauntletRules.ReturnAfterVictorySeconds * 1000);
     }
 
@@ -547,6 +557,9 @@ public static class GauntletManager
     /// The expedition was just won (ExpeditionManager): after <see cref="GauntletRules.StartAfterWinSeconds"/> the winner
     /// is taken to the Gauntlet and its first challenger.
     /// </summary>
+    private const int RetryMs = 5000;
+    private const int RetryTries = 36;
+
     public static void StartAfterExpedition(GamePlayer player)
     {
         if (player == null)
@@ -556,10 +569,32 @@ public static class GauntletManager
 
         player.Out.SendMessage($"Your journey is not over. In {GauntletRules.StartAfterWinSeconds} seconds you will be taken to face your ultimate test.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
+        // A player who is dead (released or not), loading or linkdead when the time comes is taken once they are back,
+        // within a few minutes; after that they are told how to go themselves.
+        int tries = 0;
+
         new ECSGameTimer(player, _ =>
         {
-            if (!player.IsAlive || player.ObjectState != GameObject.eObjectState.Active || GetState(player) != null)
+            if (GetState(player) != null || player.Client == null)
             {
+                return 0;
+            }
+
+            bool ready = player.IsAlive && player.ObjectState == GameObject.eObjectState.Active &&
+                         player.Client.ClientState == GameClient.eClientState.Playing;
+
+            if (!ready)
+            {
+                if (++tries < RetryTries)
+                {
+                    return RetryMs;
+                }
+
+                if (player.ObjectState == GameObject.eObjectState.Active)
+                {
+                    player.Out.SendMessage("Your ultimate test awaits: type /gauntlet start when you are ready.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                }
+
                 return 0;
             }
 
@@ -617,8 +652,7 @@ public static class GauntletManager
     }
 
     /// <summary>
-    /// /gauntlet leave: removes the champion and returns the player to the won run's act-5 camp. The round and depth
-    /// are kept.
+    /// /gauntlet leave: removes the champion and returns the player to their bind point. The round and depth are kept.
     /// </summary>
     public static bool TryLeave(GamePlayer player, out string error)
     {
@@ -645,67 +679,11 @@ public static class GauntletManager
             return false;
         }
 
-        OfflineExpeditionRecord record = state?.Record;
+        // Fork (owner 2026-10-27): the player goes to their bind point. The won run's act 5 camp in Darkness Falls had no
+        // services left and the recall stone does not work there once the run is over.
         Stop(player);
-
-        try
-        {
-            record ??= GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
-        }
-        catch (Exception ex)
-        {
-            if (Log.IsErrorEnabled)
-            {
-                Log.Error($"[GAUNTLET] Could not load the run of {player.Name}.", ex);
-            }
-        }
-
-        ActPlan plan = null;
-
-        if (!string.IsNullOrEmpty(record?.ActJson))
-        {
-            try
-            {
-                plan = JsonSerializer.Deserialize<ActPlan>(record.ActJson, ExpeditionJson.Options);
-            }
-            catch (JsonException ex)
-            {
-                if (Log.IsErrorEnabled)
-                {
-                    Log.Error($"[GAUNTLET] The act of {player.Name}'s won run could not be read.", ex);
-                }
-            }
-        }
-
-        // MoveToCamp makes the camp safe first; with no run to save, a moved camp is written back to the row here.
-        int campX = plan?.CampX ?? 0;
-        int campY = plan?.CampY ?? 0;
-
-        if (plan != null && ExpeditionArrival.MoveToCamp(player, null, plan))
-        {
-            if (record != null && (plan.CampX != campX || plan.CampY != campY))
-            {
-                try
-                {
-                    record.ActJson = JsonSerializer.Serialize(plan, ExpeditionJson.Options);
-                    GameServer.Database.SaveObject(record);
-                }
-                catch (Exception ex)
-                {
-                    if (Log.IsErrorEnabled)
-                    {
-                        Log.Error($"[GAUNTLET] The moved camp of {player.Name} could not be saved.", ex);
-                    }
-                }
-            }
-
-            player.Out.SendMessage("You leave the Gauntlet and return to camp.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-
-            return true;
-        }
-
         player.MoveToBind();
-        player.Out.SendMessage("You leave the Gauntlet.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage("You leave the Gauntlet and return to your bind point.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         return true;
     }

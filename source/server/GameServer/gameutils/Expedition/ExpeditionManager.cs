@@ -799,6 +799,9 @@ public static class ExpeditionManager
             player.HCFlag = false;
             player.HCCompleted = true;
 
+            // Saved now: a crash before the next save would leave the winner hardcore, and the Gauntlet refuses them.
+            player.SaveIntoDatabase();
+
             Runs.TryRemove(run.CharacterId, out _);
             ObjectiveTracker.Detach(player);
             ExpeditionBoons.RemoveAll(player);

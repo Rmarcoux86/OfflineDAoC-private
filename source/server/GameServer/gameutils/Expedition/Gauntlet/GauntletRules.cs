@@ -19,7 +19,7 @@ public static class GauntletRules
     /// <summary>How far (world units) the champion may chase from where it appeared before it is pulled back (covers the player spot, about 1,700 away).</summary>
     public const int LeashRadius = 2500;
 
-    /// <summary>Seconds the champion spends buffing at the arena centre before it attacks.</summary>
+    /// <summary>Seconds the champion spends buffing where it stands before it can be challenged.</summary>
     public const int ChampionBuffSeconds = 10;
 
     /// <summary>Seconds after a Gauntlet death before the player is released to the arena entrance automatically.</summary>
