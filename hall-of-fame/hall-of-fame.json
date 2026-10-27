@@ -1,3 +1,22 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "id": "214a0bcd-d660-414c-867d-81dade3645ab:2026-10-27T20:47:34.4708456Z",
+      "character": "Drunkstains",
+      "className": "Warrior",
+      "race": "Valkyn",
+      "realm": "Midgard",
+      "level": 50,
+      "seed": 1785155151,
+      "playedSeconds": 87575,
+      "endedUtc": "2026-10-27T20:47:34.4708456Z",
+      "kills": 943,
+      "bossesKilled": 5,
+      "uniques": 13,
+      "realmPoints": 138910,
+      "gauntletCleared": true,
+      "player": "Khesahn20",
+      "submittedUtc": "2026-10-27T21:54:54Z"
+    }
+  ]
 }
