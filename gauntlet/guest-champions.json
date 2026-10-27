@@ -1,3 +1,96 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "id": "214a0bcd-d660-414c-867d-81dade3645ab",
+      "name": "Drunkstains",
+      "classId": 22,
+      "race": 14,
+      "gender": 0,
+      "realm": 2,
+      "model": 45829,
+      "hoodUp": false,
+      "activeWeapon": 0,
+      "items": [
+        {
+          "slot": 10,
+          "model": 1672,
+          "color": 19,
+          "effect": 53,
+          "extension": 0
+        },
+        {
+          "slot": 11,
+          "model": 1141,
+          "color": 19,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 12,
+          "model": 576,
+          "color": 18,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 13,
+          "model": 333,
+          "color": 0,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 21,
+          "model": 1841,
+          "color": 14,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 22,
+          "model": 1000,
+          "color": 26,
+          "effect": 0,
+          "extension": 8
+        },
+        {
+          "slot": 23,
+          "model": 239,
+          "color": 17,
+          "effect": 0,
+          "extension": 5
+        },
+        {
+          "slot": 25,
+          "model": 2188,
+          "color": 14,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 26,
+          "model": 57,
+          "color": 0,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 27,
+          "model": 236,
+          "color": 35,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 28,
+          "model": 277,
+          "color": 18,
+          "effect": 0,
+          "extension": 0
+        }
+      ],
+      "player": "Khesahn20",
+      "submittedUtc": "2026-10-27T22:35:44Z"
+    }
+  ]
 }
