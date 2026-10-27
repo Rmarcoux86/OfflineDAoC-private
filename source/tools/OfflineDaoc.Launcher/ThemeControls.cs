@@ -243,11 +243,11 @@ internal sealed class FantasyBanner : Panel
 
         GraphicsState state = e.Graphics.Save();
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        float scale = UiScale.Factor(this);
+        float uiScale = UiScale.Factor(this);
 
         // Gold studs on the corners of the bronze frame.
         using var stud = new SolidBrush(DaocTheme.GoldLight);
-        float size = 3f * scale;
+        float size = 3f * uiScale;
         PointF[] corners = [new(3.5f, 3.5f), new(Width - 3.5f, 3.5f), new(3.5f, Height - 3.5f), new(Width - 3.5f, Height - 3.5f)];
 
         foreach (PointF corner in corners)
@@ -256,7 +256,7 @@ internal sealed class FantasyBanner : Panel
             e.Graphics.FillPolygon(stud, diamond);
         }
 
-        DrawRoute(e.Graphics, scale);
+        DrawRoute(e.Graphics, uiScale);
         e.Graphics.Restore(state);
     }
 
