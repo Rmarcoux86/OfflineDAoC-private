@@ -302,6 +302,16 @@ public static class ExpeditionArrival
             return null;
         }
 
+        // The camp's centre is a spawn point; a flying demon's hovers far above the floor (owner 2026-10-27: a shrine
+        // stood in the walls among the tempters). The search starts from the floor beneath it.
+        Zone centreZone = region.GetZone(centre.X, centre.Y) ?? zone;
+        Vector3? ground = nav.GetFloorBeneath(centreZone, new Vector3(centre.X, centre.Y, centre.Z), 2500, nav.DefaultFilters);
+
+        if (ground.HasValue)
+        {
+            centre = (centre.X, centre.Y, (int) ground.Value.Z);
+        }
+
         List<Hazard> hazards = CollectHazards(region, centre, realm, true);
         var fallback = new List<(int X, int Y, int Z)>();
 
@@ -345,7 +355,7 @@ public static class ExpeditionArrival
 
         if (fallback.Count == 0)
         {
-            return null;
+            return ground.HasValue ? ((int) ground.Value.X, (int) ground.Value.Y, (int) ground.Value.Z) : null;
         }
 
         int Reaching((int X, int Y, int Z) c) => hazards.Count(h => !IsClear(c.X, c.Y, c.Z, [h]));

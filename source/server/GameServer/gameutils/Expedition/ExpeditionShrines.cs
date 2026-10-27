@@ -42,10 +42,11 @@ public static class ExpeditionShrines
 
     /// <summary>
     /// Act 5: the placement rule. 1 (fork-v76) moved the shrine 800-2,000 units from its camp, which put it far from the
-    /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot), and a
-    /// shrine placed by 1 is moved again, keeping its camp and kills.
+    /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
+    /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls). A shrine placed by an older rule
+    /// is moved again, keeping its camp and kills.
     /// </summary>
-    public const int DormantPlacementVersion = 2;
+    public const int DormantPlacementVersion = 3;
 
     private const string DormantWarnedProperty = "expedition.shrine.dormantWarned";
     private const long DormantWarnEveryMs = 10_000;

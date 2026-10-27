@@ -29,7 +29,7 @@ jobs:
 
       - name: Run the fork's tests
         shell: pwsh
-        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
+        run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition|FullyQualifiedName~UT_MobRespawnOverrides|FullyQualifiedName~UT_DarknessFallsFlyers" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
 
       - name: Build launcher
         shell: pwsh
