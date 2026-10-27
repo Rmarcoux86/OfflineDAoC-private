@@ -95,7 +95,7 @@ public sealed class CharacterPlannerDataTests
         Assert.That(Strings(Value(Named(classes, "Name", "Hunter"), "AutotrainSpecKeys")), Is.Empty);
         Assert.That(classes.Count(item => Equals(Value(item, "Realm"), "Albion")), Is.EqualTo(14));
         Assert.That(classes.Count(item => Equals(Value(item, "Realm"), "Midgard")), Is.EqualTo(12));
-        Assert.That(classes.Count(item => Equals(Value(item, "Realm"), "Hibernia")), Is.EqualTo(13));
+        Assert.That(classes.Count(item => Equals(Value(item, "Realm"), "Hibernia")), Is.EqualTo(14));
         Assert.That(classes.Select(item => (string)Value(item, "Name"))
             .Intersect(new[] { "Mauler", "Heretic", "Valkyrie", "Warlock", "Bainshee", "Vampiir" }), Is.Empty);
         Assert.That(classes.Select(item => (int)Value(item, "Id")), Is.Unique);
