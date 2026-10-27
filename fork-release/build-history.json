@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v80",
+    "date": "2026-10-27",
+    "items": [
+      "SHARE MY WIN now also sends your character's look, so a shared win puts your character among the spectators at the end of your journey; the separate spectator button is gone. If you already shared a win, SHARE MY WIN offers it once more to send the look."
+    ]
+  },
+  {
     "tag": "fork-v79",
     "date": "2026-10-27",
     "items": [
