@@ -326,7 +326,7 @@ internal static class HallOfFame
 
     /// <summary>The issue body for a win, with the spectator look when there is one.</summary>
     internal static string IssueBodyWithSpectator(Entry entry, string? spectatorJson) =>
-        "My Offline DAoC expedition win for the Hall of Fame (with my character's look, to stand as a spectator at the "
+        "My DAoC Expedition win for the Hall of Fame (with my character's look, to stand as a spectator at the "
         + "Gauntlet arena). Submit this issue as it is: a bot checks the block below, adds it to the shared lists and "
         + "closes the issue.\n\n```json\n" + (spectatorJson is null ? SubmissionJson(entry) : SubmissionJsonWithSpectator(entry, spectatorJson)) + "\n```\n";
 
@@ -359,7 +359,7 @@ internal static class HallOfFame
     internal static string IssueTitle(Entry entry) => IssueTitlePrefix + entry.Character;
 
     internal static string IssueBody(Entry entry) =>
-        "My Offline DAoC expedition win for the Hall of Fame. Submit this issue as it is: a bot checks the block below, "
+        "My DAoC Expedition win for the Hall of Fame. Submit this issue as it is: a bot checks the block below, "
         + "adds the win to the shared list and closes the issue.\n\n```json\n" + SubmissionJson(entry) + "\n```\n";
 
     /// <summary>The "new issue" page of the repository, pre-filled with the win.</summary>

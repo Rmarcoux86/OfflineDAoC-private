@@ -152,7 +152,7 @@ internal static class GauntletSpectator
     internal static string IssueTitle(Snapshot snapshot) => IssueTitlePrefix + snapshot.Name;
 
     internal static string IssueBody(Snapshot snapshot) =>
-        "My Offline DAoC Gauntlet champion, to stand as a spectator at the edge of the Gauntlet arena (looks only: name, "
+        "My DAoC Expedition Gauntlet champion, to stand as a spectator at the edge of the Gauntlet arena (looks only: name, "
         + "body and gear appearance). Submit this issue as it is: a bot checks the block below, adds the champion to the "
         + "shared list and closes the issue.\n\n```json\n" + SubmissionJson(snapshot) + "\n```\n";
 

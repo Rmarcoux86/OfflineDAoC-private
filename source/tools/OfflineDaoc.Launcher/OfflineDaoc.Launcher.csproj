@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>OfflineDAoC</AssemblyName>
-    <Product>Offline DAoC: Classic + Shrouded Isles</Product>
-    <AssemblyTitle>Offline DAoC Launcher and Population Monitor</AssemblyTitle>
+    <Product>DAoC Expedition: Classic + Shrouded Isles</Product>
+    <AssemblyTitle>DAoC Expedition Launcher and Population Monitor</AssemblyTitle>
     <!-- Windows enlarges fonts for display scaling; UiScale scales the pixel layout to match. -->
     <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
   </PropertyGroup>

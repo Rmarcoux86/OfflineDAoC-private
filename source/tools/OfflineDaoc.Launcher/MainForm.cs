@@ -172,7 +172,7 @@ internal sealed partial class MainForm : Form
         }
         _logsDirectory = Path.Combine(_root, "logs");
 
-        Text = _newClient ? $"Offline DAoC {DisplayVersion}c — New client" : "Offline DAoC — Classic + Shrouded Isles";
+        Text = _newClient ? $"DAoC Expedition {DisplayVersion}c — New client" : "DAoC Expedition — Classic + Shrouded Isles";
         MinimumSize = new Size(960, 620);
         Size = new Size(1100, 700);
         StartPosition = FormStartPosition.CenterScreen;
@@ -372,20 +372,41 @@ internal sealed partial class MainForm : Form
             Size = new Size(88, 88),
             Location = new Point(0, 6),
         });
-        titlePanel.Controls.Add(new Label
+        // "DAoC" in gold and "EXPEDITION" in torchlight, side by side; the flow panel keeps them together at any scale.
+        var title = new FlowLayoutPanel
         {
             AutoSize = true,
-            Text = "OFFLINE DAoC",
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            Location = new Point(94, 5),
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+            BackColor = Color.Transparent,
+        };
+        title.Controls.Add(new Label
+        {
+            AutoSize = true,
+            Text = "DAoC",
             Font = new Font("Georgia", 28f, FontStyle.Bold),
             ForeColor = DaocTheme.GoldLight,
-            Location = new Point(94, 5),
+            Margin = Padding.Empty,
         });
+        title.Controls.Add(new Label
+        {
+            AutoSize = true,
+            Text = "EXPEDITION",
+            Font = new Font("Georgia", 28f, FontStyle.Bold),
+            ForeColor = DaocTheme.EmberLight,
+            Margin = Padding.Empty,
+        });
+        titlePanel.Controls.Add(title);
         titlePanel.Controls.Add(new Label
         {
             AutoSize = true,
-            Text = "CLASSIC + SHROUDED ISLES  •  PLAY ALONE OR ADVENTURE WITH LIVING PLAYER BOTS",
+            Text = "A ROGUELITE JOURNEY THROUGH ALBION, MIDGARD AND HIBERNIA",
             Font = new Font("Georgia", 9f),
-            ForeColor = Color.FromArgb(196, 145, 70),
+            ForeColor = DaocTheme.Parchment,
             Location = new Point(97, 57),
         });
         var versionLabel = new Label
@@ -414,6 +435,10 @@ internal sealed partial class MainForm : Form
         actions.Controls.Add(_playButton);
         header.Controls.Add(actions, 1, 0);
         banner.Controls.Add(header);
+
+        // The five-act route map fills the space between the title and the buttons.
+        banner.SetRoute(title, actions);
+
         return banner;
     }
 
@@ -1603,8 +1628,8 @@ internal sealed partial class MainForm : Form
         command.Parameters.AddWithValue("@updated", DateTime.UtcNow.ToString("O"));
         foreach (var (name, text, on) in new[]
         {
-            ("rvr_battleground_announcements", "RvR and battleground announcements (keeps, relics, sieges), set in the Offline DAoC launcher.", rvr),
-            ("pve_realm_event_announcements", "PvE realm event announcements (raids forming, raid final bosses), set in the Offline DAoC launcher.", pve),
+            ("rvr_battleground_announcements", "RvR and battleground announcements (keeps, relics, sieges), set in the DAoC Expedition launcher.", rvr),
+            ("pve_realm_event_announcements", "PvE realm event announcements (raids forming, raid final bosses), set in the DAoC Expedition launcher.", pve),
         })
         {
             key.Value = name;
@@ -1687,8 +1712,8 @@ internal sealed partial class MainForm : Form
 
         string stored = multiplier.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
         string description = key == "xp_rate"
-            ? "Real player character experience rate selected in the Offline DAoC launcher."
-            : "Autonomous player-bot experience rate selected in the Offline DAoC launcher.";
+            ? "Real player character experience rate selected in the DAoC Expedition launcher."
+            : "Autonomous player-bot experience rate selected in the DAoC Expedition launcher.";
         using var connection = new SQLiteConnection($"Data Source={_database};Version=3;Pooling=False;Default Timeout=10");
         connection.Open();
         using var transaction = connection.BeginTransaction();

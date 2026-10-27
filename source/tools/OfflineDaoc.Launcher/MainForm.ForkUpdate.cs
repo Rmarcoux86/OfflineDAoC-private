@@ -137,7 +137,7 @@ internal sealed partial class MainForm
         ForkUpdater.ForkBuild build = ForkUpdater.ReadBuildHistory(_root)?
             .FirstOrDefault(entry => string.Equals(entry.Tag, installed, StringComparison.OrdinalIgnoreCase))
             ?? new ForkUpdater.ForkBuild(installed!, null, []);
-        using var notes = new ForkNotesForm($"Updated to {installed}", $"Offline DAoC was updated to {installed}. What's new in this build:",
+        using var notes = new ForkNotesForm($"Updated to {installed}", $"DAoC Expedition was updated to {installed}. What's new in this build:",
             [build], ForkUpdater.NoNotesText, installed);
         notes.ShowDialog(this);
     }
