@@ -364,6 +364,7 @@ public static class GauntletManager
             champion.Heading = GauntletArena.GateHeading;
             champion.CurrentRegionID = GauntletArena.RegionId;
             champion.BuffUntilTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffSeconds * 1000L;
+            champion.PrefightDeadlineTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffMaxSeconds * 1000L;
 
             if (!champion.AddToWorld())
             {
@@ -412,7 +413,11 @@ public static class GauntletManager
         }
     }
 
-    /// <summary>The champion has walked in and waits to be challenged (GauntletChampionBrain).</summary>
+    /// <summary>
+    /// The champion has finished its pre-fight buffs (owner 2026-10-27: all of them, Gwyraan's pet included, and at least
+    /// <see cref="GauntletRules.ChampionBuffSeconds"/>) and waits to be challenged (GauntletChampionBrain); /bow is
+    /// refused until then (<see cref="OnBow"/>).
+    /// </summary>
     public static void OnChampionReady(GauntletChampion champion)
     {
         GamePlayer player = champion?.Challenger;

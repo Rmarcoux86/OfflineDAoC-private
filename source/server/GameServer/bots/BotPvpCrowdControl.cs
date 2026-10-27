@@ -14,6 +14,13 @@ namespace DOL.GS
         public static bool Protected(GameLiving attacker, GameLiving target)
         {
             if (!PlayerLike(target) || attacker == null || target.Realm == attacker.Realm || target.Realm == eRealm.None) return false;
+            // A Gauntlet champion's brain decides itself when to hit a mezzed challenger (owner 2026-10-27: Toothmouth
+            // mezzes to walk behind his challenger for Back Crush).
+            if (attacker is Expedition.Gauntlet.GauntletChampion)
+            {
+                return false;
+            }
+
             GameBot bot = attacker as GameBot;
             if (bot == null && attacker is GameNPC npc && npc.Brain is IControlledBrain pet) bot = pet.GetLivingOwner() as GameBot;
             if (bot == null) return false;
