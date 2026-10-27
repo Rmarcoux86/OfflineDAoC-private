@@ -209,7 +209,8 @@ internal sealed class CharacterPlannerData : ICharacterPlannerSource
 
         return styles.OrderBy(style => style.Level)
             .ThenBy(style => style.Id)
-            .Select(style => new PlannerStyle(style.Name, style.Level, StyleOpening(data, style, classId), StyleDescription(data, style, classId)))
+            .Select(style => new PlannerStyle(style.Name, style.Level, StyleOpening(data, style, classId), StyleDescription(data, style, classId),
+                FatigueShort(style.EnduranceCost), style.GrowthRate, style.BonusToHit, style.BonusToDefense, StyleEffect(data, style, classId)))
             .ToList();
     }
 
@@ -438,6 +439,46 @@ internal sealed class CharacterPlannerData : ICharacterPlannerSource
             6 => "After a fumble",
             _ => "Any",
         };
+    }
+
+    // The fatigue words of StyleProcessor.DelveWeaponStyle, shortened for a narrow column.
+    internal static string FatigueShort(int enduranceCost)
+    {
+        return enduranceCost switch
+        {
+            < 5 => "V.Low",
+            < 10 => "Low",
+            < 15 => "Med",
+            < 20 => "High",
+            _ => "V.High",
+        };
+    }
+
+    // The style's procs (with their chance when not certain), and "Stealth" when it can only be used from stealth.
+    private static string StyleEffect(Snapshot data, StyleRow style, int classId)
+    {
+        var parts = new List<string>();
+        List<StyleProcRow> procs = data.StyleProcs.Where(proc => proc.StyleId == style.Id && proc.ClassId == classId).ToList();
+
+        if (procs.Count == 0)
+        {
+            procs = data.StyleProcs.Where(proc => proc.StyleId == style.Id && proc.ClassId == 0).ToList();
+        }
+
+        foreach (StyleProcRow proc in procs)
+        {
+            if (data.Spells.TryGetValue(proc.SpellId, out SpellRow? spell))
+            {
+                parts.Add(proc.Chance > 0 && proc.Chance < 100 ? $"{spell.Name} ({proc.Chance}%)" : spell.Name);
+            }
+        }
+
+        if (style.StealthRequirement)
+        {
+            parts.Add("Stealth");
+        }
+
+        return string.Join(", ", parts);
     }
 
     // The rest of StyleProcessor.DelveWeaponStyle: fatigue, growth rate, to-hit, defense, stealth and the style's effect.

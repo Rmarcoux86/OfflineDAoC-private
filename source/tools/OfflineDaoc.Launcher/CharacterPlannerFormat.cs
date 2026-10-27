@@ -3,6 +3,26 @@ namespace OfflineDaoc.Launcher;
 /// <summary>The Character Planner's texts and colours, kept out of the panel so they are unit tested without a window.</summary>
 internal static class CharacterPlannerFormat
 {
+    /// <summary>A style's opening for its narrow column: "Follow-up of Javelin" becomes "Follows Javelin".</summary>
+    public static string StyleOpeningShort(string opening)
+    {
+        const string followUp = "Follow-up of ";
+
+        return opening.StartsWith(followUp, StringComparison.Ordinal) ? "Follows " + opening[followUp.Length..] : opening;
+    }
+
+    /// <summary>A style bonus with its sign ("+10", "-5"), or nothing when it is 0.</summary>
+    public static string Bonus(int value)
+    {
+        return value == 0 ? string.Empty : value.ToString("+0;-0", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A style's growth rate with two decimals.</summary>
+    public static string GrowthRate(double value)
+    {
+        return value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     public const string LoadingText = "Loading character data...";
     public const string EmptyText = "Character data not found — is the game installed?";
     public const string HintText = "Click a specialization to see what it unlocks. Click a realm ability for its description.";

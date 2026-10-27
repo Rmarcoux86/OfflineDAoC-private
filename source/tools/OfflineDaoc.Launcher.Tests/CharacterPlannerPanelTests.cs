@@ -88,4 +88,16 @@ public sealed class CharacterPlannerPanelTests
         Assert.That(Format.GetField("EmptyText")!.GetValue(null), Is.EqualTo("Character data not found — is the game installed?"));
         Assert.That(Format.GetField("LoadingText")!.GetValue(null), Does.StartWith("Loading"));
     }
+
+    [Test]
+    public void StyleColumnsAreShortAndBlankWhenThereIsNoBonus()
+    {
+        Assert.That(Call("StyleOpeningShort", "Follow-up of Javelin"), Is.EqualTo("Follows Javelin"));
+        Assert.That(Call("StyleOpeningShort", "After parry"), Is.EqualTo("After parry"));
+        Assert.That(Call("Bonus", 10), Is.EqualTo("+10"));
+        Assert.That(Call("Bonus", -5), Is.EqualTo("-5"));
+        Assert.That(Call("Bonus", 0), Is.EqualTo(string.Empty));
+        Assert.That(Call("GrowthRate", 0.877), Is.EqualTo("0.88"));
+        Assert.That(Call("GrowthRate", 0.0), Is.EqualTo("0.00"));
+    }
 }

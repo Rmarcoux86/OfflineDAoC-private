@@ -37,6 +37,17 @@ internal sealed class CharacterPlannerPanel : Panel
     private readonly Label _realmPoints = PointsLabel();
     private readonly RuneButton _reset = new() { Text = "RESET", Size = new Size(76, 26), Margin = new Padding(10, 2, 0, 2) };
     private readonly RuneButton _copy = new() { Text = "COPY BUILD", Size = new Size(110, 26), Margin = new Padding(4, 2, 0, 2) };
+    private readonly RuneButton _viewSpecs = new() { Text = "SPECS", Size = new Size(76, 26), Margin = new Padding(14, 2, 0, 2), ShowOrnaments = false };
+    private readonly RuneButton _viewRealm = new() { Text = "REALM ABILITIES", Size = new Size(140, 26), Margin = new Padding(4, 2, 0, 2), ShowOrnaments = false };
+    private readonly TableLayoutPanel _columns = new()
+    {
+        Dock = DockStyle.Fill,
+        ColumnCount = 3,
+        RowCount = 1,
+        BackColor = Color.Transparent,
+        Margin = Padding.Empty,
+        Padding = Padding.Empty,
+    };
     private readonly Panel _specRows = RowsPanel();
     private readonly Panel _realmRows = RowsPanel();
     private readonly Label _unlockTitle = ColumnTitle("UNLOCKS");
@@ -116,21 +127,14 @@ internal sealed class CharacterPlannerPanel : Panel
             Padding = new Padding(0, 0, 0, 4),
         };
         top.Controls.AddRange([Caption("Realm"), _realm, Caption("Class"), _class, Caption("Level"), _level, Caption("RR"), _realmRank,
-            Caption("L"), _realmLevel, _specPoints, _realmPoints, _reset, _copy]);
+            Caption("L"), _realmLevel, _specPoints, _realmPoints, _viewSpecs, _viewRealm, _reset, _copy]);
         _class.DisplayMember = nameof(PlannerClass.Name);
 
-        var columns = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 1,
-            BackColor = Color.Transparent,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty,
-        };
-        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
-        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+        // Two views (owner 2026-10-27): the lines with what they unlock, or the realm abilities on their own, so each has room.
+        TableLayoutPanel columns = _columns;
         columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 66));
+        columns.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0));
         columns.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         // Docked controls are laid out from the last added to the first, so each frame gets its filling part first.
@@ -185,6 +189,8 @@ internal sealed class CharacterPlannerPanel : Panel
             Render();
         };
         _copy.Click += (_, _) => CopyBuild();
+        _viewSpecs.Click += (_, _) => ShowView(false);
+        _viewRealm.Click += (_, _) => ShowView(true);
         _spellsSection.Click += (_, _) => ShowSection(UnlockKind.Spells);
         _stylesSection.Click += (_, _) => ShowSection(UnlockKind.Styles);
         _abilitiesSection.Click += (_, _) => ShowSection(UnlockKind.Abilities);
@@ -200,6 +206,9 @@ internal sealed class CharacterPlannerPanel : Panel
         };
         _unlocks.DrawItem += (_, e) => e.DrawDefault = true;
         _unlocks.DrawSubItem += (_, e) => e.DrawDefault = true;
+        _tips.SetToolTip(_viewSpecs, "Specializations and what each line unlocks.");
+        _tips.SetToolTip(_viewRealm, "Realm abilities.");
+        ShowView(false);
         _tips.SetToolTip(_copy, "Copies the build as one line, e.g. to paste into a chat or a note.");
         _tips.SetToolTip(_reset, "Untrains every specialization and realm ability (class, level and realm rank stay).");
         _tips.SetToolTip(_realmRank, "Realm rank (1-14).");
@@ -654,11 +663,20 @@ internal sealed class CharacterPlannerPanel : Panel
         else if (kind == UnlockKind.Styles)
         {
             _unlocks.Columns.Add("Opening");
-            _unlocks.Columns.Add("Description");
+            _unlocks.Columns.Add("Fat");
+            _unlocks.Columns.Add("GR");
+            _unlocks.Columns.Add("Hit");
+            _unlocks.Columns.Add("Def");
+            _unlocks.Columns.Add("Effect");
 
             foreach (PlannerStyle style in _styles)
             {
-                var item = new ListViewItem(new[] { style.Level.ToString(CultureInfo.InvariantCulture), style.Name, style.Opening, style.Description })
+                var item = new ListViewItem(new[]
+                {
+                    style.Level.ToString(CultureInfo.InvariantCulture), style.Name, CharacterPlannerFormat.StyleOpeningShort(style.Opening), style.Fatigue,
+                    CharacterPlannerFormat.GrowthRate(style.GrowthRate), CharacterPlannerFormat.Bonus(style.ToHit), CharacterPlannerFormat.Bonus(style.Defense),
+                    style.Effect
+                })
                 {
                     Tag = new Unlock(style.Level, false),
                     ToolTipText = string.IsNullOrWhiteSpace(style.Opening) ? style.Description : $"{style.Opening}. {style.Description}",
@@ -697,6 +715,32 @@ internal sealed class CharacterPlannerPanel : Panel
     }
 
     // Fixed widths for level, name and kind/opening; the last column takes the rest of the list's width.
+    // Specs view: the lines and their unlocks share the width; realm abilities view: the realm abilities take all of it.
+    private void ShowView(bool realmAbilities)
+    {
+        _columns.SuspendLayout();
+        _columns.ColumnStyles[0].Width = realmAbilities ? 0 : 34;
+        _columns.ColumnStyles[1].Width = realmAbilities ? 0 : 66;
+        _columns.ColumnStyles[2].Width = realmAbilities ? 100 : 0;
+
+        for (int column = 0; column < 3; column++)
+        {
+            Control? frame = _columns.GetControlFromPosition(column, 0);
+
+            if (frame is not null)
+            {
+                frame.Visible = realmAbilities ? column == 2 : column < 2;
+            }
+        }
+
+        _columns.ResumeLayout(true);
+        _viewSpecs.Accent = realmAbilities ? DaocTheme.Iron : DaocTheme.GoldLight;
+        _viewSpecs.ForeColor = realmAbilities ? DaocTheme.Muted : DaocTheme.GoldLight;
+        _viewRealm.Accent = realmAbilities ? DaocTheme.GoldLight : DaocTheme.Iron;
+        _viewRealm.ForeColor = realmAbilities ? DaocTheme.GoldLight : DaocTheme.Muted;
+        SizeUnlockColumns();
+    }
+
     private void SizeUnlockColumns()
     {
         int count = _unlocks.Columns.Count;
@@ -706,7 +750,8 @@ internal sealed class CharacterPlannerPanel : Panel
             return;
         }
 
-        int[] widths = _unlockKind == UnlockKind.Styles ? new[] { 34, 120, 110 } : new[] { 34, 130, 80 };
+        // Styles: level, name, opening, fatigue, growth rate, to-hit, defense; the effect takes the rest.
+        int[] widths = _unlockKind == UnlockKind.Styles ? new[] { 30, 130, 120, 46, 40, 36, 36 } : new[] { 34, 130, 80 };
         int used = 0;
 
         for (int index = 0; index < count - 1; index++)

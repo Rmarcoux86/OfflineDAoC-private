@@ -15,8 +15,13 @@ internal sealed record PlannerSpec(string KeyName, string Name, int LevelAcquire
 /// <summary>A spell in a spec's spell list (or baseline list). Level is the spec (or class) level it unlocks at.</summary>
 internal sealed record PlannerSpell(string Name, int Level, string LineName, string Description, string Kind);
 
-/// <summary>A combat style. Level is the spec level it unlocks at; Opening describes the positional/reactionary requirement.</summary>
-internal sealed record PlannerStyle(string Name, int Level, string Opening, string Description);
+/// <summary>
+/// A combat style. Level is the spec level it unlocks at; Opening describes the positional/reactionary requirement;
+/// Description is the full delve text. The rest is the same, split into columns: Fatigue ("Low", "Med", ...), the growth
+/// rate, the to-hit and defense bonuses, and Effect (the style's procs, and "Stealth" when it needs stealth).
+/// </summary>
+internal sealed record PlannerStyle(string Name, int Level, string Opening, string Description,
+    string Fatigue = "", double GrowthRate = 0, int ToHit = 0, int Defense = 0, string Effect = "");
 
 /// <summary>An ability granted by a spec (Evade, Protect, ...). Level is the spec level it unlocks at.</summary>
 internal sealed record PlannerAbility(string Name, int Level);
