@@ -40,9 +40,12 @@ public static class ExpeditionShrines
     /// <summary>Act 5: a kill counts for a shrine within this distance (2D) of its camp's centre.</summary>
     public const int DormantCampRadius = 1500;
 
-    /// <summary>Act 5: the dormant shrine stands this far from its camp's centre, outside the monsters' reach.</summary>
-    public const int DormantMinDistance = 800;
-    public const int DormantMaxDistance = 2000;
+    /// <summary>
+    /// Act 5: the placement rule. 1 (fork-v76) moved the shrine 800-2,000 units from its camp, which put it far from the
+    /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot), and a
+    /// shrine placed by 1 is moved again, keeping its camp and kills.
+    /// </summary>
+    public const int DormantPlacementVersion = 2;
 
     private const string DormantWarnedProperty = "expedition.shrine.dormantWarned";
     private const long DormantWarnEveryMs = 10_000;
@@ -189,7 +192,7 @@ public static class ExpeditionShrines
                     // On screen as well (owner, 2026-10-24): the journal just gained the shrine's /loc.
                     player.Out.SendMessage($"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}! Your journal shows where it is.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
                     player.Out.SendMessage(IsDormant(shrine)
-                        ? $"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}{(loc == null ? string.Empty : $" at {loc}")}. It lies dormant: slay {shrine.KillsNeeded - shrine.Kills} {shrine.CampMob} at the camp beside it to wake it."
+                        ? $"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}{(loc == null ? string.Empty : $" at {loc}")}. It lies dormant: slay {shrine.KillsNeeded - shrine.Kills} {shrine.CampMob} {CampWhere(shrine)} to wake it."
                         : $"You discover the {ExpeditionBuffs.ShrineName(shrine.Group)}{(loc == null ? string.Empty : $" at {loc}")}. Walk up to it to receive its blessing.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
                 }
 
@@ -200,7 +203,7 @@ public static class ExpeditionShrines
                     if (now - player.TempProperties.GetProperty<long>(DormantWarnedProperty) >= DormantWarnEveryMs)
                     {
                         player.TempProperties.SetProperty(DormantWarnedProperty, now);
-                        player.Out.SendMessage($"The {ExpeditionBuffs.ShrineName(shrine.Group)} is dormant. Slay {shrine.KillsNeeded - shrine.Kills} more {shrine.CampMob} at the camp beside it.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                        player.Out.SendMessage($"The {ExpeditionBuffs.ShrineName(shrine.Group)} is dormant. Slay {shrine.KillsNeeded - shrine.Kills} more {shrine.CampMob} {CampWhere(shrine)}.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
                     }
 
                     continue;
@@ -282,13 +285,13 @@ public static class ExpeditionShrines
     }
 
     /// <summary>
-    /// Act 5: gives each shrine not yet placed the world camp nearest its site (its monster and the kills it asks for)
-    /// and moves it just outside that camp, out of the monsters' reach (ExpeditionArrival.FindSpotNear). A shrine
-    /// already used stays as it was. True when a shrine changed.
+    /// Act 5: gives each unused shrine not yet placed by the current rule (<see cref="DormantPlacementVersion"/>) its world
+    /// camp (the one nearest its site, or the camp it already had) and moves it beside that camp, just outside its
+    /// monsters' aggro range (ExpeditionArrival.FindShrineSpot). True when a shrine changed.
     /// </summary>
     private static bool PlaceDormant(GamePlayer player, ActPlan plan)
     {
-        if (plan.Act != ActGenerator.ActCount || plan.Shrines.All(shrine => shrine == null || shrine.Placed || shrine.Used))
+        if (plan.Act != ActGenerator.ActCount || plan.Shrines.All(shrine => shrine == null || shrine.Used || shrine.PlacementVersion >= DormantPlacementVersion))
         {
             return false;
         }
@@ -312,19 +315,31 @@ public static class ExpeditionShrines
 
         foreach (ShrineSpec shrine in plan.Shrines)
         {
-            if (shrine == null || shrine.Placed || shrine.Used)
+            if (shrine == null || shrine.Used || shrine.PlacementVersion >= DormantPlacementVersion)
             {
                 continue;
             }
 
-            AutonomousCapnBryGoalCatalog.Entry camp = camps.OrderBy(c => Dist2(ox + c.LocalX, oy + c.LocalY, shrine.X, shrine.Y)).First();
+            // A shrine placed by the old rule keeps its camp and its kills; a new one takes the camp nearest its site.
+            AutonomousCapnBryGoalCatalog.Entry camp = shrine.Placed && !string.IsNullOrEmpty(shrine.CampMob)
+                ? camps.Where(c => string.Equals(c.Name, shrine.CampMob, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(c => Dist2(ox + c.LocalX, oy + c.LocalY, shrine.CampX, shrine.CampY))
+                    .FirstOrDefault()
+                : null;
+
+            if (camp == null)
+            {
+                camp = camps.OrderBy(c => Dist2(ox + c.LocalX, oy + c.LocalY, shrine.X, shrine.Y)).First();
+                shrine.CampMob = camp.Name;
+                shrine.KillsNeeded = DormantKillsFor(camp.Sightings);
+                shrine.Kills = 0;
+            }
+
             (int X, int Y, int Z) centre = (ox + camp.LocalX, oy + camp.LocalY, camp.Z);
-            shrine.CampMob = camp.Name;
             shrine.CampX = centre.X;
             shrine.CampY = centre.Y;
-            shrine.KillsNeeded = DormantKillsFor(camp.Sightings);
-            shrine.Kills = 0;
-            (int X, int Y, int Z)? spot = ExpeditionArrival.FindSpotNear(region, plan.ZoneId, centre, player.Realm, DormantMinDistance, DormantMaxDistance);
+            shrine.CampZ = centre.Z;
+            (int X, int Y, int Z)? spot = ExpeditionArrival.FindShrineSpot(region, plan.ZoneId, centre, player.Realm);
 
             if (spot != null)
             {
@@ -335,10 +350,19 @@ public static class ExpeditionShrines
             }
 
             shrine.Placed = true;
+            shrine.PlacementVersion = DormantPlacementVersion;
             changed = true;
         }
 
         return changed;
+    }
+
+    /// <summary>"at the camp around /loc x, y" for a dormant shrine's messages, or "at the camp beside it" without a zone.</summary>
+    public static string CampWhere(ShrineSpec shrine)
+    {
+        string loc = ActGenerator.DescribeLoc(shrine.RegionId, shrine.CampX, shrine.CampY);
+
+        return loc == null ? "at the camp beside it" : $"at the camp around {loc}";
     }
 
     /// <summary>
@@ -433,7 +457,7 @@ public static class ExpeditionShrines
 
             string loc = ActGenerator.DescribeLoc(shrine.RegionId, shrine.X, shrine.Y);
             string state = shrine.Used ? "blessing received"
-                : IsDormant(shrine) ? $"dormant: slay {shrine.Kills}/{shrine.KillsNeeded} {shrine.CampMob} at the camp beside it"
+                : IsDormant(shrine) ? $"dormant: slay {shrine.Kills}/{shrine.KillsNeeded} {shrine.CampMob} {CampWhere(shrine)}"
                 : "not yet used";
             lines.Add($"Shrine: {ExpeditionBuffs.ShrineName(shrine.Group)}{(loc == null ? string.Empty : $" ({loc})")} - {state}{guarded}");
         }

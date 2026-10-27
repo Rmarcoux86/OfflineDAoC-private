@@ -276,12 +276,23 @@ public static class ExpeditionArrival
         return started;
     }
 
+    /// <summary>Act 5 shrines: rings searched from the camp's centre, outward to this far, this many units apart.</summary>
+    public const int ShrineSearchRadius = 2500;
+    public const int ShrineRingStep = 100;
+
+    /// <summary>Act 5 shrines: the spot stays on the camp's floor (height difference at most this).</summary>
+    public const int ShrineMaxHeight = 200;
+
+    /// <summary>Act 5 shrines: how far past a monster's aggro range the shrine stands (no roaming allowance).</summary>
+    public const int ShrineAggroMargin = 150;
+
     /// <summary>
-    /// A floor spot between <paramref name="minRadius"/> and <paramref name="maxRadius"/> of <paramref name="centre"/>, in
-    /// the zone, outside every aggressive monster's reach (the camp's safety check): the nearest such spot, else the one
-    /// the fewest monsters reach. Null without a navmesh for the zone.
+    /// The floor spot nearest the camp's centre, on its floor, just outside every aggressive monster's aggro range (plus
+    /// <see cref="ShrineAggroMargin"/>; owner 2026-10-27: the shrine stands by the camp, in sight of it). The rings are
+    /// searched from the centre outward and the first ring with a clear spot wins. Without one, the spot within
+    /// 1,200 units that the fewest monsters reach. Null without a navmesh for the zone.
     /// </summary>
-    public static (int X, int Y, int Z)? FindSpotNear(Region region, int zoneId, (int X, int Y, int Z) centre, eRealm realm, int minRadius, int maxRadius)
+    public static (int X, int Y, int Z)? FindShrineSpot(Region region, int zoneId, (int X, int Y, int Z) centre, eRealm realm)
     {
         Zone zone = region?.Zones?.FirstOrDefault(z => z.ID == zoneId);
         IPathfindingMgr nav = PathfindingProvider.Instance;
@@ -291,12 +302,13 @@ public static class ExpeditionArrival
             return null;
         }
 
-        float zRange = region.IsDungeon || zone.IsDungeon ? 256 : 2048;
-        var candidates = new List<(int X, int Y, int Z)>();
+        List<Hazard> hazards = CollectHazards(region, centre, realm, true);
+        var fallback = new List<(int X, int Y, int Z)>();
 
-        for (int radius = minRadius; radius <= maxRadius; radius += 200)
+        for (int radius = ShrineRingStep; radius <= ShrineSearchRadius; radius += ShrineRingStep)
         {
             int count = Math.Max(12, radius / 100);
+            var ring = new List<(int X, int Y, int Z)>();
 
             for (int i = 0; i < count; i++)
             {
@@ -310,35 +322,41 @@ public static class ExpeditionArrival
                     continue;
                 }
 
-                Vector3? floor = nav.GetClosestPoint(ringZone, new Vector3(x, y, centre.Z), 128, 128, zRange, nav.DefaultFilters);
+                Vector3? floor = nav.GetClosestPoint(ringZone, new Vector3(x, y, centre.Z), 64, 64, ShrineMaxHeight, nav.DefaultFilters);
 
-                if (floor.HasValue)
+                if (floor.HasValue && Math.Abs((int) floor.Value.Z - centre.Z) <= ShrineMaxHeight)
                 {
-                    candidates.Add(((int) floor.Value.X, (int) floor.Value.Y, (int) floor.Value.Z));
+                    ring.Add(((int) floor.Value.X, (int) floor.Value.Y, (int) floor.Value.Z));
                 }
+            }
+
+            (int X, int Y, int Z)? clear = ChooseNearestSafe(centre, ring, (x, y, z) => IsClear(x, y, z, hazards));
+
+            if (clear != null)
+            {
+                return clear;
+            }
+
+            if (radius <= 1200)
+            {
+                fallback.AddRange(ring);
             }
         }
 
-        if (candidates.Count == 0)
+        if (fallback.Count == 0)
         {
             return null;
         }
 
-        List<Hazard> hazards = CollectHazards(region, centre, realm);
-        (int X, int Y, int Z)? clear = ChooseNearestSafe(centre, candidates, (x, y, z) => IsClear(x, y, z, hazards));
-
-        if (clear != null)
-        {
-            return clear;
-        }
-
         int Reaching((int X, int Y, int Z) c) => hazards.Count(h => !IsClear(c.X, c.Y, c.Z, [h]));
 
-        return candidates.OrderBy(Reaching).ThenBy(c => DistanceSquared(c.X, c.Y, centre.X, centre.Y)).First();
+        return fallback.OrderBy(Reaching).ThenBy(c => DistanceSquared(c.X, c.Y, centre.X, centre.Y)).First();
     }
 
     /// <summary>Live aggressive monsters and aggressive spawn points around <paramref name="origin"/>.</summary>
-    private static List<Hazard> CollectHazards(Region region, (int X, int Y, int Z) origin, eRealm realm)
+    /// <param name="aggroOnly">True for act 5 shrines: a monster's reach is its aggro range plus <see cref="ShrineAggroMargin"/>,
+    /// without the camp's roaming allowance and safety margin.</param>
+    private static List<Hazard> CollectHazards(Region region, (int X, int Y, int Z) origin, eRealm realm, bool aggroOnly = false)
     {
         var hazards = new List<Hazard>();
         var npcs = new List<GameNPC>();
@@ -362,7 +380,8 @@ public static class ExpeditionArrival
                 continue;
             }
 
-            int radius = Math.Min(brain.AggroRange, StandardMobBrain.MAX_AGGRO_DISTANCE) + Math.Clamp(npc.RoamingRange, 0, RoamingAllowance) + SafetyMargin;
+            int radius = Math.Min(brain.AggroRange, StandardMobBrain.MAX_AGGRO_DISTANCE) +
+                         (aggroOnly ? ShrineAggroMargin : Math.Clamp(npc.RoamingRange, 0, RoamingAllowance) + SafetyMargin);
             hazards.Add(new Hazard(npc.X, npc.Y, npc.Z, radius));
         }
 
@@ -381,7 +400,7 @@ public static class ExpeditionArrival
 
             if (range > 0)
             {
-                hazards.Add(new Hazard(row.X, row.Y, row.Z, range + Math.Clamp(row.RoamingRange, 0, RoamingAllowance) + SafetyMargin));
+                hazards.Add(new Hazard(row.X, row.Y, row.Z, range + (aggroOnly ? ShrineAggroMargin : Math.Clamp(row.RoamingRange, 0, RoamingAllowance) + SafetyMargin)));
             }
         }
 

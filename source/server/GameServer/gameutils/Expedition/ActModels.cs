@@ -120,9 +120,12 @@ public sealed class ShrineSpec
     /// </summary>
     public bool Placed;
     public string CampMob = string.Empty;
-    public int CampX, CampY;
+    public int CampX, CampY, CampZ;
     public int KillsNeeded;
     public int Kills;
+
+    /// <summary>Which placement rule placed the shrine (ExpeditionShrines.DormantPlacementVersion); an older one is placed again.</summary>
+    public int PlacementVersion;
 }
 
 /// <summary>
