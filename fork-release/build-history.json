@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v82",
+    "date": "2026-10-27",
+    "items": [
+      "The launcher is simpler: three tabs, Build History, Character Planner and Options."
+    ]
+  },
+  {
     "tag": "fork-v81",
     "date": "2026-10-27",
     "items": [
