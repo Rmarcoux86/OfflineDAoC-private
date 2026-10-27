@@ -1099,6 +1099,7 @@ public static class ExpeditionManager
 
         lines.Add(string.Empty);
         lines.Add("-- ELITE PACKS (optional) --");
+        lines.Add(ExpeditionElites.CommonEffect);
 
         foreach (EliteCamp camp in plan.Elites)
         {
@@ -1108,6 +1109,13 @@ public static class ExpeditionManager
             }
 
             lines.Add(ExpeditionElites.EliteName(camp.Affix, camp.MobName));
+            string effect = ExpeditionElites.AffixEffect(camp.Affix);
+
+            if (effect.Length > 0)
+            {
+                lines.Add($"{Indent}{effect}");
+            }
+
             lines.Add($"{Indent}{ActGenerator.DescribeFromCamp(plan.CampX, plan.CampY, camp.X, camp.Y)}");
             AddLoc(lines, null, camp.RegionId, camp.X, camp.Y);
         }

@@ -321,4 +321,20 @@ public class UT_ExpeditionElites
     {
         Assert.That(ExpeditionElites.IsElite(null), Is.False);
     }
+
+    [Test]
+    public void AffixEffect_DescribesEveryAffix()
+    {
+        foreach (string affix in ExpeditionElites.Affixes)
+        {
+            Assert.That(ExpeditionElites.AffixEffect(affix), Is.Not.Empty, affix);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ExpeditionElites.AffixEffect(ExpeditionElites.Swift), Is.EqualTo("Runs 1.4x as fast, swings 20% faster."));
+            Assert.That(ExpeditionElites.AffixEffect(ExpeditionElites.Stalwart), Is.EqualTo("Triple health; mez, stun and snare last 50% as long."));
+            Assert.That(ExpeditionElites.AffixEffect("Unknown"), Is.Empty);
+        });
+    }
 }

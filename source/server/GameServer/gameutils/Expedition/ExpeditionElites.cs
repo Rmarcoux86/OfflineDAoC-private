@@ -116,6 +116,24 @@ public static class ExpeditionElites
         return $"{affix} {mobName}";
     }
 
+    /// <summary>What every elite gets on top of its affix, in one line for the status window.</summary>
+    public const string CommonEffect = "All elites: +2 levels, double health, bigger, Rare+ loot.";
+
+    /// <summary>What an affix does, in a few words for the status window and the approach message.</summary>
+    public static string AffixEffect(string affix)
+    {
+        return affix switch
+        {
+            Swift => $"Runs {SwiftRunSpeedFactor:0.#}x as fast, swings {SwiftMeleeSpeedBonus}% faster.",
+            Venomous => $"Hits can poison ({VenomChancePercent}% chance): body damage over 15s.",
+            Armoured => $"+{ArmouredArmorAbsorption}% armor and +{ArmouredPhysicalAbsorption}% physical absorption.",
+            Stalwart => $"Triple health; mez, stun and snare last {StalwartCrowdControlReduction}% as long.",
+            Frenzied => $"+{FrenzyMeleeDamageBonus}% melee damage below {FrenzyHealthPercent}% health.",
+            Spectral => "Translucent and stealthed until it fights.",
+            _ => string.Empty
+        };
+    }
+
     /// <summary>The approach message, sent once per camp and attach.</summary>
     public static string ApproachMessage(EliteCamp camp)
     {
@@ -162,6 +180,13 @@ public static class ExpeditionElites
 
             wokenCamps.Add(i);
             player.Out.SendMessage(ApproachMessage(camp), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            string effect = AffixEffect(camp.Affix);
+
+            if (effect.Length > 0)
+            {
+                player.Out.SendMessage($"{camp.Affix}: {effect}", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            }
+
             ExpeditionDebug.Report(player, $"elite camp {i} ({camp.Affix} {camp.MobName}) woke {woken} monsters.");
         }
     }
