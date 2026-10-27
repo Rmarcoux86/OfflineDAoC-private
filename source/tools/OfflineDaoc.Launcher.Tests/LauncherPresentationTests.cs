@@ -161,7 +161,8 @@ public sealed class LauncherPresentationTests
             Does.Not.Contain("Realm Status"));
         Assert.That(controls.OfType<TabControl>().SelectMany(tab => tab.TabPages.Cast<TabPage>()).Select(page => page.Text),
             Does.Contain("Options"));
-        Assert.That(controls.OfType<DataGridView>(), Is.Not.Empty);
+        // The population grid is built even while the player-bot pages are hidden (MainForm.ShowBotFeatures).
+        Assert.That(mainFormType.GetField("_grid", HiddenInstance)!.GetValue(form), Is.Not.Null);
         Assert.That(controls.OfType<DataGridView>().All(grid => !grid.RowHeadersVisible), Is.True);
         var populationGrid = (DataGridView)mainFormType.GetField("_grid", HiddenInstance)!.GetValue(form)!;
         Assert.That(populationGrid.ContextMenuStrip!.Items.OfType<ToolStripMenuItem>().Select(item => item.Text),

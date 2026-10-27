@@ -442,6 +442,13 @@ internal sealed partial class MainForm : Form
         return banner;
     }
 
+    /// <summary>
+    /// The player-bot pages, cards and options (population, groups, RvR, battlegrounds, realm events and records, bot
+    /// goals, the exchange; online bots, realm bot generation, bot AI delay; bot XP and the realm announcements). Hidden
+    /// (owner 2026-10-27: the launcher is about the Expedition); they are still built, so flip this to show them again.
+    /// </summary>
+    private const bool ShowBotFeatures = false;
+
     private Control BuildCards()
     {
         var cards = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 6, RowCount = 1, Padding = new Padding(0, 4, 0, 5), BackColor = Color.Transparent };
@@ -451,14 +458,33 @@ internal sealed partial class MainForm : Form
         cards.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         cards.Controls.Add(Card("SERVER", _serverState, DaocTheme.Iron), 0, 0);
         _serverState.Font = new Font("Georgia", 12f, FontStyle.Bold);
-        cards.Controls.Add(Card("ONLINE BOTS", _onlineValue, DaocTheme.Gold), 1, 0);
-        cards.Controls.Add(Card("ALBION", _albionValue, DaocTheme.Albion, RealmGenerateButton(1, "ALBION", DaocTheme.Albion)), 2, 0);
-        cards.Controls.Add(Card("MIDGARD", _midgardValue, DaocTheme.Midgard, RealmGenerateButton(2, "MIDGARD", DaocTheme.Midgard)), 3, 0);
-        cards.Controls.Add(Card("HIBERNIA", _hiberniaValue, DaocTheme.Hibernia, RealmGenerateButton(3, "HIBERNIA", DaocTheme.Hibernia)), 4, 0);
+        Panel online = Card("ONLINE BOTS", _onlineValue, DaocTheme.Gold);
+        Panel albion = Card("ALBION", _albionValue, DaocTheme.Albion, RealmGenerateButton(1, "ALBION", DaocTheme.Albion));
+        Panel midgard = Card("MIDGARD", _midgardValue, DaocTheme.Midgard, RealmGenerateButton(2, "MIDGARD", DaocTheme.Midgard));
+        Panel hibernia = Card("HIBERNIA", _hiberniaValue, DaocTheme.Hibernia, RealmGenerateButton(3, "HIBERNIA", DaocTheme.Hibernia));
+        cards.Controls.Add(online, 1, 0);
+        cards.Controls.Add(albion, 2, 0);
+        cards.Controls.Add(midgard, 3, 0);
+        cards.Controls.Add(hibernia, 4, 0);
         Panel performanceCard = Card("BOT AI DELAY", _performanceValue, DaocTheme.Gold);
         const string performanceHelp = PerformanceHelp;
         SetToolTip(performanceCard, performanceHelp);
         cards.Controls.Add(performanceCard, 5, 0);
+
+        // Without the bot features only the server card shows, across the row.
+        if (!ShowBotFeatures)
+        {
+            foreach (Control card in new Control[] { online, albion, midgard, hibernia, performanceCard })
+            {
+                card.Visible = false;
+            }
+
+            for (int column = 0; column < cards.ColumnStyles.Count; column++)
+            {
+                cards.ColumnStyles[column].Width = column == 0 ? 100f : 0f;
+            }
+        }
+
         return cards;
     }
 
@@ -567,27 +593,36 @@ internal sealed partial class MainForm : Form
         var planner = new TabPage("Character Planner") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         planner.Controls.Add(new CharacterPlannerPanel(() => new CharacterPlannerData(_database)) { Dock = DockStyle.Fill });
         tabs.TabPages.Add(planner);
-        tabs.TabPages.Add(population);
-        tabs.TabPages.Add(groups);
-        tabs.TabPages.Add(rvr);
+
+        // The player-bot pages are built either way (the dashboard refresh fills their grids) but only shown with them.
+        var botPages = new List<TabPage> { population, groups, rvr };
         var battlegrounds = new TabPage("Battlegrounds") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         battlegrounds.Controls.Add(_battlegroundsPanel);
-        tabs.TabPages.Add(battlegrounds);
+        botPages.Add(battlegrounds);
         var events = new TabPage("Realm Events") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         events.Controls.Add(BuildRealmEventsPanel());
-        tabs.TabPages.Add(events);
+        botPages.Add(events);
         var records = new TabPage("Realm Records") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         var eventRecords = new RealmEventRecordsControl(Path.Combine(_serverDirectory, "realm-event-records.sqlite3"));
         records.Controls.Add(eventRecords);
         records.Enter += async (_, _) => await eventRecords.RefreshAsync();
-        tabs.TabPages.Add(records);
+        botPages.Add(records);
         tabs.TabPages.Add(xpSettings);
         var botGoals = new TabPage("Bot Goals Setting") { BackColor = DaocTheme.Panel, ForeColor = DaocTheme.Text };
         _botGoalsSettings = new BotGoalsSettingsControl(
             Path.Combine(_serverDirectory, OfflineDaoc.Configuration.BotGoalSettings.FileName), BotGoalsServerStopped);
         botGoals.Controls.Add(_botGoalsSettings);
-        tabs.TabPages.Add(botGoals);
-        tabs.TabPages.Add(auction);
+        botPages.Add(botGoals);
+        botPages.Add(auction);
+
+        if (ShowBotFeatures)
+        {
+            foreach (TabPage page in botPages)
+            {
+                tabs.TabPages.Add(page);
+            }
+        }
+
         return tabs;
     }
 
@@ -653,6 +688,28 @@ internal sealed partial class MainForm : Form
         _pveAnnouncements.CheckedChanged += async (_, _) => await SaveAnnouncementSettingAsync();
         layout.Controls.Add(_xpSettingsStatus, 0, 6);
         layout.SetColumnSpan(_xpSettingsStatus, 3);
+
+        // Bot XP (row 2) and the realm announcements (rows 4-5) are about the player bots: hidden with them.
+        if (!ShowBotFeatures)
+        {
+            foreach (int row in new[] { 2, 4, 5 })
+            {
+                layout.RowStyles[row].Height = 0;
+
+                for (int column = 0; column < layout.ColumnCount; column++)
+                {
+                    Control? cell = layout.GetControlFromPosition(column, row);
+
+                    if (cell is not null)
+                    {
+                        cell.Visible = false;
+                    }
+                }
+            }
+
+            surface.Height -= 128;
+        }
+
         surface.Controls.Add(layout);
         return surface;
     }
