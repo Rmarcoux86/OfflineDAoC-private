@@ -1,5 +1,14 @@
 [
   {
+    "tag": "fork-v77",
+    "date": "2026-10-27",
+    "items": [
+      "Darkness Falls (act 5) shrines stand right beside their camp, just outside its monsters' aggro range and on the same floor, so you can see the shrine from the camp. Shrines already placed move there too, keeping your kills. The messages and the journal give the camp's /loc.",
+      "Darkness Falls shrines are chosen from camps all over the dungeon again.",
+      "Unique jewelry (necklace, jewel, belt, ring, bracer) wears the artifact jewelry looks, so the uniques you wear stand out on the paper doll. Jewelry you already have changes at your next login."
+    ]
+  },
+  {
     "tag": "fork-v76",
     "date": "2026-10-27",
     "items": [
