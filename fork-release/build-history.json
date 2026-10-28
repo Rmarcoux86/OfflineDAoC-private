@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v85",
+    "date": "2026-10-27",
+    "items": [
+      "The Greed and Prospector boons are gone: drops are already frequent enough that they barely showed. A run that took one gets a new boon choice in its place (type /run boons)."
+    ]
+  },
+  {
     "tag": "fork-v84",
     "date": "2026-10-27",
     "items": [
