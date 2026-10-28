@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v93",
+    "date": "2026-10-28",
+    "items": [
+      "Blessed Arms now gives a lesser version of every buff for the rest of the run: base strength, constitution and dexterity, both stat pairs, acuity, both armor buffs and haste, at 40% of the cap for your level. A used shrine's buff (60%) takes over its kind for the rest of the act.",
+      "Act 5: dormant shrines now stand by camps that con at least yellow to a level 42 character. Shrines by weaker camps move to a stronger one the next time you log in."
+    ]
+  },
+  {
     "tag": "fork-v92",
     "date": "2026-10-28",
     "items": [
