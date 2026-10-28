@@ -199,6 +199,7 @@ public class UT_ExpeditionGauntlet
             Assert.That(belt.Count, Is.EqualTo(9));
             Assert.That(belt.All(line => line.Value == 26), Is.True);
             Assert.That(caster.Count, Is.LessThanOrEqualTo(10), "an item holds ten lines");
+            Assert.That(ExpeditionUniques.FindByName(DOL.GS.Expedition.Gauntlet.GauntletTestKit.UniqueWeaponName)?.Slot, Is.EqualTo(eUniqueSlot.Weapon));
         });
     }
 

@@ -16,6 +16,9 @@ namespace DOL.GS.Expedition.Gauntlet;
 public static class GauntletTestKit
 {
     public const int Quality = 99;
+
+    /// <summary>The unique weapon the kit makes in every weapon type the class can use: the late tier's.</summary>
+    public const string UniqueWeaponName = "Wyrmbane, the Last Ember";
     public const int ToaPercent = 10;
     private const byte Level = 50;
 
@@ -86,6 +89,8 @@ public static class GauntletTestKit
             kit.Add(armor);
         }
 
+        UniqueDefinition unique = ExpeditionUniques.FindByName(UniqueWeaponName);
+
         foreach ((eObjectType type, eInventorySlot hand, int copies) in WeaponsFor(player))
         {
             for (int i = 0; i < copies; i++)
@@ -94,6 +99,12 @@ public static class GauntletTestKit
                 ExpeditionUniques.ClearMagic(weapon);
                 weapon.Name = "Test " + weapon.Name;
                 kit.Add(weapon);
+
+                // The late-tier unique weapon in the same type and hand (owner 2026-10-28), with its lines and ToA bonuses.
+                if (unique != null && type != eObjectType.Shield)
+                {
+                    kit.Add(ExpeditionUniques.Build(player, unique, (type, hand), Level));
+                }
             }
         }
 
@@ -121,7 +132,7 @@ public static class GauntletTestKit
             given++;
         }
 
-        return $"Test kit: {given} items in your backpack (99% armor, 99% weapons of every type you can use, a template necklace and belt). "
+        return $"Test kit: {given} items in your backpack (99% armor, 99% weapons of every type you can use and Wyrmbane in each, a template necklace and belt). "
             + "Take off your other jewelry and equip them. For level and rank: /player level 50, /player rps <points>.";
     }
 
