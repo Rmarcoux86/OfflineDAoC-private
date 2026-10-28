@@ -44,7 +44,6 @@ public static partial class BoonEffects
     /// </summary>
     private static readonly Dictionary<string, (eProperty Property, int Amount)[]> PropertyBonuses = new()
     {
-        [ExpeditionBoons.Greed] = new[] { (eProperty.PhysicalAbsorption, -15), (eProperty.MagicAbsorption, -15) },
         [ExpeditionBoons.Ironhide] = new[] { (eProperty.Of_Toughness, 10), (eProperty.PhysicalAbsorption, 10) },
         [ExpeditionBoons.Warding] = new[] { (eProperty.MagicAbsorption, 15) },
         [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) },

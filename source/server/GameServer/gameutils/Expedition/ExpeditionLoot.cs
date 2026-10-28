@@ -244,7 +244,6 @@ public static class ExpeditionLoot
                 int bandMax = plan?.MaxLevel ?? 0;
                 LootTuning tuning = LootTuning.FromProperties();
                 int chance = KillDropChance(target.Level, player.Level, bandMin, bandMax, luck.DryKills, tuning);
-                chance = Math.Clamp(ExpeditionBoons.AdjustLootChance(player, run, chance), 0, 100);
                 bool counts = CountsForPity(target.Level, player.Level, bandMin, bandMax);
                 int dryBefore = luck.DryKills;
 

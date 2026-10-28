@@ -56,18 +56,10 @@ public static class ExpeditionBoons
     /// <summary>Realm points added by Glory, in percent.</summary>
     public const int GloryRealmPointPercent = 50;
 
-    /// <summary>Drop chance added by Greed, in percentage points.</summary>
-    public const int GreedChanceBonus = 25;
-
-    /// <summary>Drop chance added by Prospector, in percentage points.</summary>
-    public const int ProspectorChanceBonus = 10;
-
     /// <summary>The catalog, in a fixed order: offers index into it, so reordering changes every seed's offers.</summary>
     public static readonly IReadOnlyList<BoonDefinition> Catalog = new List<BoonDefinition>
     {
         new(Fortune, "Fortune", "Every Expedition drop is one rarity better, up to Epic.", true),
-        new(Greed, "Greed", $"+{GreedChanceBonus}% drop chance per kill, but monsters hit you 15% harder.", true),
-        new(Prospector, "Prospector", $"+{ProspectorChanceBonus}% drop chance per kill.", true),
         new(Ironhide, "Ironhide", "+10% maximum health and 10% less physical damage taken.", false),
         new(Warding, "Warding", "15% less damage taken from spells.", false),
         new(Bloodlust, "Bloodlust", "+15% melee critical hit chance (the 50% cap still applies).", false),
@@ -92,8 +84,12 @@ public static class ExpeditionBoons
         new(Swiftfoot, "Swiftfoot", "+20% run speed out of combat (with or without the Hastener).", false),
     };
 
-    /// <summary>Boons taken out of the catalog (owner 2026-10-25). A run that has one gets a new boon choice instead.</summary>
-    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide };
+    /// <summary>
+    /// Boons taken out of the catalog (owner 2026-10-25; Greed and Prospector 2026-10-27: the base drop rate is high
+    /// enough that a drop chance bonus barely shows).
+    /// A run that has one gets a new boon choice instead.
+    /// </summary>
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector };
 
     /// <summary>
     /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for
@@ -282,38 +278,6 @@ public static class ExpeditionBoons
         return rolled + 1;
     }
 
-    /// <summary>Lets loot boons change the per-kill drop chance (percent).</summary>
-    public static int AdjustLootChance(GamePlayer player, ExpeditionRun run, int chance)
-    {
-        if (run == null)
-        {
-            return chance;
-        }
-
-        return LootChanceWithBoons(Snapshot(run), chance);
-    }
-
-    /// <summary>Greed and Prospector add percentage points to the drop chance; the caller clamps to 0-100.</summary>
-    public static int LootChanceWithBoons(IReadOnlyList<string> boonIds, int chance)
-    {
-        if (boonIds == null)
-        {
-            return chance;
-        }
-
-        if (boonIds.Contains(Greed))
-        {
-            chance += GreedChanceBonus;
-        }
-
-        if (boonIds.Contains(Prospector))
-        {
-            chance += ProspectorChanceBonus;
-        }
-
-        return chance;
-    }
-
     #endregion
 
     #region Journal and choice
@@ -441,14 +405,32 @@ public static class ExpeditionBoons
 
         run.AddLog($"Act {run.Act}: took the boon {name}.");
         BoonEffects.ApplyAll(player, run);
+
+        // One boon per act won: a run still owed one (a retired boon was taken off while this offer was waiting) gets
+        // its next choice straight away.
+        bool owed = OwesBoon(run) && OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player));
         ExpeditionManager.Save(run);
 
         message = $"You take the boon {name}: {boon?.Effect ?? "unknown boon"}";
+
+        if (owed)
+        {
+            message += " Another boon awaits: type /run boons.";
+        }
 
         return true;
     }
 
     #endregion
+
+    /// <summary>True when no offer is waiting and the run has fewer boons than acts won.</summary>
+    public static bool OwesBoon(ExpeditionRun run)
+    {
+        lock (run.Boons)
+        {
+            return run.PendingBoonOffer.Count == 0 && run.Boons.Count < run.Act - 1;
+        }
+    }
 
     /// <summary>Glory: the realm point multiplier for the run (1.5 with the boon, else 1).</summary>
     public static double RealmPointFactor(ExpeditionRun run)
