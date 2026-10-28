@@ -43,10 +43,23 @@ public static class ExpeditionShrines
     /// <summary>
     /// Act 5: the placement rule. 1 (fork-v76) moved the shrine 800-2,000 units from its camp, which put it far from the
     /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
-    /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls). A shrine placed by an older rule
-    /// is moved again, keeping its camp and kills.
+    /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
+    /// blue to a level 42 arrival (<see cref="IsWorthyCamp"/>). A shrine placed by an older rule is moved again, keeping
+    /// its camp and kills when that camp is still worthy.
     /// </summary>
-    public const int DormantPlacementVersion = 3;
+    public const int DormantPlacementVersion = 4;
+
+    /// <summary>The level a player is assumed to reach act 5 at (owner 2026-10-28) for <see cref="IsWorthyCamp"/>.</summary>
+    public const int DormantArrivalLevel = 42;
+
+    /// <summary>
+    /// A camp worth waking a shrine at (owner 2026-10-28: Darkness Falls shrines were beside grey camps): its strongest
+    /// monster cons at least blue to a level <see cref="DormantArrivalLevel"/> player (level 33 or more).
+    /// </summary>
+    public static bool IsWorthyCamp(IReadOnlyCollection<int> levels)
+    {
+        return levels != null && levels.Count > 0 && ConLevels.GetConLevel(DormantArrivalLevel, levels.Max()) >= (int) ConColor.BLUE;
+    }
 
     private const string DormantWarnedProperty = "expedition.shrine.dormantWarned";
     private const long DormantWarnEveryMs = 10_000;
@@ -304,11 +317,19 @@ public static class ExpeditionShrines
             return false;
         }
 
-        IReadOnlyList<AutonomousCapnBryGoalCatalog.Entry> camps = WorldCampSource.Instance.GetZoneCamps(plan.RegionId, plan.ZoneId);
+        IReadOnlyList<AutonomousCapnBryGoalCatalog.Entry> allCamps = WorldCampSource.Instance.GetZoneCamps(plan.RegionId, plan.ZoneId);
+
+        if (allCamps.Count == 0)
+        {
+            return false;
+        }
+
+        // Only camps that con at least blue on arrival; all of them if the zone has none.
+        List<AutonomousCapnBryGoalCatalog.Entry> camps = allCamps.Where(c => IsWorthyCamp(c.Levels)).ToList();
 
         if (camps.Count == 0)
         {
-            return false;
+            camps = allCamps.ToList();
         }
 
         (int ox, int oy) = ActGenerator.WorldZoneOffset(plan.ZoneId);
@@ -321,7 +342,8 @@ public static class ExpeditionShrines
                 continue;
             }
 
-            // A shrine placed by the old rule keeps its camp and its kills; a new one takes the camp nearest its site.
+            // A shrine placed by an older rule keeps its camp and its kills while that camp is still worthy; otherwise, and for
+            // a new one, it takes the worthy camp nearest its site.
             AutonomousCapnBryGoalCatalog.Entry camp = shrine.Placed && !string.IsNullOrEmpty(shrine.CampMob)
                 ? camps.Where(c => string.Equals(c.Name, shrine.CampMob, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(c => Dist2(ox + c.LocalX, oy + c.LocalY, shrine.CampX, shrine.CampY))
