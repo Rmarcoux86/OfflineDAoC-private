@@ -132,31 +132,32 @@ public static class ExpeditionUniques
             eUniqueProc.None,
             new UniqueLine[] { new(eProperty.Constitution, 22), new(eProperty.Dexterity, 18), new(eProperty.MaxHealth, 55), new(eProperty.Resist_Body, 8), new(eProperty.AllSkills, 3) }),
 
-        // Late: usable from level 40, sized for level 50 (caps: stats 75, hit points 200, resists 26, skills 11).
+        // Late: usable from level 40, level 50 caps: stats 75, hit points 200, resists 26, skills 11. Cut to about a third
+        // (owner 2026-10-28: "If someone farms 4-5 uniques, this is just a crazy amount of stats"), a step above the mid tier.
         new("Heartwood of the First Grove", eUniqueTier.Late, eUniqueSlot.Chest,
             "Grown, not forged, from the oldest tree in the world. It mends what strikes it.",
             eUniqueProc.Heal,
-            new UniqueLine[] { new(eProperty.Strength, 55), new(eProperty.Constitution, 60), new(eProperty.MaxHealth, 170), new(eProperty.Resist_Crush, 22), new(eProperty.Resist_Slash, 22), new(eProperty.AllSkills, 8) }),
+            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Constitution, 22), new(eProperty.MaxHealth, 63), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
         new("Wyrmbane, the Last Ember", eUniqueTier.Late, eUniqueSlot.Weapon,
             "Quenched in a dragon's heart. The ember in its core has burned for three ages.",
             eUniqueProc.Damage,
-            new UniqueLine[] { new(eProperty.Strength, 60), new(eProperty.Dexterity, 55), new(eProperty.Quickness, 50), new(eProperty.MaxHealth, 150), new(eProperty.Resist_Heat, 22), new(eProperty.AllSkills, 9) }),
+            new UniqueLine[] { new(eProperty.Strength, 22), new(eProperty.Dexterity, 20), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 56), new(eProperty.Resist_Heat, 8), new(eProperty.AllSkills, 3) }),
         new("Pendant of the Starless Deep", eUniqueTier.Late, eUniqueSlot.Necklace,
             "Brought up from a sea with no bottom and no stars. It is always cold to the touch.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 62), new(eProperty.MaxHealth, 180), new(eProperty.Resist_Cold, 23), new(eProperty.Resist_Spirit, 23), new(eProperty.AllSkills, 8) }),
+            new UniqueLine[] { new(eProperty.Constitution, 23), new(eProperty.MaxHealth, 67), new(eProperty.Resist_Cold, 9), new(eProperty.Resist_Spirit, 9), new(eProperty.AllSkills, 3) }),
         new("Ring of the Hollow Crown", eUniqueTier.Late, eUniqueSlot.Ring,
             "All that remains of a king who traded his kingdom for a longer life.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 58), new(eProperty.Quickness, 55), new(eProperty.Resist_Energy, 22), new(eProperty.Resist_Matter, 22), new(eProperty.AllSkills, 8) }),
+            new UniqueLine[] { new(eProperty.Strength, 21), new(eProperty.Quickness, 20), new(eProperty.Resist_Energy, 8), new(eProperty.Resist_Matter, 8), new(eProperty.AllSkills, 3) }),
         new("Ashen Dawn Gem", eUniqueTier.Late, eUniqueSlot.Jewel,
             "It caught the first light of the morning the old world burned, and never let it go.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Dexterity, 60), new(eProperty.Constitution, 52), new(eProperty.MaxHealth, 160), new(eProperty.Resist_Thrust, 23), new(eProperty.Resist_Body, 22) }),
+            new UniqueLine[] { new(eProperty.Dexterity, 22), new(eProperty.Constitution, 19), new(eProperty.MaxHealth, 59), new(eProperty.Resist_Thrust, 9), new(eProperty.Resist_Body, 8) }),
         new("Belt of the Restless Dead", eUniqueTier.Late, eUniqueSlot.Belt,
             "Every buckle is a finger bone. They tap, softly, when danger is near.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 52), new(eProperty.Constitution, 52), new(eProperty.Quickness, 48), new(eProperty.MaxHealth, 160), new(eProperty.Resist_Spirit, 22), new(eProperty.AllSkills, 7) })
+            new UniqueLine[] { new(eProperty.Strength, 19), new(eProperty.Constitution, 19), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 59), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
     };
 
     #region Tiers and caps
@@ -537,7 +538,7 @@ public static class ExpeditionUniques
         {
             eUniqueTier.Early => 3,
             eUniqueTier.Mid => 5,
-            _ => 7
+            _ => 5
         };
     }
 

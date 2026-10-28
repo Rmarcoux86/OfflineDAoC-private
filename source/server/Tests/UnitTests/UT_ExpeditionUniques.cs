@@ -71,8 +71,8 @@ public class UT_ExpeditionUniques
 
                 Assert.That(cap, Is.GreaterThan(0), $"{definition.Name}: {line.Property} has no cap");
                 Assert.That(line.Value, Is.LessThanOrEqualTo(cap), $"{definition.Name}: {line.Property} {line.Value} over the level {capLevel} cap {cap}");
-                // Mid-tier lines are about half the others' (owner 2026-10-25).
-                int floor = definition.Tier == eUniqueTier.Mid ? cap / 4 : cap / 2;
+                // Mid lines were halved (owner 2026-10-25) and late lines cut to about a third (owner 2026-10-28).
+                int floor = definition.Tier == eUniqueTier.Early ? cap / 2 : cap / 4;
 
                 Assert.That(line.Value, Is.GreaterThanOrEqualTo(floor), $"{definition.Name}: {line.Property} {line.Value} is weak for its tier (cap {cap})");
             }
