@@ -177,6 +177,63 @@ public static class GauntletTestKit
         return weapons;
     }
 
+    /// <summary>
+    /// /gauntlet testwinner (GMs only, owner 2026-10-28): marks a character with no active run as having won its
+    /// expedition, so it enters the Gauntlet as a player would: no boons, Gauntlet progress from round 1, Hardcore off. Its
+    /// EndedUtc stays empty so the launcher's Hall of Fame never lists it (MainForm.ReadLocalExpeditionWins). Returns the message.
+    /// </summary>
+    public static string MarkWinner(GamePlayer target)
+    {
+        if (target == null || string.IsNullOrEmpty(target.ObjectId))
+        {
+            return "No character.";
+        }
+
+        if (ExpeditionManager.GetRun(target) != null)
+        {
+            return $"{target.Name} is on an expedition. End it first (/run abandon), then mark them again.";
+        }
+
+        try
+        {
+            OfflineExpeditionRecord record = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(target.ObjectId);
+            bool isNew = record == null;
+            record ??= new OfflineExpeditionRecord { CharacterId = target.ObjectId };
+            record.CharacterName = target.Name;
+            record.AccountName = target.Client?.Account?.Name ?? string.Empty;
+            record.Status = ExpeditionManager.StatusWon;
+            record.SummaryShown = true;
+            record.Seed = Random.Shared.Next();
+            record.Act = ActGenerator.ActCount;
+            record.StartedUtc = DateTime.UtcNow.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            record.EndedUtc = string.Empty;
+            record.ActJson = string.Empty;
+            record.LogJson = "[]";
+            record.BoonsJson = "[]";
+            record.PendingBoonOfferJson = "[]";
+            record.GauntletJson = string.Empty;
+
+            if (isNew)
+            {
+                GameServer.Database.AddObject(record);
+            }
+            else
+            {
+                GameServer.Database.SaveObject(record);
+            }
+
+            target.HCFlag = false;
+            target.SaveIntoDatabase();
+        }
+        catch (Exception ex)
+        {
+            return $"{target.Name} could not be marked: {ex.Message}";
+        }
+
+        return $"{target.Name} is now a test winner: /gauntlet start works for them without GM, with no boons, from round 1. "
+            + "Test winners are never listed in the Hall of Fame.";
+    }
+
     private static DbItemTemplate TemplatePiece(GamePlayer player, eUniqueSlot slot, string name, List<(eProperty Property, int Value)> lines)
     {
         GeneratedUniqueItem item = new(player.Realm, (eCharacterClass) player.CharacterClass.ID, Level, eObjectType.Magical, ExpeditionUniques.InventorySlotFor(slot));

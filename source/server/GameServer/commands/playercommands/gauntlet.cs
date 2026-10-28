@@ -11,7 +11,8 @@ namespace DOL.GS.Commands;
     "/gauntlet start",
     "/gauntlet leave",
     "/gauntlet status",
-    "/gauntlet kit (GM: test gear for a fully templated level 50)")]
+    "/gauntlet kit (GM: test gear for a fully templated level 50)",
+    "/gauntlet testwinner (GM: mark your target, or yourself, as an expedition winner for testing)")]
 public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
 {
     public void OnCommand(GameClient client, string[] args)
@@ -53,6 +54,21 @@ public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
             case "status":
             {
                 client.Out.SendCustomTextWindow("The Gauntlet", GauntletManager.StatusLines(player));
+
+                break;
+            }
+            case "testwinner":
+            {
+                // GMs only (owner 2026-10-28: testing the Gauntlet as an ordinary player).
+                if (client.Account.PrivLevel <= (uint) ePrivLevel.Player)
+                {
+                    DisplaySyntax(client);
+
+                    break;
+                }
+
+                GamePlayer target = player.TargetObject as GamePlayer ?? player;
+                client.Out.SendMessage(GauntletTestKit.MarkWinner(target), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 break;
             }
