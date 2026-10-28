@@ -545,6 +545,9 @@ public static class ExpeditionUniques
     private static readonly eProperty[] MeleeToa = [eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed];
     private static readonly eProperty[] CasterToa = [eProperty.SpellDamage, eProperty.CastingSpeed, eProperty.SpellDuration];
 
+    /// <summary>A unique bow's ToA bonuses (owner 2026-10-27: a bow had melee ones), each capped at 10% from items.</summary>
+    private static readonly eProperty[] ArcheryToa = [eProperty.RangedDamage, eProperty.ArcherySpeed, eProperty.ArcheryRange];
+
     /// <summary>
     /// Valewalkers and Vampiirs cast and fight in melee (owner 2026-10-25: a Valewalker's uniques only gave cast speed
     /// and spell damage): melee and caster bonuses take turns, so a unique with two or more has one of each.
@@ -598,10 +601,16 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// The ToA bonuses for the finder's class: Valewalkers and Vampiirs both kinds, other list casters (wizards,
-    /// animists, bainshees...) the caster ones, every other class the melee ones.
+    /// animists, bainshees...) the caster ones, every other class the melee ones. A bow carries the archery ones
+    /// whoever holds it.
     /// </summary>
-    public static eProperty[] ToaPoolFor(GamePlayer player)
+    public static eProperty[] ToaPoolFor(GamePlayer player, DbItemTemplate item = null)
     {
+        if (item != null && IsBow((eObjectType) item.Object_Type))
+        {
+            return ArcheryToa;
+        }
+
         int classId = player?.CharacterClass?.ID ?? 0;
 
         if (classId is (int) eCharacterClass.Valewalker or (int) eCharacterClass.Vampiir)
@@ -692,7 +701,7 @@ public static class ExpeditionUniques
             // The ToA lines change the item's bonuses: a worn item is taken off and put back on around the change.
             DbItemTemplate preview = new();
             CopyBonusLines(item.Template, preview);
-            bool bonusChanged = ApplyToaLines(preview, definition, ToaPoolFor(player));
+            bool bonusChanged = ApplyToaLines(preview, definition, ToaPoolFor(player, item.Template));
 
             // The catalog's own lines too (owner 2026-10-25: mid-tier uniques halved).
             for (int i = 0; i < definition.Lines.Length && i < 8; i++)
@@ -722,7 +731,7 @@ public static class ExpeditionUniques
                     ExpeditionLoot.SetBonus(item.Template, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
                 }
 
-                ApplyToaLines(item.Template, definition, ToaPoolFor(player));
+                ApplyToaLines(item.Template, definition, ToaPoolFor(player, item.Template));
             }
 
             if (lookModel > 0)
@@ -1154,7 +1163,7 @@ public static class ExpeditionUniques
             ExpeditionLoot.SetBonus(item, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
         }
 
-        ApplyToaLines(item, definition, ToaPoolFor(player));
+        ApplyToaLines(item, definition, ToaPoolFor(player, item));
 
         if (definition.Proc != eUniqueProc.None)
         {
@@ -1249,7 +1258,12 @@ public static class ExpeditionUniques
     /// </summary>
     public static bool IsUniqueWeaponType(eObjectType type)
     {
-        return IsMeleeWeapon(type) || type is eObjectType.Longbow or eObjectType.CompositeBow or eObjectType.RecurvedBow;
+        return IsMeleeWeapon(type) || IsBow(type);
+    }
+
+    public static bool IsBow(eObjectType type)
+    {
+        return type is eObjectType.Longbow or eObjectType.CompositeBow or eObjectType.RecurvedBow;
     }
 
     public static bool IsMeleeWeapon(eObjectType type)

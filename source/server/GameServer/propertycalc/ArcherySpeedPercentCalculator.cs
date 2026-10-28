@@ -40,8 +40,9 @@ namespace DOL.GS.PropertyCalc
 			                 - living.DebuffCategory[property] 
 			                 + living.OtherBonus[property] 
 			                 + living.AbilityBonus[property] ;
-			//hardcap at 10%
-			//return Math.Min(10, living.ItemBonus[property] - living.DebuffCategory[property]);
+
+			// Fork (owner 2026-10-27): items count, capped at 10% as for melee speed (unique bows carry it).
+			archerySpeed += Math.Min(10, living.ItemBonus[property]);
 
 			return archerySpeed;
 		}

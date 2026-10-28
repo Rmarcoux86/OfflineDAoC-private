@@ -224,6 +224,16 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Crossbow), Is.False);
         Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Thrown), Is.False);
         Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Shield), Is.False);
+
+        // A bow carries the archery ToA bonuses, whoever finds it; other weapons follow the class.
+        foreach (eObjectType bow in new[] { eObjectType.Longbow, eObjectType.CompositeBow, eObjectType.RecurvedBow })
+        {
+            Assert.That(ExpeditionUniques.ToaPoolFor(null, new DOL.Database.DbItemTemplate { Object_Type = (int) bow }),
+                Is.EquivalentTo(new[] { eProperty.RangedDamage, eProperty.ArcherySpeed, eProperty.ArcheryRange }), bow.ToString());
+        }
+
+        Assert.That(ExpeditionUniques.ToaPoolFor(null, new DOL.Database.DbItemTemplate { Object_Type = (int) eObjectType.Spear }),
+            Does.Contain(eProperty.MeleeDamage));
     }
 
     [Test]
