@@ -361,6 +361,13 @@ namespace DOL.GS
         {
         }
 
+        /// <summary>The Savagery buffs a Savage casts (not the style procs): 30 seconds in this fork.</summary>
+        private static readonly HashSet<eSpellType> SavageBuffTypes =
+        [
+            eSpellType.SavageCombatSpeedBuff, eSpellType.SavageDPSBuff, eSpellType.SavageEvadeBuff, eSpellType.SavageParryBuff,
+            eSpellType.SavageCrushResistanceBuff, eSpellType.SavageSlashResistanceBuff, eSpellType.SavageThrustResistanceBuff
+        ];
+
         public Spell(DbSpell dbspell, int requiredLevel, bool minotaur)
 			: base(dbspell.Name, dbspell.SpellID, (ushort) dbspell.Icon, requiredLevel, dbspell.TooltipId)
 		{
@@ -374,6 +381,13 @@ namespace DOL.GS
 			m_damageType = (eDamageType) dbspell.DamageType;
 			m_concentration = (byte) dbspell.Concentration;
 			m_duration = dbspell.Duration * 1000;
+
+			// Fork (owner 2026-10-28): the Savage's Savagery buffs last 30 seconds instead of 15.
+			if (SavageBuffTypes.Contains(m_spelltype) && dbspell.Duration == 15)
+			{
+				m_duration = 30 * 1000;
+			}
+
 			m_frequency = dbspell.Frequency * 100;
 			m_pulse = dbspell.Pulse;
 			m_pulse_power = dbspell.PulsePower;
