@@ -84,7 +84,7 @@ public class UT_ExpeditionBoons
         {
             for (int act = 1; act <= 4; act++)
             {
-                foreach (string id in ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>()))
+                foreach (string id in ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>(), hasPet: true))
                 {
                     seen[id]++;
                 }
@@ -255,6 +255,24 @@ public class UT_ExpeditionBoons
                 Assert.That(offer.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"seed {seed}, act {act}");
             }
         }
+    }
+
+    [Test]
+    public void RollOffer_NoPet_NeverOffersPetOnlyBoons()
+    {
+        for (int seed = 1; seed <= 300; seed++)
+        {
+            for (int act = 1; act <= 4; act++)
+            {
+                List<string> offer = ExpeditionBoons.RollOffer(seed, act, new List<string>());
+
+                Assert.That(offer.Any(ExpeditionBoons.PetOnly.Contains), Is.False, $"seed {seed}, act {act}");
+                Assert.That(offer.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"seed {seed}, act {act}");
+            }
+        }
+
+        Assert.That(ExpeditionBoons.PetOnly, Does.Contain(ExpeditionBoons.BeastBond));
+        Assert.That(ExpeditionBoons.PetClasses, Does.Contain(eCharacterClass.Hunter).And.Contain(eCharacterClass.Druid).And.Not.Contain(eCharacterClass.Armsman));
     }
 
     [Test]

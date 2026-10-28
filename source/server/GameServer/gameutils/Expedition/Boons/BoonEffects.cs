@@ -25,7 +25,8 @@ public static partial class BoonEffects
     /// <summary>Boons that act on hits (the global AttackedByEnemy handler).</summary>
     private static readonly HashSet<string> HitBoons = new()
     {
-        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.Siphon
+        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.Siphon,
+        ExpeditionBoons.HuntersInstinct, ExpeditionBoons.BeastBond
     };
 
     /// <summary>Boons that watch the player's health on a timer.</summary>
@@ -39,7 +40,8 @@ public static partial class BoonEffects
     /// The AbilityBonus amounts per boon. Of_Toughness is a percent of base max health (MaxHealthCalculator);
     /// PhysicalAbsorption and MagicAbsorption are percent damage absorbed, negative meaning more damage taken
     /// (AttackComponent.CalculateTargetAbsorbFactor, SpellHandler's absorption step); CriticalMeleeHitChance is
-    /// percent, capped at 50 (CriticalMeleeHitChanceCalculator).
+    /// percent, capped at 50 (CriticalMeleeHitChanceCalculator); MeleeSpeed is percent faster (MeleeSpeedPercentCalculator);
+    /// the resists are secondary resists (ResistCalculator), and Second Skin's cap bonus is read by the same calculator.
     /// </summary>
     private static readonly Dictionary<string, (eProperty Property, int Amount)[]> PropertyBonuses = new()
     {
@@ -47,8 +49,24 @@ public static partial class BoonEffects
         [ExpeditionBoons.Warding] = new[] { (eProperty.MagicAbsorption, 15) },
         [ExpeditionBoons.Bloodlust] = new[] { (eProperty.CriticalMeleeHitChance, 15) },
         [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) },
-        [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) }
+        [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) },
+        [ExpeditionBoons.Berserker] = new[] { (eProperty.MeleeDamage, 30), (eProperty.MeleeSpeed, 15) },
+        [ExpeditionBoons.SecondSkin] = new[]
+        {
+            (eProperty.Resist_Crush, SecondSkinResistPercent), (eProperty.Resist_Slash, SecondSkinResistPercent), (eProperty.Resist_Thrust, SecondSkinResistPercent),
+            (eProperty.Resist_Body, SecondSkinResistPercent), (eProperty.Resist_Cold, SecondSkinResistPercent), (eProperty.Resist_Energy, SecondSkinResistPercent),
+            (eProperty.Resist_Heat, SecondSkinResistPercent), (eProperty.Resist_Matter, SecondSkinResistPercent), (eProperty.Resist_Spirit, SecondSkinResistPercent)
+        }
     };
+
+    private const int SecondSkinResistPercent = 10;
+    private const int SecondSkinResistCapBonus = 5;
+
+    /// <summary>Second Skin: how much higher the player's resist cap from items is (0 without the boon). Called by ResistCalculator.</summary>
+    public static int ResistCapBonus(GameLiving living)
+    {
+        return living is GamePlayer player && HasBoon(player, ExpeditionBoons.SecondSkin) ? SecondSkinResistCapBonus : 0;
+    }
 
     private sealed class AppliedBoons
     {
@@ -209,6 +227,7 @@ public static partial class BoonEffects
         }
 
         player.Out.SendCharStatsUpdate();
+        player.Out.SendCharResistsUpdate();
         player.Out.SendUpdateWeaponAndArmorStats();
         player.UpdatePlayerStatus();
     }
@@ -300,6 +319,10 @@ public static partial class BoonEffects
             if (ad.Attacker is GamePlayer striker && ad.Target != striker)
             {
                 OnPlayerLandsHit(striker, ad);
+            }
+            else if (PetOwner(ad.Attacker) is GamePlayer owner)
+            {
+                OnPetLandsHit(owner, ad);
             }
         }
         catch (Exception)

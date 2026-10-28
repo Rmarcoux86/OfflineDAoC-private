@@ -119,7 +119,9 @@ namespace DOL.GS.PropertyCalc
                 result += (conFromItems + conFromRa) * 3;
                 result *= 1 + multiplicativeAbilityBonus * 0.01;
                 result += itemBonus + flatAbilityBonus;
-                return (int) result;
+
+                // Fork (owner 2026-10-27): the Expedition boon Beast Bond.
+                return (int) (result * Expedition.BoonEffects.PetHealthFactor(necromancerPet));
             }
             else if (living is GameSummonedPet pet)
                 return CalculateNpcMaxHealth(pet, 17, 0.535, pet.GetBaseStat(eStat.CON), 25, 3, pet.BaseBuffBonusCategory[property]);
@@ -144,7 +146,9 @@ namespace DOL.GS.PropertyCalc
             {
                 double hpFromConstitution = (constitution - constitutionOffset) * hpPerConstitution;
                 double hpFromLevel = hpPerLevelPlusOne * (npc.Level + 1) + hpPerSquaredLevel * npc.Level * npc.Level;
-                return (int) ((hpFromConstitution + hpFromLevel + hpBonus) * npc.MaxHealthScalingFactor);
+
+                // Fork (owner 2026-10-27): the Expedition boon Beast Bond, for a player's pet.
+                return (int) ((hpFromConstitution + hpFromLevel + hpBonus) * npc.MaxHealthScalingFactor * Expedition.BoonEffects.PetHealthFactor(npc));
             }
         }
 

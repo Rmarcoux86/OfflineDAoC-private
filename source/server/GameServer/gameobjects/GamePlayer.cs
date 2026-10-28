@@ -2472,6 +2472,12 @@ namespace DOL.GS
         /// <summary>
         /// Gets/sets the object health
         /// </summary>
+        /// <summary>Fork (owner 2026-10-27): the Expedition boon Berserker caps how high the player can be healed.</summary>
+        public override int ChangeHealth(GameObject changeSource, eHealthChangeType healthChangeType, int changeAmount)
+        {
+            return base.ChangeHealth(changeSource, healthChangeType, Expedition.BoonEffects.CapHealthGain(this, changeAmount));
+        }
+
         public override int Health
         {
             get => DBCharacter != null ? DBCharacter.Health : base.Health;

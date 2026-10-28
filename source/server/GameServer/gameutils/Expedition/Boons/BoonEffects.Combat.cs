@@ -24,6 +24,11 @@ public static partial class BoonEffects
     private const int DesperationBelowPercent = 50;
     private const int DesperationDamagePercent = 30;
     private const int SiphonPercent = 3;
+    private const int HuntersInstinctBelowPercent = 50;
+    private const int HuntersInstinctDamagePercent = 15;
+    private const int BerserkerHealCapPercent = 70;
+    private const double BeastBondHealthFactor = 1.2;
+    private const int BeastBondDamagePercent = 15;
 
     #region Hits the player lands
 
@@ -61,6 +66,15 @@ public static partial class BoonEffects
         {
             ad.Damage = ad.Damage * (100 + MarkedPreyPercent) / 100;
             ad.CriticalDamage = ad.CriticalDamage * (100 + MarkedPreyPercent) / 100;
+            dealt = ad.Damage + ad.CriticalDamage;
+        }
+
+        // Hunter's Instinct: a monster already below half health takes more from every hit.
+        if (boons.Contains(ExpeditionBoons.HuntersInstinct) && target is GameNPC hunted && IsMonster(hunted) && hunted.IsAlive
+            && hunted.HealthPercent < HuntersInstinctBelowPercent && dealt > 0)
+        {
+            ad.Damage = ad.Damage * (100 + HuntersInstinctDamagePercent) / 100;
+            ad.CriticalDamage = ad.CriticalDamage * (100 + HuntersInstinctDamagePercent) / 100;
             dealt = ad.Damage + ad.CriticalDamage;
         }
 
@@ -232,6 +246,46 @@ public static partial class BoonEffects
     private static bool IsMonster(GameNPC npc)
     {
         return npc != null && npc is not GameBot && npc.Brain is not IControlledBrain && npc.Realm == eRealm.None;
+    }
+
+    /// <summary>
+    /// Berserker: the player cannot be healed above 70% health. Any health gain (spell, potion, regeneration, a boon)
+    /// is cut to what reaches that line; losses pass through. Called by GamePlayer.ChangeHealth.
+    /// </summary>
+    public static int CapHealthGain(GamePlayer player, int changeAmount)
+    {
+        if (changeAmount <= 0 || player == null || !HasBoon(player, ExpeditionBoons.Berserker))
+        {
+            return changeAmount;
+        }
+
+        int cap = player.MaxHealth * BerserkerHealCapPercent / 100;
+
+        return Math.Max(0, Math.Min(changeAmount, cap - player.Health));
+    }
+
+    /// <summary>The player whose pet this is, when it is a player's pet (a controlled brain with a player owner).</summary>
+    private static GamePlayer PetOwner(GameLiving living)
+    {
+        return living is GameNPC { Brain: IControlledBrain brain } ? brain.GetPlayerOwner() : null;
+    }
+
+    /// <summary>Beast Bond: the max health factor of a player's pet (1 without the boon). Called by MaxHealthCalculator.</summary>
+    public static double PetHealthFactor(GameLiving pet)
+    {
+        GamePlayer owner = PetOwner(pet);
+
+        return owner != null && HasBoon(owner, ExpeditionBoons.BeastBond) ? BeastBondHealthFactor : 1.0;
+    }
+
+    /// <summary>Beast Bond: a hit the player's pet lands on a monster, before its damage is applied.</summary>
+    private static void OnPetLandsHit(GamePlayer owner, AttackData ad)
+    {
+        if (ad.Target is GameNPC monster && IsMonster(monster) && HasBoon(owner, ExpeditionBoons.BeastBond))
+        {
+            ad.Damage = ad.Damage * (100 + BeastBondDamagePercent) / 100;
+            ad.CriticalDamage = ad.CriticalDamage * (100 + BeastBondDamagePercent) / 100;
+        }
     }
 
     /// <summary>Evasion: the evade chance (0-1) a player with the boon adds against a melee attack. Called by GameLiving.TryEvade.</summary>

@@ -113,7 +113,8 @@ namespace DOL.GS.PropertyCalc
             if (living == null)
                 return 0;
 
-            return Math.Min(living.ItemBonus[eProperty.ResCapBonus_First - eProperty.Resist_First + property], 5);
+            // Fork (owner 2026-10-27): the Expedition boon Second Skin raises the cap further.
+            return Math.Min(living.ItemBonus[eProperty.ResCapBonus_First - eProperty.Resist_First + property], 5) + Expedition.BoonEffects.ResistCapBonus(living);
         }
 
         /// <summary>
