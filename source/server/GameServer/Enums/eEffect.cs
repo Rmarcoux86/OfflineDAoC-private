@@ -159,6 +159,8 @@ namespace DOL.GS
         // Generic parry chance buff (e.g. the Sluaghbinder's Barrow Deflection).
         ParryBuff,
         // Water breathing and swim speed (Nereid potions, the fork's Nereid's Blessing).
-        WaterBreathing
+        WaterBreathing,
+        // An Expedition boon's buff bar icon (display only; BoonIconEffect).
+        ExpeditionBoon
     }
 }

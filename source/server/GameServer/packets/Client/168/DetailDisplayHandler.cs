@@ -545,6 +545,15 @@ namespace DOL.GS.PacketHandler.Client.v168
 						if (foundEffect == null)
 							break;
 
+						// Fork (owner 2026-10-27): an Expedition boon's buff bar icon shows the boon.
+						if (foundEffect is global::DOL.GS.Expedition.BoonIconEffect boonIcon)
+						{
+							caption = boonIcon.Name;
+							objectInfo.AddRange(boonIcon.DelveInfo);
+
+							break;
+						}
+
 						// [Takii] This part needs a refactor since it assumes all effects come from spells.
 						if (spellEffect is null)
 							break;							

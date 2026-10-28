@@ -174,6 +174,15 @@ public class UT_ExpeditionBoons
     }
 
     [Test]
+    public void EveryBoonHasItsOwnBuffBarIcon()
+    {
+        var icons = ExpeditionBoons.Catalog.Select(boon => BoonIconEffect.IconFor(boon.Id)).ToList();
+
+        Assert.That(icons, Is.All.GreaterThan(0));
+        Assert.That(icons.Distinct().Count(), Is.EqualTo(icons.Count), "each boon has a different icon");
+    }
+
+    [Test]
     public void Gauntlet_LeavesOutPhoenixFeatherAndTheLootBoons()
     {
         Assert.That(BoonEffects.NotInGauntlet, Does.Contain(ExpeditionBoons.PhoenixFeather));

@@ -21,6 +21,7 @@ public static partial class BoonEffects
     private const int RejuvenationPercent = 2;
     private const int VampiricChancePercent = 25;
     private const int PulseIntervalMilliseconds = 500;
+    private const int IconIntervalMilliseconds = 2000;
 
     /// <summary>Boons that act on hits (the global AttackedByEnemy handler).</summary>
     private static readonly HashSet<string> HitBoons = new()
@@ -77,6 +78,10 @@ public static partial class BoonEffects
         public ECSGameTimer PulseTimer;
         public int PhoenixUsedAct;
         public bool DesperationOn;
+
+        // The buff bar icons (BoonIconEffect) by boon id, and the timer that puts back one that death or a cancel ended.
+        public readonly Dictionary<string, BoonIconEffect> Icons = new();
+        public ECSGameTimer IconTimer;
     }
 
     /// <summary>
@@ -174,7 +179,14 @@ public static partial class BoonEffects
                     state.PulseTimer = new ECSGameTimer(player, timer => PulseTick(player, state), PulseIntervalMilliseconds);
                 }
             }
+
+            if (state.Ids.Count > 0 && state.IconTimer == null)
+            {
+                state.IconTimer = new ECSGameTimer(player, timer => IconTick(player, state), IconIntervalMilliseconds);
+            }
         }
+
+        EnsureIcons(player, state);
 
         if (statsChanged)
         {
@@ -201,6 +213,7 @@ public static partial class BoonEffects
         }
 
         bool statsChanged = false;
+        List<BoonIconEffect> icons;
 
         lock (state)
         {
@@ -222,6 +235,10 @@ public static partial class BoonEffects
             state.RejuvenationTimer = null;
             state.PulseTimer?.Stop();
             state.PulseTimer = null;
+            state.IconTimer?.Stop();
+            state.IconTimer = null;
+            icons = state.Icons.Values.ToList();
+            state.Icons.Clear();
 
             if (state.DesperationOn)
             {
@@ -232,9 +249,85 @@ public static partial class BoonEffects
 
         player.TempProperties.RemoveProperty(StateKey);
 
+        // Ended outside the state lock: ending takes the effect list's lock.
+        foreach (BoonIconEffect icon in icons)
+        {
+            icon.End();
+        }
+
         if (statsChanged && sendUpdates)
         {
             SendUpdates(player);
+        }
+    }
+
+    /// <summary>Every 2 seconds: puts back a boon icon that death or a cancel ended. Stops with the boons.</summary>
+    private static int IconTick(GamePlayer player, AppliedBoons state)
+    {
+        lock (state)
+        {
+            if (state.IconTimer == null || state.Ids.Count == 0)
+            {
+                state.IconTimer = null;
+
+                return 0;
+            }
+        }
+
+        EnsureIcons(player, state);
+
+        return IconIntervalMilliseconds;
+    }
+
+    /// <summary>Starts the buff bar icon of every applied boon that has none running (a living player in the world).</summary>
+    private static void EnsureIcons(GamePlayer player, AppliedBoons state)
+    {
+        if (player == null || !player.IsAlive || player.ObjectState != GameObject.eObjectState.Active)
+        {
+            return;
+        }
+
+        List<BoonDefinition> missing = new();
+
+        lock (state)
+        {
+            foreach (string id in state.Ids)
+            {
+                if (state.Icons.TryGetValue(id, out BoonIconEffect icon) && (icon.IsActive || icon.IsStarting))
+                {
+                    continue;
+                }
+
+                if (ExpeditionBoons.Find(id) is BoonDefinition boon)
+                {
+                    missing.Add(boon);
+                }
+            }
+        }
+
+        // Started outside the state lock: starting takes the effect list's lock.
+        foreach (BoonDefinition boon in missing)
+        {
+            BoonIconEffect icon = ECSGameEffectFactory.Create(new ECSGameEffectInitParams(player, 0, 1), boon,
+                static (in ECSGameEffectInitParams init, BoonDefinition definition) => new BoonIconEffect(init, definition));
+
+            bool kept;
+
+            lock (state)
+            {
+                kept = state.Ids.Contains(boon.Id);
+
+                if (kept)
+                {
+                    state.Icons[boon.Id] = icon;
+                }
+            }
+
+            // The boons came off while it started.
+            if (!kept)
+            {
+                icon.End();
+            }
         }
     }
 
