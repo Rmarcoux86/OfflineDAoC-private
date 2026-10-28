@@ -211,6 +211,16 @@ internal sealed partial class MainForm : Form
         rootLayout.Controls.Add(BuildTabsAndHallOfFame(), 0, 2);
         rootLayout.Controls.Add(BuildFooter(), 0, 3);
 
+        // Without the player bots the status cards and the footer (exchange count, refresh timer, Delete All Bots) are
+        // not needed; the tabs and the Hall of Fame take their space.
+        if (!ShowBotFeatures)
+        {
+            rootLayout.GetControlFromPosition(0, 1)!.Visible = false;
+            rootLayout.GetControlFromPosition(0, 3)!.Visible = false;
+            rootLayout.RowStyles[1].Height = 0;
+            rootLayout.RowStyles[3].Height = 0;
+        }
+
         _realmFilter.Items.AddRange(["All realms", "Albion", "Midgard", "Hibernia"]);
         _realmFilter.SelectedIndex = 0;
         _realmFilter.SelectedIndexChanged += (_, _) => ApplyFilter();
