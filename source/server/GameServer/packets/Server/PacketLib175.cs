@@ -364,9 +364,11 @@ namespace DOL.GS.PacketHandler
 			int[] caps = new int[updateResists.Length];
 			int cap = m_gameClient?.Player != null ? (m_gameClient.Player.Level >> 1) + 1 : 1;
 
+			// Fork (owner 2026-10-28): the cap shown includes cap increases (Mythirians, the Expedition boon Second Skin),
+			// as ResistCalculator applies them.
 			for (int i = 0; i < updateResists.Length; i++)
 			{
-				caps[i] = cap;
+				caps[i] = cap + PropertyCalc.ResistCalculator.GetItemBonusCapIncrease(m_gameClient.Player, (eProperty) updateResists[i]);
 			}
 
 			using (var pak = PooledObjectFactory.GetForTick<GSTCPPacketOut>().Init(GetPacketCode(eServerPackets.StatsUpdate)))

@@ -14,7 +14,6 @@ public sealed class BoonIconEffect : ECSGameAbilityEffect
     {
         [ExpeditionBoons.Fortune] = 8093,
         [ExpeditionBoons.Ironhide] = 533,
-        [ExpeditionBoons.Warding] = 1093,
         [ExpeditionBoons.Bloodlust] = 3607,
         [ExpeditionBoons.Thornmail] = 57,
         [ExpeditionBoons.Vampiric] = 662,

@@ -156,7 +156,7 @@ public class UT_ExpeditionBoons
     [Test]
     public void RetiredBoons_AreNeverOffered()
     {
-        foreach (string id in new[] { ExpeditionBoons.Greed, ExpeditionBoons.Prospector, ExpeditionBoons.Scavenger, ExpeditionBoons.Frostbite })
+        foreach (string id in new[] { ExpeditionBoons.Greed, ExpeditionBoons.Prospector, ExpeditionBoons.Scavenger, ExpeditionBoons.Frostbite, ExpeditionBoons.Warding })
         {
             Assert.That(ExpeditionBoons.Retired, Does.Contain(id));
             Assert.That(ExpeditionBoons.Find(id), Is.Null);
@@ -229,7 +229,7 @@ public class UT_ExpeditionBoons
 
         run.Boons.Add(ExpeditionBoons.Ironhide);
         run.Boons.Add(ExpeditionBoons.Fortune);
-        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
+        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Evasion, ExpeditionBoons.Bloodlust };
 
         List<string> lines = ExpeditionBoons.DescribeBoons(run).ToList();
         string taken = lines.Single(line => line.StartsWith("Boons:", StringComparison.Ordinal));
@@ -238,7 +238,7 @@ public class UT_ExpeditionBoons
         Assert.That(taken, Does.Contain("Ironhide"));
         Assert.That(taken, Does.Contain("Fortune"));
         Assert.That(offer, Does.Contain("Glory"));
-        Assert.That(offer, Does.Contain("Warding"));
+        Assert.That(offer, Does.Contain("Evasion"));
         Assert.That(offer, Does.Contain("Bloodlust"));
     }
 
@@ -246,12 +246,12 @@ public class UT_ExpeditionBoons
     public void OfferLines_NumberTheOffer()
     {
         ExpeditionRun run = new() { Seed = 1, Act = 2 };
-        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
+        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Evasion, ExpeditionBoons.Bloodlust };
 
         List<string> lines = ExpeditionBoons.OfferLines(run);
 
         Assert.That(lines.Any(line => line.StartsWith("1. Glory", StringComparison.Ordinal)), Is.True);
-        Assert.That(lines.Any(line => line.StartsWith("2. Warding", StringComparison.Ordinal)), Is.True);
+        Assert.That(lines.Any(line => line.StartsWith("2. Evasion", StringComparison.Ordinal)), Is.True);
         Assert.That(lines.Any(line => line.StartsWith("3. Bloodlust", StringComparison.Ordinal)), Is.True);
 
         run.PendingBoonOffer = new List<string>();

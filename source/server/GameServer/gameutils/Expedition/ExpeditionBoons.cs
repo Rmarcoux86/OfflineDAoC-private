@@ -65,7 +65,6 @@ public static class ExpeditionBoons
     {
         new(Fortune, "Fortune", "Every Expedition drop is one rarity better, up to Epic.", true),
         new(Ironhide, "Ironhide", "+10% maximum health and 10% less physical damage taken.", false),
-        new(Warding, "Warding", "15% less damage taken from spells.", false),
         new(Bloodlust, "Bloodlust", "+15% melee critical hit chance (the 50% cap still applies).", false),
         new(Thornmail, "Thornmail", "Monsters that hit you in melee take heat damage (3 + your level) on every hit.", false),
         new(Vampiric, "Vampiric", "Each hit you land (melee or spell) has a 25% chance to heal you for half its damage.", false),
@@ -92,10 +91,11 @@ public static class ExpeditionBoons
 
     /// <summary>
     /// Boons taken out of the catalog (owner 2026-10-25; Greed and Prospector 2026-10-27: the base drop rate is high
-    /// enough that a drop chance bonus barely shows; Scavenger and Frostbite 2026-10-27).
+    /// enough that a drop chance bonus barely shows; Scavenger and Frostbite 2026-10-27; Warding 2026-10-28: next to nothing casts
+    /// on the player in an expedition).
     /// A run that has one gets a new boon choice instead.
     /// </summary>
-    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector, Scavenger, Frostbite };
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector, Scavenger, Frostbite, Warding };
 
     /// <summary>
     /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for
