@@ -38,7 +38,9 @@ public static class ExpeditionRealm
             return;
         }
 
-        Grant(player, PointsForKill(target.Level, player.Level, ExpeditionElites.IsElite(target as GameNPC)));
+        // A repeat elite kill (its spawn slain before this act) gives normal points (owner 2026-10-28).
+        GameNPC npc = target as GameNPC;
+        Grant(player, PointsForKill(target.Level, player.Level, ExpeditionElites.IsElite(npc) && !ExpeditionElites.IsRepeat(npc)));
     }
 
     public static void OnObjectiveDone(GamePlayer player, int act)

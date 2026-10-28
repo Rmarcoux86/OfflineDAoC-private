@@ -56,6 +56,34 @@ public class UT_ExpeditionLoot
     }
 
     [Test]
+    public void EliteRoll_FirstKillAndRepeatKill_UniqueChance()
+    {
+        // An elite drop is Rare or better: 9/3/1, so 1 in 13 is Unique; a repeat kill halves that (18/6/1, 1 in 25).
+        Random rng = new(2026);
+        int firstUniques = 0;
+        int repeatUniques = 0;
+
+        for (int i = 0; i < Samples; i++)
+        {
+            if (ExpeditionLoot.RollRarity(rng, false, eLootRarity.Rare) == eLootRarity.Unique)
+            {
+                firstUniques++;
+            }
+
+            eLootRarity repeat = ExpeditionLoot.RollRarity(rng, false, eLootRarity.Rare, 1, ExpeditionElites.RepeatUniqueWeightDivisor);
+            Assert.That(repeat, Is.GreaterThanOrEqualTo(eLootRarity.Rare));
+
+            if (repeat == eLootRarity.Unique)
+            {
+                repeatUniques++;
+            }
+        }
+
+        Assert.That(firstUniques / (double) Samples, Is.EqualTo(1 / 13.0).Within(0.01));
+        Assert.That(repeatUniques / (double) Samples, Is.EqualTo(1 / 25.0).Within(0.01));
+    }
+
+    [Test]
     public void BossRoll_WithCommonFloor_StillNeverCommonOrMagic()
     {
         Random rng = new(7);

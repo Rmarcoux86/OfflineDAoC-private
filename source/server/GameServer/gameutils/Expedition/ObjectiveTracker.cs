@@ -611,7 +611,7 @@ public static class ObjectiveTracker
             // A reach point can finish the act; a detached state must not wake packs nobody would restore.
             if (!state.Detached)
             {
-                ExpeditionElites.CheckCamps(player, plan, state.WokenEliteCamps);
+                ExpeditionElites.CheckCamps(player, run, plan, state.WokenEliteCamps);
                 ExpeditionShrines.Tick(player, run, plan);
                 ExpeditionExchanger.Tick(player, run, plan);
             }

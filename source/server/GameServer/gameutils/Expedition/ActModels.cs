@@ -56,6 +56,13 @@ public sealed class EliteCamp
     public int Radius;
     public int Level;
     public string Description = string.Empty;
+
+    /// <summary>
+    /// The spawns (GameNPC.InternalID) of this camp's elites that have died this act. A later login still makes their
+    /// respawns elite (owner 2026-10-28: farming them is wanted), but as repeat kills with lesser rewards
+    /// (<see cref="ExpeditionElites.IsRepeat"/>).
+    /// </summary>
+    public List<string> Slain = new();
 }
 
 /// <summary>

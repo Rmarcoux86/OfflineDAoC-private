@@ -273,6 +273,23 @@ public class UT_ExpeditionElites
     }
 
     [Test]
+    public void JsonRoundTrip_KeepsSlainElites_AndOldCampsHaveNone()
+    {
+        ActPlan plan = ActGenerator.Generate(1, eRealm.Midgard, 3, -1, FakeOffset, ValeWithTwoPacks());
+        plan.Elites[0].Slain.Add("spawn-1");
+        plan.Elites[0].Slain.Add("spawn-2");
+
+        ActPlan copy = JsonSerializer.Deserialize<ActPlan>(Serialize(plan), ExpeditionJson.Options);
+        Assert.That(copy.Elites[0].Slain, Is.EqualTo(new[] { "spawn-1", "spawn-2" }));
+
+        // A camp saved before slain elites were kept.
+        JsonObject node = JsonNode.Parse(Serialize(plan)).AsObject();
+        node["Elites"]![0]!.AsObject().Remove("Slain");
+        ActPlan old = JsonSerializer.Deserialize<ActPlan>(node.ToJsonString(), ExpeditionJson.Options);
+        Assert.That(old.Elites[0].Slain, Is.Not.Null.And.Empty);
+    }
+
+    [Test]
     public void JsonWithoutElites_DeserializesToAnEmptyList()
     {
         // A plan saved before elite packs existed.

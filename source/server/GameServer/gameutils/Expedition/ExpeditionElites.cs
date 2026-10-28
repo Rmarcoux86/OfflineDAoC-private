@@ -70,6 +70,11 @@ public static class ExpeditionElites
     private sealed class EliteState
     {
         public string OwnerKey;
+        public ExpeditionRun Run;
+        public EliteCamp Camp;
+
+        // Its spawn was slain before this act: a repeat kill (lesser rewards).
+        public bool Repeat;
         public string Affix;
         public string OriginalName;
         public byte OriginalLevel;
@@ -87,6 +92,18 @@ public static class ExpeditionElites
     {
         return npc != null && Elites.ContainsKey(npc);
     }
+
+    /// <summary>
+    /// True for an elite whose spawn was already slain this act (owner 2026-10-28): a repeat kill keeps the Rare-or-better
+    /// drop with half the Unique weight (<see cref="RepeatUniqueWeightDivisor"/>) and gives normal realm points.
+    /// </summary>
+    public static bool IsRepeat(GameNPC npc)
+    {
+        return npc != null && Elites.TryGetValue(npc, out EliteState state) && state.Repeat;
+    }
+
+    /// <summary>A repeat elite kill's Unique weight is divided by this (the other rarities' weights are multiplied).</summary>
+    public const int RepeatUniqueWeightDivisor = 2;
 
     /// <summary>Journal lines about the act's elite packs; empty when the act has none.</summary>
     public static IReadOnlyList<string> DescribeElites(ActPlan plan)
@@ -148,7 +165,7 @@ public static class ExpeditionElites
     /// camp indexes and belongs to the tracker state. A camp whose monsters are all dead or fighting is tried again on a
     /// later tick.
     /// </summary>
-    internal static void CheckCamps(GamePlayer player, ActPlan plan, HashSet<int> wokenCamps)
+    internal static void CheckCamps(GamePlayer player, ExpeditionRun run, ActPlan plan, HashSet<int> wokenCamps)
     {
         if (player?.CurrentRegion == null || plan?.Elites == null || wokenCamps == null || string.IsNullOrEmpty(player.ObjectId))
         {
@@ -171,7 +188,7 @@ public static class ExpeditionElites
                 continue;
             }
 
-            int woken = WakeCamp(player, camp, point);
+            int woken = WakeCamp(player, run, camp, point, out int repeats);
 
             if (woken == 0)
             {
@@ -187,12 +204,26 @@ public static class ExpeditionElites
                 player.Out.SendMessage($"{camp.Affix}: {effect}", eChatType.CT_System, eChatLoc.CL_SystemWindow);
             }
 
+            if (repeats > 0)
+            {
+                string them = repeats == woken ? "The pack" : $"{repeats} of them";
+                player.Out.SendMessage($"{them} you have slain before this act: lesser spoils (normal realm points, half the Unique chance).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            }
+
             ExpeditionDebug.Report(player, $"elite camp {i} ({camp.Affix} {camp.MobName}) woke {woken} monsters.");
         }
     }
 
-    private static int WakeCamp(GamePlayer player, EliteCamp camp, Point3D point)
+    private static int WakeCamp(GamePlayer player, ExpeditionRun run, EliteCamp camp, Point3D point, out int repeats)
     {
+        repeats = 0;
+        HashSet<string> slain;
+
+        lock (camp.Slain)
+        {
+            slain = new HashSet<string>(camp.Slain, StringComparer.Ordinal);
+        }
+
         List<GameNPC> found = new();
         int radius = Math.Clamp(camp.Radius > 0 ? camp.Radius : ActGenerator.EliteCampRadius, 1, ushort.MaxValue);
         player.CurrentRegion.GetInRadius(point, eGameObjectType.NPC, (ushort)radius, found);
@@ -205,11 +236,19 @@ public static class ExpeditionElites
                 continue;
             }
 
+            // An elite already slain this act comes back (its respawn is the same spawn) as a repeat kill.
+            bool repeat = npc.InternalID != null && slain.Contains(npc.InternalID);
+
             try
             {
-                if (Apply(npc, camp.Affix, player.ObjectId))
+                if (Apply(npc, camp.Affix, player.ObjectId, run, camp, repeat))
                 {
                     woken++;
+
+                    if (repeat)
+                    {
+                        repeats++;
+                    }
                 }
             }
             catch (Exception ex)
@@ -237,11 +276,14 @@ public static class ExpeditionElites
         return string.Equals(npc.Name, mobName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool Apply(GameNPC npc, string affix, string ownerKey)
+    private static bool Apply(GameNPC npc, string affix, string ownerKey, ExpeditionRun run = null, EliteCamp camp = null, bool repeat = false)
     {
         EliteState state = new()
         {
             OwnerKey = ownerKey,
+            Run = run,
+            Camp = camp,
+            Repeat = repeat,
             Affix = affix,
             OriginalName = npc.Name,
             OriginalLevel = npc.Level,
@@ -447,6 +489,34 @@ public static class ExpeditionElites
         if (Elites.IsEmpty || sender is not GameNPC npc)
         {
             return;
+        }
+
+        // Remember the slain elite's spawn on its camp: a later login makes its respawn a repeat kill.
+        if (Elites.TryGetValue(npc, out EliteState state) && state.Camp != null && npc.InternalID != null)
+        {
+            bool added;
+
+            lock (state.Camp.Slain)
+            {
+                added = !state.Camp.Slain.Contains(npc.InternalID);
+
+                if (added)
+                {
+                    state.Camp.Slain.Add(npc.InternalID);
+                }
+            }
+
+            if (added && state.Run != null)
+            {
+                try
+                {
+                    ExpeditionManager.Save(state.Run);
+                }
+                catch (Exception ex)
+                {
+                    log.Error("[EXPEDITION] Could not save a slain elite.", ex);
+                }
+            }
         }
 
         RestoreOne(npc);

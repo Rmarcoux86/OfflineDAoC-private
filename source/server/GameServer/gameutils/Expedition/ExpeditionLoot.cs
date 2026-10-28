@@ -346,12 +346,20 @@ public static class ExpeditionLoot
     /// One drop event's rarity. Normal events use 60/27/9/3/1, boss events 0/0/50/35/15. Rarities below
     /// <paramref name="floor"/> are removed and the rest keep their relative weights.
     /// </summary>
-    public static eLootRarity RollRarity(Random rng, bool boss, eLootRarity floor = eLootRarity.Common, int uniqueWeightMultiplier = 1)
+    public static eLootRarity RollRarity(Random rng, bool boss, eLootRarity floor = eLootRarity.Common, int uniqueWeightMultiplier = 1,
+        int uniqueWeightDivisor = 1)
     {
         int[] weights = (int[]) (boss ? BossWeights : BaseWeights).Clone();
 
         // Treasure Sense (owner 2026-10-25): the Unique weight counts twice.
         weights[(int) eLootRarity.Unique] *= Math.Max(1, uniqueWeightMultiplier);
+
+        // A repeat elite kill (owner 2026-10-28): half the Unique weight, done as double every other weight.
+        for (int i = 0; i < (int) eLootRarity.Unique; i++)
+        {
+            weights[i] *= Math.Max(1, uniqueWeightDivisor);
+        }
+
         int total = 0;
 
         for (int i = (int) floor; i < weights.Length; i++)
@@ -654,7 +662,8 @@ public static class ExpeditionLoot
     public static void DropFor(GamePlayer player, GameNPC killed, eLootRarity? forced)
     {
         ExpeditionRun run = ExpeditionManager.GetRun(player);
-        eLootRarity rarity = RollRarity(Random.Shared, false, forced ?? eLootRarity.Common, ExpeditionBoons.UniqueWeightMultiplier(run));
+        int divisor = ExpeditionElites.IsRepeat(killed) ? ExpeditionElites.RepeatUniqueWeightDivisor : 1;
+        eLootRarity rarity = RollRarity(Random.Shared, false, forced ?? eLootRarity.Common, ExpeditionBoons.UniqueWeightMultiplier(run), divisor);
         rarity = ExpeditionBoons.ShiftRolledRarity(run, rarity);
 
         Deliver(player, killed, rarity);
