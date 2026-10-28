@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v89",
+    "date": "2026-10-28",
+    "items": [
+      "Elite packs remember who you have slain this act. Log out and back in and they return as elites, but repeat kills give lesser spoils: still Rare or better, with half the Unique chance, and normal realm points.",
+      "Elite realm points now follow their health: 2.2x a normal monster for an elite, 3.3x for a Stalwart one (was 4x)."
+    ]
+  },
+  {
     "tag": "fork-v88",
     "date": "2026-10-28",
     "items": [
