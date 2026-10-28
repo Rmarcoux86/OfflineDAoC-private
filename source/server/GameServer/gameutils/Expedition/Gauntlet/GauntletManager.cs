@@ -92,7 +92,34 @@ public static class GauntletManager
     {
         if (sender is GamePlayer player)
         {
-            Stop(player);
+            Stop(player, true);
+        }
+    }
+
+    /// <summary>Applies the won run's boons for the session (BoonEffects.ApplyForGauntlet). A GM's test entry has none.</summary>
+    private static void ApplyRunBoons(GamePlayer player, OfflineExpeditionRecord record)
+    {
+        if (string.IsNullOrEmpty(record?.BoonsJson))
+        {
+            return;
+        }
+
+        try
+        {
+            List<string> boons = JsonSerializer.Deserialize<List<string>>(record.BoonsJson, ExpeditionJson.Options);
+            BoonEffects.ApplyForGauntlet(player, boons);
+
+            if (boons?.Count > 0)
+            {
+                player.Out.SendMessage("Your expedition's boons are with you in the Gauntlet (all but Phoenix Feather and the loot boons).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Log.IsErrorEnabled)
+            {
+                Log.Error($"[GAUNTLET] Could not apply the boons of {player.Name}.", ex);
+            }
         }
     }
 
@@ -290,6 +317,9 @@ public static class GauntletManager
             state.Record = record;
             state.Seed = record?.Seed ?? player.ObjectId.GetHashCode();
         }
+
+        // Fork (owner 2026-10-27): the won run's boons carry into the Gauntlet (less Phoenix Feather and the loot boons).
+        ApplyRunBoons(player, record);
 
         if (!GauntletArena.IsInside(player) &&
             !player.MoveTo(GauntletArena.RegionId, GauntletArena.PlayerX, GauntletArena.PlayerY, GauntletArena.PlayerZ, GauntletArena.PlayerHeading))
@@ -657,8 +687,11 @@ public static class GauntletManager
         return true;
     }
 
-    /// <summary>Ends the player's Gauntlet session (quit, region change, leave): the champion goes, the round is saved.</summary>
-    public static void Stop(GamePlayer player)
+    /// <summary>
+    /// Ends the player's Gauntlet session (quit, region change, leave): the champion goes, the round is saved, and the run's
+    /// boons come off. <paramref name="quitting"/>: the client is leaving, so no stat updates are sent to it.
+    /// </summary>
+    public static void Stop(GamePlayer player, bool quitting = false)
     {
         if (player == null)
         {
@@ -672,6 +705,12 @@ public static class GauntletManager
                 RemoveChampion(state);
                 StopRest(state);
                 SaveState(state);
+            }
+
+            // A won run is no longer active, so its boons are only on the player for this session.
+            if (ExpeditionManager.GetRun(player) == null)
+            {
+                BoonEffects.RemoveAll(player, !quitting);
             }
         }
 

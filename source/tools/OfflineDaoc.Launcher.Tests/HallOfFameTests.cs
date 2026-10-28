@@ -168,6 +168,35 @@ public sealed class HallOfFameTests
         Assert.That(block.Groups[1].Value, Does.Not.Contain("player").And.Not.Contain("\r"));
     }
 
+    [Test]
+    public void BoonsAreSharedAndShown()
+    {
+        object entry = Items(Entries(Win("id-2:2026-10-27T18:00:00.0000000Z", "Brenna", "2026-10-27T18:00:00.0000000Z",
+            ", \"boons\": [\"Marked Prey\", \"Hunter's Instinct\"]")))[0];
+
+        Assert.That(Value(entry, "Boons"), Is.EqualTo(new[] { "Marked Prey", "Hunter's Instinct" }));
+        Assert.That(Call("BoonsLine", entry), Is.EqualTo("Boons: Marked Prey, Hunter's Instinct"));
+
+        string json = (string)Call("SubmissionJson", entry);
+        object parsed = Items(Parse("{ \"entries\": [" + json + "] }"))[0];
+        Assert.That(Value(parsed, "Boons"), Is.EqualTo(new[] { "Marked Prey", "Hunter's Instinct" }));
+
+        object none = Items(Entries(Win("id-3:2026-10-27T18:00:00.0000000Z", "Corin", "2026-10-27T18:00:00.0000000Z")))[0];
+        Assert.That(Call("BoonsLine", none), Is.Null);
+        Assert.That((string)Call("SubmissionJson", none), Does.Not.Contain("boons"));
+    }
+
+    [TestCase("""["marked_prey","phoenix","second_skin","some_new_one"]""", "Marked Prey|Phoenix Feather|Second Skin|Some New One")]
+    [TestCase("", "")]
+    [TestCase("not json", "")]
+    [TestCase("""{"a":1}""", "")]
+    public void BoonIdsBecomeNames(string boonsJson, string expected)
+    {
+        var names = (IEnumerable<string>)Call("BoonNamesFromJson", boonsJson);
+
+        Assert.That(string.Join("|", names), Is.EqualTo(expected));
+    }
+
     [TestCase("""{"Round":5,"Depth":5}""", true)]
     [TestCase("""{"round":5,"depth":7}""", true)]
     [TestCase("""{"Round":5,"Depth":4}""", false)]

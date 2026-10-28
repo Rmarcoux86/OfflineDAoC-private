@@ -174,6 +174,14 @@ public class UT_ExpeditionBoons
     }
 
     [Test]
+    public void Gauntlet_LeavesOutPhoenixFeatherAndTheLootBoons()
+    {
+        Assert.That(BoonEffects.NotInGauntlet, Does.Contain(ExpeditionBoons.PhoenixFeather));
+        Assert.That(BoonEffects.NotInGauntlet, Does.Contain(ExpeditionBoons.Fortune).And.Contain(ExpeditionBoons.BountyHunter).And.Contain(ExpeditionBoons.TreasureSense));
+        Assert.That(BoonEffects.NotInGauntlet, Does.Not.Contain(ExpeditionBoons.MarkedPrey).And.Not.Contain(ExpeditionBoons.Executioner));
+    }
+
+    [Test]
     public void OwesBoon_WhenFewerBoonsThanActsWonAndNoOfferWaiting()
     {
         var run = new ExpeditionRun { Act = 3 };

@@ -54,10 +54,11 @@ internal sealed partial class MainForm
         string realmPoints = ColumnExists(connection, "offline_expeditions", "RealmPointsEarned") ? "COALESCE(e.RealmPointsEarned, 0)" : "0";
         string playedSeconds = ColumnExists(connection, "offline_expeditions", "PlayedSecondsAtWin") ? "COALESCE(e.PlayedSecondsAtWin, 0)" : "0";
         string gauntlet = ColumnExists(connection, "offline_expeditions", "GauntletJson") ? "COALESCE(e.GauntletJson, '')" : "''";
+        string boons = ColumnExists(connection, "offline_expeditions", "BoonsJson") ? "COALESCE(e.BoonsJson, '')" : "''";
         using var command = connection.CreateCommand();
         command.CommandText = $"""
             SELECT e.CharacterId, e.CharacterName, e.Seed, e.Kills, e.BossesKilled, e.LootUnique, e.EndedUtc,
-                   {realmPoints}, {playedSeconds}, {gauntlet}, c.Class, c.Race, c.Realm, c.Level
+                   {realmPoints}, {playedSeconds}, {gauntlet}, c.Class, c.Race, c.Realm, c.Level, {boons}
             FROM offline_expeditions e
             JOIN DOLCharacters c ON c.DOLCharacters_ID = e.CharacterId
             WHERE LOWER(e.Status) = 'won' AND COALESCE(e.EndedUtc, '') <> ''
@@ -90,7 +91,8 @@ internal sealed partial class MainForm
                 Convert.ToInt64(reader.GetValue(7)),
                 HallOfFame.GauntletCleared(Convert.ToString(reader.GetValue(9))),
                 null,
-                null));
+                null,
+                HallOfFame.BoonNamesFromJson(Convert.ToString(reader.GetValue(14)))));
         }
 
         return wins;

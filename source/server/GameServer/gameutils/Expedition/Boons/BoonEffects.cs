@@ -79,6 +79,34 @@ public static partial class BoonEffects
         public bool DesperationOn;
     }
 
+    /// <summary>
+    /// Boons that do nothing in the Gauntlet (owner 2026-10-27): Phoenix Feather, and the loot boons, which have no
+    /// loot to touch there. The rest of the won run's boons are applied for the session (<see cref="ApplyForGauntlet"/>).
+    /// </summary>
+    public static readonly IReadOnlySet<string> NotInGauntlet = new HashSet<string>(StringComparer.Ordinal)
+    {
+        ExpeditionBoons.PhoenixFeather, ExpeditionBoons.Fortune, ExpeditionBoons.BountyHunter, ExpeditionBoons.TreasureSense
+    };
+
+    /// <summary>
+    /// The won run's boons for a Gauntlet session (owner 2026-10-27: they carry into the final fights as their balance),
+    /// less <see cref="NotInGauntlet"/> and retired boons. Taken off when the session stops (GauntletManager.Stop).
+    /// </summary>
+    public static void ApplyForGauntlet(GamePlayer player, IEnumerable<string> runBoons)
+    {
+        List<string> boons = runBoons?
+            .Where(id => !NotInGauntlet.Contains(id) && !ExpeditionBoons.Retired.Contains(id) && ExpeditionBoons.Find(id) != null)
+            .ToList() ?? new List<string>();
+
+        Apply(player, boons);
+    }
+
+    /// <summary>A timer boon keeps ticking while the player has an active run or a Gauntlet session.</summary>
+    private static bool HasBoonSource(GamePlayer player, ExpeditionRun run)
+    {
+        return run != null || Gauntlet.GauntletManager.GetState(player) != null;
+    }
+
     /// <summary>Applies every boon of the run not yet applied to this player object, then updates the client.</summary>
     public static void ApplyAll(GamePlayer player, ExpeditionRun run)
     {
@@ -92,6 +120,16 @@ public static partial class BoonEffects
         lock (run.Boons)
         {
             boons = run.Boons.ToList();
+        }
+
+        Apply(player, boons);
+    }
+
+    private static void Apply(GamePlayer player, List<string> boons)
+    {
+        if (player == null)
+        {
+            return;
         }
 
         if (boons.Count == 0)
@@ -255,7 +293,7 @@ public static partial class BoonEffects
 
         lock (state)
         {
-            if (run == null || state.RejuvenationTimer == null || !state.Ids.Contains(ExpeditionBoons.Rejuvenation))
+            if (!HasBoonSource(player, run) || state.RejuvenationTimer == null || !state.Ids.Contains(ExpeditionBoons.Rejuvenation))
             {
                 state.RejuvenationTimer = null;
 

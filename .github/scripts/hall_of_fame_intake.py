@@ -55,8 +55,11 @@ HALL_INTS = {
 }
 HALL_ORDER = [
     "id", "character", "className", "race", "realm", "level", "seed", "playedSeconds", "endedUtc",
-    "kills", "bossesKilled", "uniques", "realmPoints", "gauntletCleared",
+    "kills", "bossesKilled", "uniques", "realmPoints", "gauntletCleared", "boons",
 ]
+# The run's boons by name (since 2026-10-27; optional for older launchers).
+BOON_NAME = re.compile(r"^[A-Za-z][A-Za-z' -]{0,31}$")
+MAX_BOONS = 10
 # Set by this workflow; a submitted value is ignored and replaced.
 ADDED_BY_WORKFLOW = ("player", "submittedUtc")
 
@@ -129,7 +132,7 @@ def validate_hall(entry):
     errors = []
 
     for name in entry:
-        if name not in HALL_STRINGS and name not in HALL_INTS and name not in ("gauntletCleared", "spectator") and name not in ADDED_BY_WORKFLOW:
+        if name not in HALL_STRINGS and name not in HALL_INTS and name not in ("gauntletCleared", "spectator", "boons") and name not in ADDED_BY_WORKFLOW:
             errors.append(f"Unknown field {field_label(name)}.")
 
     for name, required in HALL_STRINGS.items():
@@ -154,6 +157,14 @@ def validate_hall(entry):
         errors.append('Missing "gauntletCleared".')
     elif not isinstance(entry["gauntletCleared"], bool):
         errors.append('"gauntletCleared" must be true or false.')
+
+    if "boons" in entry:
+        boons = entry["boons"]
+
+        if not isinstance(boons, list) or len(boons) > MAX_BOONS:
+            errors.append(f'"boons" must be a list of at most {MAX_BOONS} names.')
+        elif not all(isinstance(boon, str) and BOON_NAME.match(boon) for boon in boons):
+            errors.append('"boons" holds a name that is not a boon name.')
 
     if errors:
         return errors

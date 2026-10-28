@@ -43,7 +43,67 @@ internal static class HallOfFame
         long RealmPoints,
         bool GauntletCleared,
         string? Player,
-        string? SubmittedUtc);
+        string? SubmittedUtc,
+        IReadOnlyList<string>? Boons = null);
+
+    /// <summary>
+    /// The boons' display names by id (the server's ExpeditionBoons.Catalog and its retired boons). An id not listed here
+    /// is shown title-cased.
+    /// </summary>
+    private static readonly Dictionary<string, string> BoonNames = new(StringComparer.Ordinal)
+    {
+        ["fortune"] = "Fortune", ["greed"] = "Greed", ["prospector"] = "Prospector", ["ironhide"] = "Ironhide",
+        ["warding"] = "Warding", ["bloodlust"] = "Bloodlust", ["hunters_eye"] = "Hunter's Eye", ["thornmail"] = "Thornmail",
+        ["vampiric"] = "Vampiric", ["rejuvenation"] = "Rejuvenation", ["arcane_fury"] = "Arcane Fury", ["executioner"] = "Executioner",
+        ["chain_lightning"] = "Chain Lightning", ["rupture"] = "Rupture", ["phoenix"] = "Phoenix Feather", ["soul_harvest"] = "Soul Harvest",
+        ["desperation"] = "Desperation", ["glass_cannon"] = "Glass Cannon", ["unshakable"] = "Unshakable", ["frostbite"] = "Frostbite",
+        ["siphon"] = "Siphon", ["bounty_hunter"] = "Bounty Hunter", ["marked_prey"] = "Marked Prey", ["evasion"] = "Evasion",
+        ["treasure_sense"] = "Treasure Sense", ["swiftfoot"] = "Swiftfoot", ["scavenger"] = "Scavenger", ["glory"] = "Glory",
+        ["blessed_arms"] = "Blessed Arms", ["second_wind"] = "Second Wind", ["warded_hide"] = "Warded Hide", ["second_skin"] = "Second Skin",
+        ["hunters_instinct"] = "Hunter's Instinct", ["berserker"] = "Berserker", ["beast_bond"] = "Beast Bond",
+    };
+
+    /// <summary>
+    /// The boon names of a run's OfflineExpeditionRecord.BoonsJson (a JSON array of boon ids), in the order taken; empty
+    /// when there are none or the text is not such an array.
+    /// </summary>
+    internal static IReadOnlyList<string> BoonNamesFromJson(string? boonsJson)
+    {
+        var names = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(boonsJson))
+        {
+            return names;
+        }
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(boonsJson);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return names;
+            }
+
+            foreach (JsonElement item in document.RootElement.EnumerateArray())
+            {
+                string? id = item.ValueKind == JsonValueKind.String ? item.GetString() : null;
+
+                if (!string.IsNullOrWhiteSpace(id))
+                {
+                    names.Add(BoonNames.TryGetValue(id, out string? name)
+                        ? name
+                        : CultureInfo.InvariantCulture.TextInfo.ToTitleCase(id.Replace('_', ' ')));
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // An unreadable list shows no boons.
+        }
+
+        return names;
+    }
 
     internal enum RowState
     {
@@ -134,8 +194,27 @@ internal static class HallOfFame
             Number(element, "realmPoints"),
             element.TryGetProperty("gauntletCleared", out JsonElement cleared) && cleared.ValueKind == JsonValueKind.True,
             NullIfEmpty(Text(element, "player")),
-            NullIfEmpty(Text(element, "submittedUtc")));
+            NullIfEmpty(Text(element, "submittedUtc")),
+            Strings(element, "boons"));
     }
+
+    // A JSON array of strings (blank ones dropped), or null when the field is missing or not an array.
+    private static IReadOnlyList<string>? Strings(JsonElement element, string name)
+    {
+        if (!element.TryGetProperty(name, out JsonElement value) || value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return value.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+            .Select(item => item.GetString()!.Trim())
+            .ToList();
+    }
+
+    /// <summary>"Boons: Fortune, Glory" for the list, or null when the win has none (or is from before boons were shared).</summary>
+    internal static string? BoonsLine(Entry entry) =>
+        entry.Boons is { Count: > 0 } boons ? "Boons: " + string.Join(", ", boons) : null;
 
     private static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
@@ -305,6 +384,19 @@ internal static class HallOfFame
             writer.WriteNumber("uniques", entry.Uniques);
             writer.WriteNumber("realmPoints", entry.RealmPoints);
             writer.WriteBoolean("gauntletCleared", entry.GauntletCleared);
+
+            if (entry.Boons is { Count: > 0 })
+            {
+                writer.WriteStartArray("boons");
+
+                foreach (string boon in entry.Boons)
+                {
+                    writer.WriteStringValue(boon);
+                }
+
+                writer.WriteEndArray();
+            }
+
             writer.WriteEndObject();
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using DOL.GS.Expedition.Gauntlet;
 using DOL.GS.Spells;
 
 namespace DOL.GS.Expedition;
@@ -15,6 +16,9 @@ namespace DOL.GS.Expedition;
 public static partial class BoonEffects
 {
     private const int ExecutionerThresholdPercent = 15;
+
+    /// <summary>Executioner against act bosses and Gauntlet champions (owner 2026-10-27): 10%, direct hits only.</summary>
+    private const int ExecutionerBossThresholdPercent = 10;
     private const int MarkedPreyPercent = 20;
     private const double EvasionChance = 0.10;
     private const double SwiftfootFactor = 1.2;
@@ -79,8 +83,8 @@ public static partial class BoonEffects
         GameLiving target = ad.Target;
         int dealt = ad.Damage + ad.CriticalDamage;
 
-        // Marked Prey: elites and act bosses take more from every hit.
-        if (boons.Contains(ExpeditionBoons.MarkedPrey) && target is GameNPC marked && (marked is ExpeditionBoss || ExpeditionElites.IsElite(marked)) && dealt > 0)
+        // Marked Prey: elites, act bosses and Gauntlet champions take more from every hit.
+        if (boons.Contains(ExpeditionBoons.MarkedPrey) && target is GameNPC marked && (IsBossLike(marked) || ExpeditionElites.IsElite(marked)) && dealt > 0)
         {
             ad.Damage = ad.Damage * (100 + MarkedPreyPercent) / 100;
             ad.CriticalDamage = ad.CriticalDamage * (100 + MarkedPreyPercent) / 100;
@@ -88,7 +92,7 @@ public static partial class BoonEffects
         }
 
         // Hunter's Instinct: a monster already below half health takes more from every hit.
-        if (boons.Contains(ExpeditionBoons.HuntersInstinct) && target is GameNPC hunted && IsMonster(hunted) && hunted.IsAlive
+        if (boons.Contains(ExpeditionBoons.HuntersInstinct) && target is GameNPC hunted && (IsMonster(hunted) || hunted is GauntletChampion) && hunted.IsAlive
             && hunted.HealthPercent < HuntersInstinctBelowPercent && dealt > 0)
         {
             ad.Damage = ad.Damage * (100 + HuntersInstinctDamagePercent) / 100;
@@ -96,9 +100,13 @@ public static partial class BoonEffects
             dealt = ad.Damage + ad.CriticalDamage;
         }
 
-        // Executioner: a monster that is already below the threshold dies to this hit, whatever it rolled.
-        if (boons.Contains(ExpeditionBoons.Executioner) && target is GameNPC victim && victim is not ExpeditionBoss && IsMonster(victim)
-            && victim.IsAlive && victim.HealthPercent <= ExecutionerThresholdPercent && dealt < victim.Health)
+        // Executioner: a monster that is already below the threshold dies to this hit, whatever it rolled. Act bosses and
+        // Gauntlet champions have a lower threshold and only a direct hit finishes them (a DoT tick does not).
+        if (boons.Contains(ExpeditionBoons.Executioner) && target is GameNPC victim && (IsMonster(victim) || victim is GauntletChampion)
+            && victim.IsAlive && dealt < victim.Health
+            && (IsBossLike(victim)
+                ? !dotTick && victim.HealthPercent <= ExecutionerBossThresholdPercent
+                : victim.HealthPercent <= ExecutionerThresholdPercent))
         {
             ad.Damage = victim.Health;
             ad.CriticalDamage = 0;
@@ -187,7 +195,7 @@ public static partial class BoonEffects
             phoenix = state.Ids.Contains(ExpeditionBoons.PhoenixFeather);
             desperation = state.Ids.Contains(ExpeditionBoons.Desperation);
 
-            if (run == null || state.PulseTimer == null || (!phoenix && !desperation))
+            if (!HasBoonSource(player, run) || state.PulseTimer == null || (!phoenix && !desperation))
             {
                 state.PulseTimer = null;
 
@@ -200,7 +208,8 @@ public static partial class BoonEffects
             return PulseIntervalMilliseconds;
         }
 
-        int act = run.Act;
+        // Phoenix Feather is never applied in the Gauntlet (NotInGauntlet), so a missing run means no act to track.
+        int act = run?.Act ?? 0;
         int healthPercent = player.HealthPercent;
 
         if (phoenix && healthPercent < PhoenixTriggerPercent)
@@ -260,6 +269,12 @@ public static partial class BoonEffects
     }
 
     #endregion
+
+    /// <summary>An act boss or a Gauntlet champion.</summary>
+    private static bool IsBossLike(GameNPC npc)
+    {
+        return npc is ExpeditionBoss or GauntletChampion;
+    }
 
     /// <summary>A monster: not a pet, companion, bot or friendly NPC.</summary>
     private static bool IsMonster(GameNPC npc)

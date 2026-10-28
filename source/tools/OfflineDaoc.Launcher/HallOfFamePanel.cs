@@ -327,6 +327,11 @@ internal sealed class HallOfFameView : RichTextBox
 
             Append("\n" + HallOfFame.Summary(row.Entry) + "\n", body, DaocTheme.Text);
             Append(HallOfFame.Details(row) + "\n", _detailFont, row.State == HallOfFame.RowState.Shared ? DaocTheme.Muted : DaocTheme.Success);
+
+            if (HallOfFame.BoonsLine(row.Entry) is string boons)
+            {
+                Append(boons + "\n", _detailFont, DaocTheme.Muted);
+            }
         }
 
         SelectionStart = 0;
