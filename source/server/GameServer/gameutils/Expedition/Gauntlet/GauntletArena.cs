@@ -25,7 +25,8 @@ public static class GauntletArena
     public const int PlayerX = 22902 + 8192;
     public const int PlayerY = 22092 + 8192;
     public const int PlayerZ = 15733;
-    public const ushort PlayerHeading = 90 * 4096 / 360;
+    /// <remarks>Owner 2026-10-28: turned 180 degrees (was 90), so the player faces the champion's gate on arrival.</remarks>
+    public const ushort PlayerHeading = 270 * 4096 / 360;
 
     /// <summary>Where the champion appears and walks in from (the owner's champion spawn).</summary>
     public const int GateX = 24595 + 8192;
