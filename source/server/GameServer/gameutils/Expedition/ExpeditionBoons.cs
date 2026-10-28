@@ -10,7 +10,7 @@ public sealed record BoonDefinition(string Id, string Name, string Effect, bool 
 
 /// <summary>
 /// Run boons: build-defining picks offered one-of-three at each act break. The offer is drawn from the run seed and
-/// the finished act, never repeats a boon already taken, and holds a loot boon while any is left. The choice waits
+/// the finished act and never repeats a boon already taken; every boon left has the same chance. The choice waits
 /// until the player types /run boon &lt;1-3&gt;; boons last the whole run and are applied again at each login.
 /// The loot math and the offers are pure functions of boon ids so they can be tested without a server.
 /// </summary>
@@ -154,7 +154,7 @@ public static class ExpeditionBoons
 
     /// <summary>
     /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act,
-    /// taken boons and reroll. While any loot boon is left, one of them is in the offer. A reroll
+    /// taken boons and reroll. Every boon left is equally likely (owner 2026-10-27: no slot is kept for a loot boon). A reroll
     /// (<paramref name="reroll"/> above 0) draws from boons not in <paramref name="exclude"/> (the offer being
     /// rerolled) and only falls back to them when too few others are left.
     /// </summary>
@@ -168,20 +168,6 @@ public static class ExpeditionBoons
             .ToList();
         List<BoonDefinition> fresh = available.Where(boon => exclude == null || !exclude.Contains(boon.Id)).ToList();
         var offer = new List<BoonDefinition>();
-        List<BoonDefinition> loot = fresh.Where(boon => boon.IsLoot).ToList();
-
-        if (loot.Count == 0)
-        {
-            loot = available.Where(boon => boon.IsLoot).ToList();
-        }
-
-        if (loot.Count > 0)
-        {
-            BoonDefinition pick = loot[rng.Next(loot.Count)];
-            offer.Add(pick);
-            available.Remove(pick);
-            fresh.Remove(pick);
-        }
 
         while (offer.Count < OfferSize && fresh.Count > 0)
         {
@@ -197,13 +183,6 @@ public static class ExpeditionBoons
             BoonDefinition pick = available[rng.Next(available.Count)];
             offer.Add(pick);
             available.Remove(pick);
-        }
-
-        // The loot boon is drawn first; shuffle so it is not always choice 1.
-        for (int i = offer.Count - 1; i > 0; i--)
-        {
-            int j = rng.Next(i + 1);
-            (offer[i], offer[j]) = (offer[j], offer[i]);
         }
 
         return offer.Select(boon => boon.Id).ToList();

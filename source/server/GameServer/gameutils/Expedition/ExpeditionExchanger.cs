@@ -48,11 +48,15 @@ public static class ExpeditionExchanger
         };
     }
 
-    /// <summary>The melee weapon types of a realm, with the hand each is made for (one- and two-handed for Midgard's).</summary>
+    /// <summary>
+    /// The weapon types of a realm a unique can be reforged as, with the hand each is made for (one- and two-handed for
+    /// Midgard's), and the realm's bow (owner 2026-10-27). OptionsFor keeps only those the player can use.
+    /// </summary>
     public static IReadOnlyList<(eObjectType Type, eInventorySlot Hand, string Label)> RealmWeapons(eRealm realm)
     {
         eInventorySlot one = (eInventorySlot) Slot.RIGHTHAND;
         eInventorySlot two = (eInventorySlot) Slot.TWOHAND;
+        eInventorySlot ranged = (eInventorySlot) Slot.RANGED;
 
         return realm switch
         {
@@ -60,19 +64,20 @@ public static class ExpeditionExchanger
             [
                 (eObjectType.Blades, one, "Blades"), (eObjectType.Blunt, one, "Blunt"), (eObjectType.Piercing, one, "Piercing"),
                 (eObjectType.LargeWeapons, two, "Large Weapons"), (eObjectType.CelticSpear, two, "Celtic Spear"),
-                (eObjectType.Scythe, two, "Scythe"), (eObjectType.Staff, two, "Staff")
+                (eObjectType.Scythe, two, "Scythe"), (eObjectType.Staff, two, "Staff"), (eObjectType.RecurvedBow, ranged, "Recurve Bow")
             ],
             eRealm.Midgard =>
             [
                 (eObjectType.Sword, one, "Sword"), (eObjectType.Sword, two, "Two-Handed Sword"), (eObjectType.Axe, one, "Axe"),
                 (eObjectType.Axe, two, "Two-Handed Axe"), (eObjectType.Hammer, one, "Hammer"), (eObjectType.Hammer, two, "Two-Handed Hammer"),
-                (eObjectType.Spear, two, "Spear"), (eObjectType.HandToHand, one, "Hand to Hand"), (eObjectType.Staff, two, "Staff")
+                (eObjectType.Spear, two, "Spear"), (eObjectType.HandToHand, one, "Hand to Hand"), (eObjectType.Staff, two, "Staff"),
+                (eObjectType.CompositeBow, ranged, "Composite Bow")
             ],
             _ =>
             [
                 (eObjectType.SlashingWeapon, one, "Slash"), (eObjectType.CrushingWeapon, one, "Crush"), (eObjectType.ThrustWeapon, one, "Thrust"),
                 (eObjectType.TwoHandedWeapon, two, "Two-Handed"), (eObjectType.PolearmWeapon, two, "Polearm"),
-                (eObjectType.Flexible, one, "Flexible"), (eObjectType.Staff, two, "Staff")
+                (eObjectType.Flexible, one, "Flexible"), (eObjectType.Staff, two, "Staff"), (eObjectType.Longbow, ranged, "Longbow")
             ]
         };
     }

@@ -75,21 +75,30 @@ public class UT_ExpeditionBoons
     }
 
     [Test]
-    public void Offer_AlwaysHoldsALootBoon_WhileOneIsLeft()
+    public void Offer_GivesEveryBoonTheSameChance()
     {
-        var rng = new Random(77);
+        var seen = ExpeditionBoons.Catalog.ToDictionary(boon => boon.Id, _ => 0);
+        const int Offers = 20000;
 
-        for (int seed = 1; seed <= 500; seed++)
+        for (int seed = 1; seed <= Offers / 4; seed++)
         {
-            // Any of the other boons, and all loot boons but one.
-            List<string> taken = OtherIds.Where(_ => rng.Next(2) == 0).ToList();
-            string spared = LootIds[rng.Next(LootIds.Length)];
-            taken.AddRange(LootIds.Where(id => id != spared && rng.Next(2) == 0));
-
-            List<string> offer = ExpeditionBoons.RollOffer(seed, 1 + seed % 4, taken);
-
-            Assert.That(offer.Any(id => ExpeditionBoons.Find(id).IsLoot), Is.True, $"seed {seed}, taken {string.Join(",", taken)}");
+            for (int act = 1; act <= 4; act++)
+            {
+                foreach (string id in ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>()))
+                {
+                    seen[id]++;
+                }
+            }
         }
+
+        double expected = Offers * (double) ExpeditionBoons.OfferSize / ExpeditionBoons.Catalog.Count;
+
+        foreach ((string id, int count) in seen)
+        {
+            Assert.That(count, Is.InRange(expected * 0.85, expected * 1.15), $"{id}: {count} offers, expected about {expected:0}");
+        }
+
+        Assert.That(LootIds.Length + OtherIds.Length, Is.EqualTo(ExpeditionBoons.Catalog.Count));
     }
 
     [Test]
@@ -260,7 +269,6 @@ public class UT_ExpeditionBoons
 
             Assert.That(rerolled.Intersect(first), Is.Empty, $"seed {seed}");
             Assert.That(rerolled.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"seed {seed}");
-            Assert.That(rerolled.Count(id => ExpeditionBoons.Find(id).IsLoot), Is.GreaterThanOrEqualTo(1), $"seed {seed}");
             Assert.That(again, Is.EqualTo(rerolled), $"seed {seed}: the same seed and reroll give the same offer");
         }
     }

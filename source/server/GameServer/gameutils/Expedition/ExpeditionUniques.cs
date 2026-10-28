@@ -1206,8 +1206,8 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// A weapon the class uses (the generator's per-realm tables), re-rolled a few times to get a one- or two-handed
-    /// melee weapon rather than a shield, instrument or ranged weapon, preferring one the finder can wield now. A class
-    /// with no usable melee weapon keeps the first melee roll, else the last roll.
+    /// melee weapon or a realm bow rather than a shield, instrument, short bow, crossbow or thrown weapon, preferring one
+    /// the finder can wield now. A class with no usable weapon of those keeps the first such roll, else the last roll.
     /// </summary>
     private static eObjectType WeaponTypeFor(GamePlayer player, eRealm realm, eCharacterClass characterClass)
     {
@@ -1223,7 +1223,7 @@ public static class ExpeditionUniques
                 _ => GeneratedUniqueItem.GetAlbionWeapon(characterClass)
             };
 
-            if (!IsMeleeWeapon(type))
+            if (!IsUniqueWeaponType(type))
             {
                 continue;
             }
@@ -1241,6 +1241,15 @@ public static class ExpeditionUniques
         }
 
         return firstMelee != eObjectType.GenericItem ? firstMelee : type;
+    }
+
+    /// <summary>
+    /// The weapon types a unique can be: melee weapons, and the realm bows (owner 2026-10-27: Scouts, Hunters and
+    /// Rangers, the only classes whose weapon tables hold them, get a unique bow as often as their table rolls one).
+    /// </summary>
+    public static bool IsUniqueWeaponType(eObjectType type)
+    {
+        return IsMeleeWeapon(type) || type is eObjectType.Longbow or eObjectType.CompositeBow or eObjectType.RecurvedBow;
     }
 
     public static bool IsMeleeWeapon(eObjectType type)

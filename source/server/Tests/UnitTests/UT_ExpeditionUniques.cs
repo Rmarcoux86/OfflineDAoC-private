@@ -213,6 +213,17 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.IsMeleeWeapon(eObjectType.Longbow), Is.False);
         Assert.That(ExpeditionUniques.IsMeleeWeapon(eObjectType.Shield), Is.False);
         Assert.That(ExpeditionUniques.IsMeleeWeapon(eObjectType.Instrument), Is.False);
+
+        // Uniques can also be the realm bows, never a short bow, crossbow or thrown weapon.
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Longbow), Is.True);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.CompositeBow), Is.True);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.RecurvedBow), Is.True);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Spear), Is.True);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.CelticSpear), Is.True);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Fired), Is.False);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Crossbow), Is.False);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Thrown), Is.False);
+        Assert.That(ExpeditionUniques.IsUniqueWeaponType(eObjectType.Shield), Is.False);
     }
 
     [Test]
@@ -227,6 +238,7 @@ public class UT_ExpeditionUniques
 
             Assert.That(options.Count, Is.GreaterThanOrEqualTo(6), realm.ToString());
             Assert.That(new HashSet<string>(System.Linq.Enumerable.Select(options, o => o.Label)).Count, Is.EqualTo(options.Count), $"{realm}: labels are unique");
+            Assert.That(System.Linq.Enumerable.Count(options, o => o.Hand == (eInventorySlot) Slot.RANGED), Is.EqualTo(1), $"{realm}: one bow");
         }
     }
 
