@@ -305,4 +305,15 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(ExpeditionElites.EliteName(ExpeditionElites.Swift, "Ios Raven Ardent"), Is.EqualTo("Swift Ios Raven Ardent"));
         });
     }
+
+    [Test]
+    public void Drunkstains_ShieldBetweenSwings_PolearmWhenTheSwingIsDue()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(ChampionTactics.ShieldOrPolearm(false, 3000, 600), Is.EqualTo(eActiveWeaponSlot.Standard), "swing far off");
+            Assert.That(ChampionTactics.ShieldOrPolearm(false, 400, 600), Is.EqualTo(eActiveWeaponSlot.TwoHanded), "swing due");
+            Assert.That(ChampionTactics.ShieldOrPolearm(true, 400, 600), Is.EqualTo(eActiveWeaponSlot.Standard), "shield stun first");
+        });
+    }
 }

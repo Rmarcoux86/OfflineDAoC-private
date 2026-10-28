@@ -58,8 +58,9 @@ public sealed class GauntletChampion : GameBot
     internal IReadOnlyList<string> CurrentPriority { get; set; }
 
     /// <summary>
-    /// The weapon slot the brain holds (Drunkstains: shield between polearm swings). While set, every melee switch
-    /// request (BotBrain's own weapon choice included) goes to this slot; null leaves the bot's choice alone.
+    /// The weapon slot the brain holds (Drunkstains: shield between polearm swings; Toothmouth: his mace and shield, never
+    /// his flute). While set, every melee switch request (BotBrain's own weapon choice and its instrument for a song
+    /// included) goes to this slot; null leaves the bot's choice alone.
     /// </summary>
     internal eActiveWeaponSlot? HeldSlot { get; set; }
 
@@ -451,7 +452,10 @@ public sealed class GauntletChampion : GameBot
     /// <summary>The quality of every piece a champion wears (owner 2026-10-28: a full template is 99% gear).</summary>
     public const int GearQuality = 99;
 
-    /// <summary>Every equipped piece, weapons and shields too, at <see cref="GearQuality"/>. A shared template is copied first.</summary>
+    /// <summary>
+    /// Every equipped piece, weapons and shields too, at <see cref="GearQuality"/>, each on its own copy of its template;
+    /// the copies are the gear it was issued (<see cref="HasAbilityToUseItem"/>).
+    /// </summary>
     private void SetGearQuality()
     {
         if (Inventory == null)
@@ -461,13 +465,30 @@ public sealed class GauntletChampion : GameBot
 
         foreach (DbInventoryItem item in Inventory.EquippedItems.ToList())
         {
-            if (item == null || item.Template == null || item.Template.Quality == GearQuality)
+            if (item == null || item.Template == null)
             {
                 continue;
             }
 
-            item.Template = new DbItemTemplate(item.Template) { Quality = GearQuality };
+            DbItemTemplate own = new(item.Template) { Quality = GearQuality };
+            item.Template = own;
+            _issuedGear.Add(own);
         }
+    }
+
+    /// <summary>The templates of the gear it was issued (<see cref="SetGearQuality"/>), compared by reference.</summary>
+    private readonly HashSet<DbItemTemplate> _issuedGear = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// Its issued gear is always usable. Its Realm is None, and ServerRules.CheckAbilityToUseItem refuses an item of
+    /// another realm (and, with allow_cross_realm_items, finds no weapon ability for realm None), so every weapon of its
+    /// home realm counted as unusable: BotMeleeStylePolicy.Select gave no style, and BotBrain's weapon repair
+    /// (GameBot.EnsureBotWeaponReady) replaced the main weapon with a starter one and stowed the other in the backpack,
+    /// which took Drunkstains's one-hander, and with it his shield and his shield stuns (owner 2026-10-28: "he just felt broken").
+    /// </summary>
+    public override bool HasAbilityToUseItem(DbItemTemplate item)
+    {
+        return item != null && _issuedGear.Contains(item) || base.HasAbilityToUseItem(item);
     }
 
     /// <summary>No procs on any of the champion's gear (owner 2026-10-27). A shared template is copied before it changes.</summary>
@@ -1273,6 +1294,18 @@ public sealed class GauntletChampionBrain : BotBrain
         bool challengerHere = challenger != null && challenger.IsAlive &&
             challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
         UpdateStep(champion, challengerHere ? challenger : null, now);
+
+        if (champion.Signature.MezRetreat)
+        {
+            // Toothmouth fights with his mace (owner 2026-10-28). His flute (his pre-fight songs, or BotBrain equipping it for
+            // a song) has no swing speed; with the slot held, a switch to it stays on the mace.
+            champion.HeldSlot = eActiveWeaponSlot.Standard;
+
+            if (champion.ActiveWeaponSlot != eActiveWeaponSlot.Standard)
+            {
+                champion.SwitchWeapon(eActiveWeaponSlot.Standard);
+            }
+        }
 
         if (challengerHere)
         {
@@ -2508,8 +2541,9 @@ public sealed class GauntletChampionBrain : BotBrain
             champion.CurrentPriority = new[] { stunName }.Concat(champion.PriorityStyles).ToArray();
         }
 
+        // NpcService thinks again at now + ThinkInterval (read after this think), so a swing due before then is the polearm's.
         long untilSwing = champion.attackComponent.attackAction.NextTick - now;
-        eActiveWeaponSlot wanted = !stunNow && untilSwing <= ThinkInterval + SwapMarginMs ? eActiveWeaponSlot.TwoHanded : eActiveWeaponSlot.Standard;
+        eActiveWeaponSlot wanted = ChampionTactics.ShieldOrPolearm(stunNow, untilSwing, ThinkInterval + SwapMarginMs);
 
         if (champion.HeldSlot != wanted || champion.ActiveWeaponSlot != wanted)
         {
@@ -2652,6 +2686,15 @@ public static class ChampionTactics
         }
 
         return numbCoin ? Numb : Slam;
+    }
+
+    /// <summary>
+    /// Drunkstains's slot (owner 2026-10-27): the shield (Standard) between swings and for a shield stun; the polearm
+    /// (TwoHanded) once his next swing is due within <paramref name="swapWindowMs"/> (his next think, plus a margin).
+    /// </summary>
+    public static eActiveWeaponSlot ShieldOrPolearm(bool shieldStunNow, long msUntilSwing, long swapWindowMs)
+    {
+        return !shieldStunNow && msUntilSwing <= swapWindowMs ? eActiveWeaponSlot.TwoHanded : eActiveWeaponSlot.Standard;
     }
 
     /// <summary>Ios at 40% health, once: the kite when she can, Ignore Pain when she cannot.</summary>

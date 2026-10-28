@@ -236,7 +236,10 @@ namespace DOL.GS
         {
             int minimum;
 
-            if (owner is GamePlayer or IGamePlayer)
+            // A GameBot with no weapon in hand, or an item with no speed (a Bard's instrument), got 0 here and AttackAction
+            // then swung on every game loop tick (owner 2026-10-28: Toothmouth swung about ten times a second). Such a bot
+            // swings at the NPC speed below instead; a player cannot start an attack without a weapon.
+            if (owner is GamePlayer || owner is IGamePlayer && mainWeapon?.SPD_ABS > 0)
             {
                 if (mainWeapon == null)
                     return 0;
