@@ -182,7 +182,28 @@ public class UT_ExpeditionGauntlet
     }
 
     [Test]
-    public void Champions_RiseTwoRealmRanksARound_AndWearAFullTemplate()
+    public void TestKit_TemplatePieces_HoldEveryCapAndTheToa()
+    {
+        eProperty[] toa = { eProperty.MeleeDamage, eProperty.StyleDamage, eProperty.MeleeSpeed };
+        var melee = DOL.GS.Expedition.Gauntlet.GauntletTestKit.NecklaceLines(eStat.UNDEFINED, toa);
+        var caster = DOL.GS.Expedition.Gauntlet.GauntletTestKit.NecklaceLines(eStat.INT, toa);
+        var belt = DOL.GS.Expedition.Gauntlet.GauntletTestKit.BeltLines();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(melee.Count, Is.EqualTo(8), "four stats, hits, three ToA");
+            Assert.That(caster.Count, Is.EqualTo(9), "and the casting stat");
+            Assert.That(caster, Does.Contain((eProperty.Intelligence, 75)));
+            Assert.That(melee, Does.Contain((eProperty.MaxHealth, 200)));
+            Assert.That(melee, Does.Contain((eProperty.MeleeSpeed, 10)));
+            Assert.That(belt.Count, Is.EqualTo(9));
+            Assert.That(belt.All(line => line.Value == 26), Is.True);
+            Assert.That(caster.Count, Is.LessThanOrEqualTo(10), "an item holds ten lines");
+        });
+    }
+
+    [Test]
+    public void Champions_RealmRanks_AndAFullTemplate()
     {
         Assert.Multiple(() =>
         {

@@ -1203,7 +1203,7 @@ public static class ExpeditionUniques
     }
 
     /// <summary>The best armor the class wears at this level (the generator's per-realm tables).</summary>
-    private static eObjectType ArmorTypeFor(eRealm realm, eCharacterClass characterClass, byte level)
+    internal static eObjectType ArmorTypeFor(eRealm realm, eCharacterClass characterClass, byte level)
     {
         return realm switch
         {
@@ -1277,7 +1277,7 @@ public static class ExpeditionUniques
     }
 
     /// <summary>Removes every bonus, proc and charge the generator rolled, so only the catalog's lines remain.</summary>
-    private static void ClearMagic(DbItemTemplate item)
+    internal static void ClearMagic(DbItemTemplate item)
     {
         for (int line = 1; line <= 10; line++)
         {
