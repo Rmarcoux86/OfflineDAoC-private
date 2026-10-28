@@ -920,6 +920,11 @@ public sealed class GauntletChampionBrain : BotBrain
     private bool _rangedOpenerDone;
     private bool _openerSnareTried;
     private long _drainCastTick;
+
+    // Ios's drain casts in a row that did not start (owner 2026-10-28: one refused cast ended her opener or kite).
+    private int _drainFailures;
+    private const int MaxDrainFailures = 3;
+    private static readonly DOL.Logging.Logger DrainLog = DOL.Logging.LoggerManager.Create(typeof(GauntletChampionBrain));
     private bool _kiteUsed;
     private KitePhase _kitePhase;
     private long _kiteStartTick;
@@ -1703,6 +1708,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
             _rangedOpenerDone = true;
             _drainCastTick = 0;
+            _drainFailures = 0;
         }
 
         if (_kitePhase != KitePhase.None)
@@ -1739,6 +1745,7 @@ public sealed class GauntletChampionBrain : BotBrain
         _kiteStartTick = now;
         _kiteCaughtSince = 0;
         _drainCastTick = 0;
+        _drainFailures = 0;
         champion.StopAttack();
         champion.StopFollowing();
         _retreatPoint = RetreatPointFrom(champion, challenger);
@@ -1789,9 +1796,13 @@ public sealed class GauntletChampionBrain : BotBrain
 
         ApplySpeed(champion, 1);
 
+        // Stopped before she casts: a cast asked for while still moving can fail to start.
         if (champion.IsMoving)
         {
             champion.StopMoving();
+            champion.TurnTo(challenger);
+
+            return true;
         }
 
         champion.TurnTo(challenger);
@@ -1808,14 +1819,7 @@ public sealed class GauntletChampionBrain : BotBrain
             }
         }
 
-        if (!TryCastOn(champion, drain, challenger))
-        {
-            return false;
-        }
-
-        _drainCastTick = now;
-
-        return true;
+        return CastDrain(champion, challenger, drain, now) != true;
     }
 
     /// <summary>
@@ -1824,7 +1828,73 @@ public sealed class GauntletChampionBrain : BotBrain
     /// </summary>
     private bool DrainInterrupted(GauntletChampion champion, Spell drain, long now)
     {
-        return _drainCastTick > 0 && (champion.IsBeingInterruptedByOther || now - _drainCastTick < drain.CastTime / 2);
+        if (_drainCastTick == 0)
+        {
+            return false;
+        }
+
+        long ranFor = now - _drainCastTick;
+        _drainCastTick = 0;
+
+        if (ranFor >= drain.CastTime / 2)
+        {
+            _drainFailures = 0;
+
+            return false;
+        }
+
+        if (champion.IsBeingInterruptedByOther)
+        {
+            LogDrain(champion, drain, "interrupted");
+
+            return true;
+        }
+
+        // It never started (or was refused at once): another try, up to MaxDrainFailures in a row.
+        _drainFailures++;
+        LogDrain(champion, drain, $"stopped after {ranFor} ms without an interrupt ({_drainFailures}/{MaxDrainFailures})");
+
+        return _drainFailures >= MaxDrainFailures;
+    }
+
+    /// <summary>
+    /// One drain cast at the challenger, standing still: a champion that was moving stops and casts on the next think.
+    /// Null when the cast was requested or will be tried again; true when she should give up (too many refusals).
+    /// </summary>
+    private bool? CastDrain(GauntletChampion champion, GamePlayer challenger, Spell drain, long now)
+    {
+        champion.TurnTo(challenger);
+
+        if (champion.IsMoving)
+        {
+            champion.StopMoving();
+
+            return null;
+        }
+
+        if (TryCastOn(champion, drain, challenger))
+        {
+            _drainCastTick = now;
+            LogDrain(champion, drain, "cast");
+
+            return null;
+        }
+
+        _drainFailures++;
+        string why = !Castable(champion, drain)
+            ? $"not castable (power {champion.Mana}/{champion.PowerCost(drain)}, disabled {champion.GetSkillDisabledDuration(drain)} ms, silenced {champion.IsSilenced}, incapacitated {champion.IsIncapacitated})"
+            : $"refused by CastSpell (casting {champion.IsCasting}, pending {champion.castingComponent?.HasPendingSkillRequests})";
+        LogDrain(champion, drain, $"{why} ({_drainFailures}/{MaxDrainFailures})");
+
+        return _drainFailures >= MaxDrainFailures;
+    }
+
+    private static void LogDrain(GauntletChampion champion, Spell drain, string what)
+    {
+        if (DrainLog.IsInfoEnabled)
+        {
+            DrainLog.Info($"GAUNTLET_DRAIN {champion.Name} {drain?.Name}: {what}");
+        }
     }
 
     /// <summary>The kite: run until far enough, then drain while the challenger stays out of melee range.</summary>
@@ -1887,21 +1957,14 @@ public sealed class GauntletChampionBrain : BotBrain
 
         ApplySpeed(champion, 1);
 
-        if (champion.IsMoving)
+        if (!champion.IsWithinRadius(challenger, drain.Range))
         {
-            champion.StopMoving();
-        }
+            LogDrain(champion, drain, "challenger out of range: the kite ends");
 
-        champion.TurnTo(challenger);
-
-        if (!champion.IsWithinRadius(challenger, drain.Range) || !TryCastOn(champion, drain, challenger))
-        {
             return false;
         }
 
-        _drainCastTick = now;
-
-        return true;
+        return CastDrain(champion, challenger, drain, now) != true;
     }
 
     /// <summary>The kite is over: she fights on, after Ignore Pain when she is still at 40% or less.</summary>
@@ -1914,6 +1977,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
         _kitePhase = KitePhase.None;
         _drainCastTick = 0;
+        _drainFailures = 0;
         ApplySpeed(champion, 1);
 
         if (champion.HealthPercent <= ChampionTactics.IosKitePercent)
