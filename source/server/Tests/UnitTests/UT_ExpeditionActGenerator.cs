@@ -567,7 +567,8 @@ public class UT_ExpeditionActGenerator
 
         HashSet<string> wanted = ExpeditionBuffs.Wanted(run);
 
-        Assert.That(wanted, Is.EquivalentTo(ExpeditionBuffs.AllGroups), "Blessed Arms gives every lesser buff");
+        Assert.That(wanted, Is.EquivalentTo(ExpeditionBuffs.AllGroups.Where(group => group != ExpeditionBuffs.Endurance)),
+            "Blessed Arms gives every lesser buff but endurance regeneration (the unused Shrine of Vigor gives none)");
         Assert.That(ExpeditionBuffs.AllGroups.Take(ExpeditionBuffs.Groups.Count), Is.EqualTo(ExpeditionBuffs.Groups), "shrine groups keep their places");
         Assert.That(ExpeditionBuffs.BaseStatValue(50), Is.EqualTo(38));
         Assert.That(ExpeditionBuffs.StatValue(50), Is.EqualTo(56));

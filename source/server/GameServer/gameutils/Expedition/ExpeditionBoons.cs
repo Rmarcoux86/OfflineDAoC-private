@@ -78,7 +78,7 @@ public static class ExpeditionBoons
         new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
         new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
         new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false),
-        new(BlessedArms, "Blessed Arms", "A lesser version of every buff for the rest of the run: strength, constitution, dexterity, the two stat pairs, acuity, both armor buffs, haste and endurance regeneration.", false),
+        new(BlessedArms, "Blessed Arms", "A lesser version of every buff for the rest of the run: strength, constitution, dexterity, the two stat pairs, acuity, both armor buffs and haste.", false),
         new(MarkedPrey, "Marked Prey", "Elite pack monsters and act bosses take 20% more damage from you.", false),
         new(Evasion, "Evasion", "Melee attacks on you have a 10% chance to miss outright (you evade them).", false),
         new(TreasureSense, "Treasure Sense", "Unique drops are twice as likely.", true),

@@ -38,7 +38,7 @@ public static class ExpeditionBuffs
 
     /// <summary>
     /// Every group, shrine ones first (their spell IDs, SpellIdBase + index, are unchanged), then those only Blessed Arms
-    /// gives. Blessed Arms gives all of them.
+    /// gives. Blessed Arms gives all of them but endurance regeneration (owner 2026-10-28; a Shrine of Vigor still does).
     /// </summary>
     public static readonly IReadOnlyList<string> AllGroups = [StrengthConstitution, DexterityQuickness, Armor, Endurance, Strength, Constitution, Dexterity, BaseArmor, Acuity, Haste];
 
@@ -125,7 +125,7 @@ public static class ExpeditionBuffs
 
         if (boons.Contains(ExpeditionBoons.BlessedArms))
         {
-            groups.UnionWith(AllGroups);
+            groups.UnionWith(AllGroups.Where(group => group != Endurance));
         }
 
         foreach (ShrineSpec shrine in run.CurrentAct?.Shrines ?? [])
