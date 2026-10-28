@@ -274,8 +274,16 @@ public class UT_ExpeditionGauntletTactics
     }
 
     [Test]
-    public void Toothmouth_HasDoubleHealth_AndNoOtherChampionDoes()
+    public void EveryChampion_HasItsEliteAffix()
     {
-        Assert.That(GauntletChampions.All.Where(champion => champion.DoubleHealth).Select(champion => champion.Name), Is.EqualTo(new[] { "Toothmouth" }));
+        Assert.Multiple(() =>
+        {
+            Assert.That(GauntletChampions.Get("Ios").Affix, Is.EqualTo(ExpeditionElites.Swift));
+            Assert.That(GauntletChampions.Get("Toothmouth").Affix, Is.EqualTo(ExpeditionElites.Stalwart));
+            Assert.That(GauntletChampions.Get("Gwyraan").Affix, Is.EqualTo(ExpeditionElites.Venomous));
+            Assert.That(GauntletChampions.Get("Drunkstains").Affix, Is.EqualTo(ExpeditionElites.Armoured));
+            Assert.That(GauntletChampions.Get("Preesh").Affix, Is.EqualTo(ExpeditionElites.Frenzied));
+            Assert.That(ExpeditionElites.EliteName(ExpeditionElites.Swift, "Ios Raven Ardent"), Is.EqualTo("Swift Ios Raven Ardent"));
+        });
     }
 }

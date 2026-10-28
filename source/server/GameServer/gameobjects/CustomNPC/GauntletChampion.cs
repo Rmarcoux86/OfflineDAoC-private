@@ -227,6 +227,13 @@ public sealed class GauntletChampion : GameBot
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
+
+        // Its elite affix (owner 2026-10-28): the effect, and the affix before its name ("Swift Ios Raven Ardent").
+        if (!string.IsNullOrEmpty(definition.Affix))
+        {
+            ExpeditionElites.ApplyChampionAffix(this, definition.Affix);
+        }
+
         RefreshItemBonuses();
         Health = MaxHealth;
 
@@ -330,10 +337,10 @@ public sealed class GauntletChampion : GameBot
     }
 
     /// <summary>
-    /// Toothmouth has double health (owner 2026-10-27, <see cref="ChampionDefinition.DoubleHealth"/>): every reading of
-    /// MaxHealth (regeneration, heals, HealthPercent) sees the doubled pool.
+    /// A Stalwart champion (Toothmouth, owner 2026-10-28; it replaced his double health) has triple health: every reading
+    /// of MaxHealth (regeneration, heals, HealthPercent) sees the larger pool.
     /// </summary>
-    public override int MaxHealth => Definition?.DoubleHealth == true ? base.MaxHealth * 2 : base.MaxHealth;
+    public override int MaxHealth => Definition?.Affix == ExpeditionElites.Stalwart ? base.MaxHealth * ExpeditionElites.StalwartHealthMultiplier : base.MaxHealth;
 
     /// <summary>A melee switch while the brain holds a slot goes to the held slot (see <see cref="HeldSlot"/>).</summary>
     public override void SwitchWeapon(eActiveWeaponSlot slot)

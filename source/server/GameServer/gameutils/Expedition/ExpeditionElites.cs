@@ -324,7 +324,59 @@ public static class ExpeditionElites
         int multiplier = affix == Stalwart ? StalwartHealthMultiplier : HealthMultiplier;
         double scaling = Math.Max(0.01, npc.MaxHealthScalingFactor);
         AddBonus(npc, state, eProperty.MaxHealth, (int)Math.Round(npc.MaxHealth * (multiplier - 1) / scaling));
+        ApplyAffix(npc, state, affix);
 
+        // Venomous and Frenzied act through the AttackedByEnemy handler.
+        npc.Size = (byte)Math.Clamp(npc.Size * SizePercent / 100, 1, byte.MaxValue);
+        npc.Name = EliteName(affix, state.OriginalName);
+        npc.Health = npc.MaxHealth;
+
+        return true;
+    }
+
+    /// <summary>
+    /// A Gauntlet champion's affix (owner 2026-10-28): the affix's own effect and its name before the champion's, without
+    /// an elite's extra levels, size or health (Stalwart's triple health is GauntletChampion.MaxHealth). The champion is
+    /// forgotten on its death (the Dying handler) or by <see cref="Forget"/> when it is removed. It never counts for loot or
+    /// realm points: a champion is a bot, never a lootable kill.
+    /// </summary>
+    public static bool ApplyChampionAffix(GameNPC npc, string affix)
+    {
+        if (npc == null || string.IsNullOrEmpty(affix))
+        {
+            return false;
+        }
+
+        EliteState state = new()
+        {
+            Affix = affix,
+            OriginalName = npc.Name,
+            OriginalLevel = npc.Level,
+            OriginalSize = npc.Size,
+            OriginalMaxSpeed = npc.MaxSpeedBase
+        };
+
+        if (!Elites.TryAdd(npc, state))
+        {
+            return false;
+        }
+
+        EnsureHandlers();
+        ApplyAffix(npc, state, affix);
+        npc.Name = EliteName(affix, state.OriginalName);
+
+        return true;
+    }
+
+    /// <summary>Takes the monster's elite state off and restores it (a champion removed from the arena).</summary>
+    public static void Forget(GameNPC npc)
+    {
+        RestoreOne(npc);
+    }
+
+    /// <summary>An affix's own effect (Venomous and Frenzied act through the AttackedByEnemy handler).</summary>
+    private static void ApplyAffix(GameNPC npc, EliteState state, string affix)
+    {
         switch (affix)
         {
             case Swift:
@@ -361,13 +413,6 @@ public static class ExpeditionElites
                 break;
             }
         }
-
-        // Venomous and Frenzied act through the AttackedByEnemy handler.
-        npc.Size = (byte)Math.Clamp(npc.Size * SizePercent / 100, 1, byte.MaxValue);
-        npc.Name = EliteName(affix, state.OriginalName);
-        npc.Health = npc.MaxHealth;
-
-        return true;
     }
 
     private static void AddBonus(GameNPC npc, EliteState state, eProperty property, int amount)

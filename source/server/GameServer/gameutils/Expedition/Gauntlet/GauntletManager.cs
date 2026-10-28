@@ -860,6 +860,9 @@ public static class GauntletManager
     {
         GauntletChampion champion = state.Champion;
         state.Champion = null;
+
+        // Its elite affix state goes with it (a slain champion's went on its death).
+        ExpeditionElites.Forget(champion);
         champion?.Remove();
     }
 
