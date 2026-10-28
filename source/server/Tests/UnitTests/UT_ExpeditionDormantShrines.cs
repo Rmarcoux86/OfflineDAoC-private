@@ -28,11 +28,12 @@ public class UT_ExpeditionDormantShrines
             Assert.That(ExpeditionShrines.DormantKillsFor(8), Is.EqualTo(4));
             Assert.That(ExpeditionShrines.DormantKillsFor(15), Is.EqualTo(6));
 
-            // Only camps that con at least blue to a level 42 arrival (level 33 or more) host a shrine.
-            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 32 }), Is.False, "green at 42");
+            // Only camps that con at least yellow to a level 42 arrival (level 38 or more) host a shrine.
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 37 }), Is.False, "blue at 42");
             Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 18, 21, 23 }), Is.False, "grey at 42");
-            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 33 }), Is.True, "blue at 42");
-            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 32, 33, 34, 35 }), Is.True, "its strongest is blue");
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 38 }), Is.True, "yellow at 42");
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 42, 45, 47 }), Is.True, "orange and red too");
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 35, 36, 38 }), Is.True, "its strongest is yellow");
             Assert.That(ExpeditionShrines.IsWorthyCamp(new int[0]), Is.False);
         });
     }

@@ -44,7 +44,7 @@ public static class ExpeditionShrines
     /// Act 5: the placement rule. 1 (fork-v76) moved the shrine 800-2,000 units from its camp, which put it far from the
     /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
     /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
-    /// blue to a level 42 arrival (<see cref="IsWorthyCamp"/>). A shrine placed by an older rule is moved again, keeping
+    /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>). A shrine placed by an older rule is moved again, keeping
     /// its camp and kills when that camp is still worthy.
     /// </summary>
     public const int DormantPlacementVersion = 4;
@@ -54,11 +54,11 @@ public static class ExpeditionShrines
 
     /// <summary>
     /// A camp worth waking a shrine at (owner 2026-10-28: Darkness Falls shrines were beside grey camps): its strongest
-    /// monster cons at least blue to a level <see cref="DormantArrivalLevel"/> player (level 33 or more).
+    /// monster cons at least yellow to a level <see cref="DormantArrivalLevel"/> player (level 38 or more).
     /// </summary>
     public static bool IsWorthyCamp(IReadOnlyCollection<int> levels)
     {
-        return levels != null && levels.Count > 0 && ConLevels.GetConLevel(DormantArrivalLevel, levels.Max()) >= (int) ConColor.BLUE;
+        return levels != null && levels.Count > 0 && ConLevels.GetConLevel(DormantArrivalLevel, levels.Max()) >= (int) ConColor.YELLOW;
     }
 
     private const string DormantWarnedProperty = "expedition.shrine.dormantWarned";
@@ -324,7 +324,7 @@ public static class ExpeditionShrines
             return false;
         }
 
-        // Only camps that con at least blue on arrival; all of them if the zone has none.
+        // Only camps that con at least yellow on arrival; all of them if the zone has none.
         List<AutonomousCapnBryGoalCatalog.Entry> camps = allCamps.Where(c => IsWorthyCamp(c.Levels)).ToList();
 
         if (camps.Count == 0)
