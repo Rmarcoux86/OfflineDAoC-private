@@ -570,9 +570,16 @@ public class UT_ExpeditionActGenerator
         Assert.That(wanted, Is.EquivalentTo(ExpeditionBuffs.AllGroups.Where(group => group != ExpeditionBuffs.Endurance)),
             "Blessed Arms gives every lesser buff but endurance regeneration (the unused Shrine of Vigor gives none)");
         Assert.That(ExpeditionBuffs.AllGroups.Take(ExpeditionBuffs.Groups.Count), Is.EqualTo(ExpeditionBuffs.Groups), "shrine groups keep their places");
-        Assert.That(ExpeditionBuffs.BaseStatValue(50), Is.EqualTo(38));
+        Assert.That(ExpeditionBuffs.BaseStatValue(50), Is.EqualTo(38), "a shrine's, 60%");
         Assert.That(ExpeditionBuffs.StatValue(50), Is.EqualTo(56));
         Assert.That(ExpeditionBuffs.HasteValue(50), Is.EqualTo(15));
+        Assert.That(ExpeditionBuffs.BaseStatValue(50, ExpeditionBuffs.BlessedArmsPercent), Is.EqualTo(25), "Blessed Arms's, 40%");
+        Assert.That(ExpeditionBuffs.StatValue(50, ExpeditionBuffs.BlessedArmsPercent), Is.EqualTo(38));
+        Assert.That(ExpeditionBuffs.HasteValue(50, ExpeditionBuffs.BlessedArmsPercent), Is.EqualTo(10));
+
+        // The used Shrine of Warding makes the armor buff a shrine's; the rest are Blessed Arms's.
+        Assert.That(ExpeditionBuffs.PercentFor(run, ExpeditionBuffs.Armor), Is.EqualTo(ExpeditionBuffs.StrengthPercent));
+        Assert.That(ExpeditionBuffs.PercentFor(run, ExpeditionBuffs.StrengthConstitution), Is.EqualTo(ExpeditionBuffs.BlessedArmsPercent));
     }
 
     [Test]

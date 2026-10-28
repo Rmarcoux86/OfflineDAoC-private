@@ -88,22 +88,36 @@ public static class ExpeditionBuffs
         };
     }
 
-    /// <summary>The value of a lesser base stat or base armor buff at <paramref name="level"/>: 60% of the base buff cap (1.25 x level).</summary>
-    public static int BaseStatValue(int level)
+    /// <summary>A Blessed Arms buff's strength, in percent of the cap (owner 2026-10-28: below a shrine's, so a shrine upgrades it).</summary>
+    public const int BlessedArmsPercent = 40;
+
+    /// <summary>The value of a lesser base stat or base armor buff at <paramref name="level"/>: a percent of the base buff cap (1.25 x level).</summary>
+    public static int BaseStatValue(int level, int percent = StrengthPercent)
     {
-        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 1.25 * StrengthPercent / 100.0));
+        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 1.25 * percent / 100.0));
     }
 
-    /// <summary>The lesser haste at <paramref name="level"/>: 15% at level 50, less below (60% of a strong 25% haste).</summary>
-    public static int HasteValue(int level)
+    /// <summary>The lesser haste at <paramref name="level"/>: a percent of a strong 25% haste at level 50 (15% at 60), less below 50.</summary>
+    public static int HasteValue(int level, int percent = StrengthPercent)
     {
-        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 0.3));
+        return Math.Max(1, (int) Math.Round(Math.Max(1, level) / 50.0 * 25 * percent / 100.0));
     }
 
-    /// <summary>The value of a lesser stat or armor buff at <paramref name="level"/>: 60% of 1.875 x level.</summary>
-    public static int StatValue(int level)
+    /// <summary>The value of a lesser stat or armor buff at <paramref name="level"/>: a percent of 1.875 x level.</summary>
+    public static int StatValue(int level, int percent = StrengthPercent)
     {
-        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 1.875 * StrengthPercent / 100.0));
+        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 1.875 * percent / 100.0));
+    }
+
+    /// <summary>
+    /// A wanted group's strength: a used shrine's (<see cref="StrengthPercent"/>) for the rest of its act, else Blessed
+    /// Arms's (<see cref="BlessedArmsPercent"/>).
+    /// </summary>
+    public static int PercentFor(ExpeditionRun run, string group)
+    {
+        bool fromShrine = run?.CurrentAct?.Shrines?.Any(shrine => shrine != null && shrine.Used && shrine.Group == group) == true;
+
+        return fromShrine ? StrengthPercent : BlessedArmsPercent;
     }
 
     /// <summary>The buff groups the run grants right now: its buff boons, and the used shrines of the current act.</summary>
@@ -173,9 +187,12 @@ public static class ExpeditionBuffs
                     continue;
                 }
 
-                if (!ours.ContainsKey(group) || levelChanged)
+                // A shrine used over a Blessed Arms buff casts the stronger one (the value no longer matches).
+                int value = ValueFor(player, group, PercentFor(run, group));
+
+                if (!ours.TryGetValue(group, out ECSGameEffect current) || levelChanged || (int) (current.SpellHandler?.Spell?.Value ?? 0) != value)
                 {
-                    Cast(player, group);
+                    Cast(player, group, value);
                 }
             }
 
@@ -268,7 +285,19 @@ public static class ExpeditionBuffs
         return ours;
     }
 
-    private static void Cast(GamePlayer player, string group)
+    /// <summary>The spell value of a group's lesser buff at the player's level and this strength.</summary>
+    private static int ValueFor(GamePlayer player, string group, int percent)
+    {
+        return group switch
+        {
+            StrengthConstitution or DexterityQuickness or Armor or Acuity => StatValue(player.Level, percent),
+            Strength or Constitution or Dexterity or BaseArmor => BaseStatValue(player.Level, percent),
+            Haste => HasteValue(player.Level, percent),
+            _ => EnduranceValue()
+        };
+    }
+
+    private static void Cast(GamePlayer player, string group, int value)
     {
         int index = AllGroups.ToList().IndexOf(group);
 
@@ -277,18 +306,18 @@ public static class ExpeditionBuffs
             return;
         }
 
-        (eSpellType type, double value) = group switch
+        eSpellType type = group switch
         {
-            StrengthConstitution => (eSpellType.StrengthConstitutionBuff, StatValue(player.Level)),
-            DexterityQuickness => (eSpellType.DexterityQuicknessBuff, StatValue(player.Level)),
-            Armor => (eSpellType.SpecArmorFactorBuff, StatValue(player.Level)),
-            Strength => (eSpellType.StrengthBuff, BaseStatValue(player.Level)),
-            Constitution => (eSpellType.ConstitutionBuff, BaseStatValue(player.Level)),
-            Dexterity => (eSpellType.DexterityBuff, BaseStatValue(player.Level)),
-            BaseArmor => (eSpellType.BaseArmorFactorBuff, BaseStatValue(player.Level)),
-            Acuity => (eSpellType.AcuityBuff, StatValue(player.Level)),
-            Haste => (eSpellType.CombatSpeedBuff, HasteValue(player.Level)),
-            _ => (eSpellType.EnduranceRegenBuff, EnduranceValue())
+            StrengthConstitution => eSpellType.StrengthConstitutionBuff,
+            DexterityQuickness => eSpellType.DexterityQuicknessBuff,
+            Armor => eSpellType.SpecArmorFactorBuff,
+            Strength => eSpellType.StrengthBuff,
+            Constitution => eSpellType.ConstitutionBuff,
+            Dexterity => eSpellType.DexterityBuff,
+            BaseArmor => eSpellType.BaseArmorFactorBuff,
+            Acuity => eSpellType.AcuityBuff,
+            Haste => eSpellType.CombatSpeedBuff,
+            _ => eSpellType.EnduranceRegenBuff
         };
 
         DbSpell spell = new()
