@@ -935,6 +935,9 @@ public sealed class GauntletChampionBrain : BotBrain
     private MezPurpose _mezPurpose;
     private long _mezCastTick;
     private bool _positionalMez;
+
+    // Toothmouth has swung at his challenger this fight (owner 2026-10-28: he opens by running in to melee, not with a mez).
+    private bool _meleeOpened;
     private bool _retreating;
     private bool _retreatBySpeedOfSound;
     private long _retreatStartTick;
@@ -2136,10 +2139,13 @@ public sealed class GauntletChampionBrain : BotBrain
             _retreating = false;
             _mezCastTick = 0;
             _positionalMez = false;
+            _meleeOpened = false;
             ApplySpeed(champion, 1);
 
             return false;
         }
+
+        _meleeOpened = _meleeOpened || champion.attackComponent.attackAction.LastAttackData?.Target == challenger;
 
         if (_retreating)
         {
@@ -2212,7 +2218,7 @@ public sealed class GauntletChampionBrain : BotBrain
             return true;
         }
 
-        if (ChampionTactics.ToothmouthPositionalMez(champion.HealthPercent, mez != null, mezImmune, challenger.IsMezzed, challenger.IsStunned))
+        if (ChampionTactics.ToothmouthPositionalMez(champion.HealthPercent, mez != null, mezImmune, challenger.IsMezzed, challenger.IsStunned, _meleeOpened))
         {
             return CastMez(champion, challenger, mez, MezPurpose.Positional, now);
         }
@@ -2624,10 +2630,14 @@ public static class ChampionTactics
         return speedOfSoundReady ? LowHealthAction.SpeedOfSoundRetreat : LowHealthAction.None;
     }
 
-    /// <summary>Toothmouth's positional set-up (his opener and his loop): a ready mez on a challenger he can mez.</summary>
-    public static bool ToothmouthPositionalMez(int healthPercent, bool mezReady, bool challengerMezImmune, bool challengerMezzed, bool challengerStunned)
+    /// <summary>
+    /// Toothmouth's positional set-up in his loop: a ready mez on a challenger he can mez, once he has opened in melee
+    /// (owner 2026-10-28: he runs in to melee first, no mez opener).
+    /// </summary>
+    public static bool ToothmouthPositionalMez(int healthPercent, bool mezReady, bool challengerMezImmune, bool challengerMezzed, bool challengerStunned,
+        bool meleeOpened = true)
     {
-        return healthPercent >= LowHealthPercent && mezReady && !challengerMezImmune && !challengerMezzed && !challengerStunned;
+        return meleeOpened && healthPercent >= LowHealthPercent && mezReady && !challengerMezImmune && !challengerMezzed && !challengerStunned;
     }
 
     /// <summary>
