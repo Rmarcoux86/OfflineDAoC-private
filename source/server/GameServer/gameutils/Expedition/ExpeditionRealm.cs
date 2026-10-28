@@ -6,20 +6,23 @@ using DOL.GS.ServerProperties;
 namespace DOL.GS.Expedition;
 
 /// <summary>
-/// Realm points on a run: monsters that are not grey give a few, elite pack members four times as many, finished
+/// Realm points on a run: monsters that are not grey give a few, elite pack members about as many more as their extra
+/// health (<see cref="ExpeditionElites.RealmPointMultiplier"/>: 2.2x, Stalwart 3.3x; a repeat kill 1x), finished
 /// objectives and act bosses much more, and winning the run a large final award. The realm ranks they bring buy realm
 /// abilities in the trainer window (/train works anywhere on a run). Everything earned is also kept on the account
 /// (<see cref="ExpeditionAccountRealm"/>).
 /// </summary>
 public static class ExpeditionRealm
 {
-    public const int EliteMultiplier = 4;
     public const int ObjectivePointsPerAct = 250;
     public const int BossPointsPerAct = 1500;
     public const int VictoryPoints = 15000;
 
-    /// <summary>A monster kill: 5 + 3 per monster level, none for a grey monster (more than 5 levels below the player).</summary>
-    public static int PointsForKill(int mobLevel, int playerLevel, bool elite)
+    /// <summary>
+    /// A monster kill: 5 + 3 per monster level, times <paramref name="multiplier"/> (an elite's, rounded), none for a grey
+    /// monster (more than 5 levels below the player).
+    /// </summary>
+    public static int PointsForKill(int mobLevel, int playerLevel, double multiplier = 1.0)
     {
         if (mobLevel < playerLevel - 5)
         {
@@ -28,7 +31,7 @@ public static class ExpeditionRealm
 
         int points = 5 + 3 * Math.Max(0, mobLevel);
 
-        return elite ? points * EliteMultiplier : points;
+        return (int) Math.Round(points * Math.Max(1.0, multiplier));
     }
 
     public static void OnKill(GamePlayer player, GameLiving target)
@@ -38,9 +41,7 @@ public static class ExpeditionRealm
             return;
         }
 
-        // A repeat elite kill (its spawn slain before this act) gives normal points (owner 2026-10-28).
-        GameNPC npc = target as GameNPC;
-        Grant(player, PointsForKill(target.Level, player.Level, ExpeditionElites.IsElite(npc) && !ExpeditionElites.IsRepeat(npc)));
+        Grant(player, PointsForKill(target.Level, player.Level, ExpeditionElites.RealmPointMultiplier(target as GameNPC)));
     }
 
     public static void OnObjectiveDone(GamePlayer player, int act)
@@ -61,7 +62,7 @@ public static class ExpeditionRealm
     /// </summary>
     public static long BackfillEstimate(int kills, int playerLevel, int bossesKilled, int currentAct, int currentActObjectivesDone)
     {
-        long points = (long) Math.Max(0, kills) * PointsForKill(Math.Max(1, playerLevel - 1), playerLevel, false);
+        long points = (long) Math.Max(0, kills) * PointsForKill(Math.Max(1, playerLevel - 1), playerLevel);
 
         for (int act = 1; act <= Math.Max(0, bossesKilled); act++)
         {

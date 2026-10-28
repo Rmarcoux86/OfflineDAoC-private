@@ -105,6 +105,24 @@ public static class ExpeditionElites
     /// <summary>A repeat elite kill's Unique weight is divided by this (the other rarities' weights are multiplied).</summary>
     public const int RepeatUniqueWeightDivisor = 2;
 
+    /// <summary>Realm points for a first elite kill (owner 2026-10-28): about its health over the normal monster's.</summary>
+    public const double EliteRealmPointMultiplier = 2.2;
+    public const double StalwartRealmPointMultiplier = 3.3;
+
+    /// <summary>
+    /// The realm point multiplier of a kill: 2.2 for an elite, 3.3 for a Stalwart one, 1 for a repeat kill (its spawn
+    /// slain before this act) and for a monster that is not elite.
+    /// </summary>
+    public static double RealmPointMultiplier(GameNPC npc)
+    {
+        if (npc == null || !Elites.TryGetValue(npc, out EliteState state) || state.Repeat)
+        {
+            return 1.0;
+        }
+
+        return state.Affix == Stalwart ? StalwartRealmPointMultiplier : EliteRealmPointMultiplier;
+    }
+
     /// <summary>Journal lines about the act's elite packs; empty when the act has none.</summary>
     public static IReadOnlyList<string> DescribeElites(ActPlan plan)
     {

@@ -7,12 +7,15 @@ namespace DOL.GS.Tests;
 public class UT_ExpeditionRealm
 {
     [Test]
-    public void PointsForKill_GreyGivesNothing_EliteGivesFourTimes()
+    public void PointsForKill_GreyGivesNothing_ElitesGiveTheirMultiplier()
     {
-        Assert.That(ExpeditionRealm.PointsForKill(4, 10, false), Is.EqualTo(0), "six levels below the player is grey");
-        Assert.That(ExpeditionRealm.PointsForKill(10, 10, false), Is.EqualTo(35));
-        Assert.That(ExpeditionRealm.PointsForKill(10, 10, true), Is.EqualTo(35 * ExpeditionRealm.EliteMultiplier));
-        Assert.That(ExpeditionRealm.PointsForKill(0, 1, false), Is.EqualTo(5), "a level 0 monster at level 1 still counts");
+        Assert.That(ExpeditionRealm.PointsForKill(4, 10), Is.EqualTo(0), "six levels below the player is grey");
+        Assert.That(ExpeditionRealm.PointsForKill(10, 10), Is.EqualTo(35));
+        Assert.That(ExpeditionRealm.PointsForKill(10, 10, ExpeditionElites.EliteRealmPointMultiplier), Is.EqualTo(77), "35 x 2.2");
+        Assert.That(ExpeditionRealm.PointsForKill(10, 10, ExpeditionElites.StalwartRealmPointMultiplier), Is.EqualTo(116), "35 x 3.3 = 115.5");
+        Assert.That(ExpeditionRealm.PointsForKill(4, 10, ExpeditionElites.StalwartRealmPointMultiplier), Is.EqualTo(0), "grey stays nothing");
+        Assert.That(ExpeditionRealm.PointsForKill(0, 1), Is.EqualTo(5), "a level 0 monster at level 1 still counts");
+        Assert.That(ExpeditionElites.RealmPointMultiplier(null), Is.EqualTo(1.0));
     }
 
     [Test]
