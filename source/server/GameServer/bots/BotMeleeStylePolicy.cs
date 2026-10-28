@@ -69,6 +69,20 @@ namespace DOL.GS
                     }
                 }
 
+                // A filler chain's follow-up right after its filler landed (owner 2026-10-28: Preesh's Hurricane, Solar Flare).
+                string followup = champion.Signature?.FillerFollowup;
+
+                if (followup != null)
+                {
+                    foreach (Style style in bot.Styles)
+                    {
+                        if (style.Name == followup && Usable(bot, style, lastAttack))
+                        {
+                            return style;
+                        }
+                    }
+                }
+
                 // Otherwise its filler (owner 2026-10-27): the signature's own, or its best anytime style (highest growth
                 // rate, then highest to-hit); no other reactive, chain or positional style, and none for a plain swing.
                 return DOL.GS.Expedition.Gauntlet.ChampionStyles.BestFiller(bot.Styles, champion.Signature?.Filler,

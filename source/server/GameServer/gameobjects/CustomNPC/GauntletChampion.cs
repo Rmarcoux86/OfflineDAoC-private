@@ -316,7 +316,8 @@ public sealed class GauntletChampion : GameBot
     /// Drunkstains (Polearm, Shields): Slam or Numb from the shield whenever the challenger can be stunned; the polearm
     /// only Defender's Rage (after the challenger's styled hit) and otherwise Crippling Blow.
     /// Toothmouth (Blunt): behind a mezzed challenger Back Crush, then Crushing Blow.
-    /// Every champion's filler is <see cref="ChampionSignature.Filler"/> or its best anytime style (ChampionStyles).
+    /// Every champion's filler is <see cref="ChampionSignature.Filler"/> or its best anytime style (ChampionStyles); Preesh's
+    /// is the Hurricane, Solar Flare chain (owner 2026-10-28, <see cref="ChampionSignature.FillerFollowup"/>).
     /// </summary>
     public static ChampionSignature SignatureFor(string name)
     {
@@ -325,7 +326,7 @@ public sealed class GauntletChampion : GameBot
             "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"],
                 ["Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire"], DrainKite: true),
             "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"],
-                ["Twin Star", "Meteor Shower", "Tornado"], BladeWork: true),
+                ["Twin Star", "Meteor Shower", "Tornado"], Filler: "Hurricane", BladeWork: true, FillerFollowup: "Solar Flare"),
             "Drunkstains" => new ChampionSignature(["Defender's Rage"], null, [], [], Filler: "Crippling Blow", ShieldStun: true),
             "Gwyraan" => new ChampionSignature([], null, [], [], RangedDot: true),
             "Toothmouth" => new ChampionSignature(["Crushing Blow"], "Back Crush", [], [], MezRetreat: true),
@@ -2456,13 +2457,15 @@ public sealed class GauntletChampionBrain : BotBrain
 /// stuns, follow-ups first; empty to keep <paramref name="Priority"/>.</param>
 /// <param name="Filler">The style swung when no priority style can be; null for the champion's best anytime style
 /// (<see cref="ChampionStyles.BestFiller"/>).</param>
+/// <param name="FillerFollowup">A follow-up swung right after the filler lands (Preesh: Solar Flare after Hurricane); null for none.</param>
 /// <param name="ShieldStun">Drunkstains: the shield held between polearm swings, and Slam or Numb from it whenever the
 /// challenger can be stunned.</param>
 /// <param name="RangedDot">Gwyraan: his pet, his DoT as opener and on a challenger beyond melee reach, and his root escape.</param>
 /// <param name="MezRetreat">Toothmouth: his instant mezzes (positional set-up, retreat and heal), shouts, Speed of Sound.</param>
 /// <param name="DrainKite">Ios: her ranged opener (snare, lifedrains) and her kite at 40% health.</param>
 public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] ImmunePriority, string Filler = null,
-    bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false, bool BladeWork = false)
+    bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false, bool BladeWork = false,
+    string FillerFollowup = null)
 {
     public static readonly ChampionSignature None = new([], null, [], []);
 }

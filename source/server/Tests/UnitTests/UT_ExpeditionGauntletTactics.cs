@@ -284,6 +284,8 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(preesh.BladeWork, Is.True);
             Assert.That(preesh.Priority, Does.Contain(GauntletChampion.TripleWieldTriggerStyle));
             Assert.That(GauntletChampion.SignatureFor("Ios").BladeWork, Is.False);
+            Assert.That(preesh.Filler, Is.EqualTo("Hurricane"));
+            Assert.That(preesh.FillerFollowup, Is.EqualTo("Solar Flare"));
         });
     }
 
