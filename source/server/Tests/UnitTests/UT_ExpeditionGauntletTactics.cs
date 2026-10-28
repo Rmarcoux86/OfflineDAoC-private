@@ -123,7 +123,7 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(ChampionTactics.NextBackStunMove(false, false, true, false, true, false), Is.EqualTo(BackStunMove.Drop), "immune");
             Assert.That(ChampionTactics.NextBackStunMove(false, false, false, true, true, false), Is.EqualTo(BackStunMove.Drop), "mezzed");
 
-            Assert.That(ChampionTactics.BackStunSpeedFactor(true), Is.EqualTo(2.0));
+            Assert.That(ChampionTactics.BackStunSpeedFactor(true), Is.EqualTo(4.0));
             Assert.That(ChampionTactics.BackStunSpeedFactor(false), Is.EqualTo(1.0));
         });
     }

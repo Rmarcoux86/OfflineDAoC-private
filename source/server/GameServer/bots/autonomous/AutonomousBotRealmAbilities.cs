@@ -291,7 +291,11 @@ public static class AutonomousBotRealmAbilities
                 Archetype.Archer => PurgeFirst(ArcherBuild),
                 _ => ChampionMeleeBuild,
             };
-            Dictionary<string, int> plan = Plan(catalog.Available, build, ClassOf(bot), points, (key, level) => catalog.ByKey[key].CostForUpgrade(level));
+            // No Determination for a champion (owner 2026-10-28): its points go to the masteries and the rest.
+            Dictionary<string, int> available = catalog.Available
+                .Where(pair => !pair.Key.Contains("Determination", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, int> plan = Plan(available, build, ClassOf(bot), points, (key, level) => catalog.ByKey[key].CostForUpgrade(level));
 
             return string.Join(",", Grant(bot, plan));
         }

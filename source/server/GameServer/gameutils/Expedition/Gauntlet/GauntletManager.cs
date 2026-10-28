@@ -369,7 +369,7 @@ public static class GauntletManager
             }
 
             ChampionDefinition definition = PrototypeIosOnly ? GauntletChampions.Get("Ios") : GauntletChampions.ForRound(state.Seed, state.Round);
-            RoundTier tier = GauntletEscalation.For(state.Round);
+            RoundTier tier = GauntletEscalation.For(state.Round, definition?.Name);
             GauntletChampion champion;
 
             try

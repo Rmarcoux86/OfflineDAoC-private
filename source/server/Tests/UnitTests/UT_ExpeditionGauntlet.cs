@@ -133,12 +133,14 @@ public class UT_ExpeditionGauntlet
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(2, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(8, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(10, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(14, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(10), Is.EqualTo(new RoundTier(14, true, true, true, 0, 0)));
+            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(4, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(7, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(5, GauntletChampions.FinalChampion), Is.EqualTo(new RoundTier(10, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(12, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(10, GauntletChampions.FinalChampion), Is.EqualTo(new RoundTier(10, true, true, true, 0, 0)));
             Assert.That(GauntletEscalation.For(14), Is.EqualTo(new RoundTier(14, true, true, true, 0, 0)));
+            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(8, true, false, false, 0, 0)), "round 5 by another champion");
+            Assert.That(GauntletEscalation.For(1, GauntletChampions.FinalChampion).RealmRank, Is.EqualTo(10), "Preesh is always RR10");
             Assert.That(GauntletEscalation.For(15), Is.EqualTo(new RoundTier(14, true, true, true, 1, 0)));
             Assert.That(GauntletEscalation.For(19), Is.EqualTo(new RoundTier(14, true, true, true, 1, 0)));
             Assert.That(GauntletEscalation.For(20), Is.EqualTo(new RoundTier(14, true, true, true, 2, 0)));

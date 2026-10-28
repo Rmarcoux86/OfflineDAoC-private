@@ -1207,7 +1207,7 @@ public sealed class GauntletChampionBrain : BotBrain
         }
         else
         {
-            // No sprint otherwise (owner 2026-10-28: the speed boost was only for Ios's back stun).
+            // No sprint otherwise (owner 2026-10-28): only kiting away sprints (KiteSprintFactor).
             ApplySpeed(champion, 1);
         }
 
@@ -1454,6 +1454,12 @@ public sealed class GauntletChampionBrain : BotBrain
     /// Sets the champion's speed to this factor of its own base speed (MaxSpeedBase, which MaxSpeedCalculator scales by
     /// the NPC's speed buffs and snares); 1 puts the base back.
     /// </summary>
+    /// <summary>
+    /// A champion kiting away (Ios's kite, Gwyraan's escape, Toothmouth's retreat) sprints like a player: MaxSpeedCalculator's
+    /// sprint factor, applied to MaxSpeedBase since the calculator never sprints an NPC (owner 2026-10-28: only then).
+    /// </summary>
+    private const double KiteSprintFactor = 1.3;
+
     private void ApplySpeed(GauntletChampion champion, double factor)
     {
         if (Math.Abs(factor - _speedFactor) < 0.001)
@@ -1771,7 +1777,8 @@ public sealed class GauntletChampionBrain : BotBrain
             }
             else
             {
-                ApplySpeed(champion, 1);
+                // Kiting away: it may sprint (owner 2026-10-28).
+                ApplySpeed(champion, KiteSprintFactor);
 
                 if (!champion.IsMoving)
                 {
@@ -1941,7 +1948,8 @@ public sealed class GauntletChampionBrain : BotBrain
                     return true;
                 }
 
-                ApplySpeed(champion, 1);
+                // Kiting away: it may sprint (owner 2026-10-28).
+                ApplySpeed(champion, KiteSprintFactor);
 
                 if (!champion.IsMoving)
                 {
@@ -2181,7 +2189,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (!champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
         {
-            ApplySpeed(champion, champion.HasSpeedOfSound ? MaxSpeedCalculator.SPEED4 : 1);
+            ApplySpeed(champion, champion.HasSpeedOfSound ? MaxSpeedCalculator.SPEED4 : KiteSprintFactor);
 
             if (!champion.IsMoving)
             {
@@ -2404,8 +2412,8 @@ public enum LowHealthAction
 /// <summary>The champions' decisions as pure functions of the fight's state (owner 2026-10-27; unit-tested).</summary>
 public static class ChampionTactics
 {
-    /// <summary>Ios's speed while she goes for her back stun (owner 2026-10-27: "e.g. ~2x her run speed").</summary>
-    public const double BackStunBoost = 2.0;
+    /// <summary>Ios's speed while she goes for her back stun (owner 2026-10-28: 4x her run speed, was 2x).</summary>
+    public const double BackStunBoost = 4.0;
 
     /// <summary>Ios kites at this health or less.</summary>
     public const int IosKitePercent = 40;

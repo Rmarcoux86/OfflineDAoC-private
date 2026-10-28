@@ -14,6 +14,9 @@ public static class GauntletEscalation
     /// <summary>The highest realm rank (the last of a realm's fourteen titles, GlobalConstants.REALM_RANK_NAMES).</summary>
     public const int MaxRealmRank = 14;
 
+    /// <summary>The final champion's realm rank, whatever the round (owner 2026-10-28: "Preesh is always rr10").</summary>
+    public const int FinalChampionRealmRank = 10;
+
     /// <summary>The round from which the stat bonus grows every round.</summary>
     private const int OpenEndedRound = 20;
 
@@ -22,15 +25,19 @@ public static class GauntletEscalation
 
     /// <summary>
     /// The tier of a round (1-based; below 1 counts as 1). Every champion wears a full template without ToA bonuses
-    /// (GauntletChampion). Its realm rank is twice the round number (owner 2026-10-25, raised 2026-10-27), up to
-    /// <see cref="MaxRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
+    /// (GauntletChampion). Its realm rank is the round plus 3 (owner 2026-10-28), up to
+    /// <see cref="MaxRealmRank"/>; the final champion's is always <see cref="FinalChampionRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
     /// affix; 15-19 one helper; from 20 two helpers and +5% stats for each round over 20.
     /// </summary>
-    public static RoundTier For(int round)
+    public static RoundTier For(int round, string championName = null)
     {
         round = Math.Max(1, round);
-        // Two ranks a round (owner 2026-10-27: harder champions): RR2, 4, 6, 8, 10 over the five fights.
-        int rank = Math.Min(round * 2, MaxRealmRank);
+
+        // One rank a round from RR4 (owner 2026-10-28, an even climb for an RR3-4 challenger): RR4, 5, 6, 7 for the
+        // first four fights; the final champion is always RR10.
+        int rank = string.Equals(championName, GauntletChampions.FinalChampion, StringComparison.Ordinal)
+            ? FinalChampionRealmRank
+            : Math.Min(round + 3, MaxRealmRank);
 
         // Realm abilities from the first round (owner 2026-10-27).
         if (round < 5)
