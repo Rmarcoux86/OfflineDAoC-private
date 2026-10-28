@@ -1,5 +1,15 @@
 [
   {
+    "tag": "fork-v86",
+    "date": "2026-10-27",
+    "items": [
+      "Boons: every boon in an offer now has the same chance; no slot is kept for a loot boon.",
+      "Four new boons: Second Skin (+10% to every resist and a higher resist cap), Hunter's Instinct (monsters below half health take 15% more damage), Berserker (+30% melee damage and faster swings, but no healing above 70% health) and Beast Bond (pet classes only: pets have 20% more health and hit 15% harder).",
+      "Scavenger and Frostbite are retired, like Greed and Prospector. A run that took one gets a new boon choice in its place (type /run boons).",
+      "Unique weapons: Scouts, Hunters and Rangers can now find a unique bow, and the unique exchanger offers the realm's bow."
+    ]
+  },
+  {
     "tag": "fork-v85",
     "date": "2026-10-27",
     "items": [
