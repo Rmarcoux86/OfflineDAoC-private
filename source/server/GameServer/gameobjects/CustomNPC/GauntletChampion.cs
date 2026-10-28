@@ -223,6 +223,7 @@ public sealed class GauntletChampion : GameBot
         ApplyLooks();
         RollGear(round);
         StripProcs();
+        SetGearQuality();
 
         // Its last name is its realm rank's title in its class's home realm (owner 2026-10-25: "Ios Raven Ardent").
         Name = $"{definition.Name} {RankTitle(definition, tier.RealmRank)}";
@@ -425,6 +426,28 @@ public sealed class GauntletChampion : GameBot
             rolled.Effect = item.Effect;
             rolled.Extension = item.Extension;
             item.Template = rolled;
+        }
+    }
+
+    /// <summary>The quality of every piece a champion wears (owner 2026-10-28: a full template is 99% gear).</summary>
+    public const int GearQuality = 99;
+
+    /// <summary>Every equipped piece, weapons and shields too, at <see cref="GearQuality"/>. A shared template is copied first.</summary>
+    private void SetGearQuality()
+    {
+        if (Inventory == null)
+        {
+            return;
+        }
+
+        foreach (DbInventoryItem item in Inventory.EquippedItems.ToList())
+        {
+            if (item == null || item.Template == null || item.Template.Quality == GearQuality)
+            {
+                continue;
+            }
+
+            item.Template = new DbItemTemplate(item.Template) { Quality = GearQuality };
         }
     }
 
@@ -742,14 +765,6 @@ public sealed class GauntletChampionBrain : BotBrain
 
     /// <summary>A stun with less than this left is not worth walking to the side for.</summary>
     private const long MinStunForSideMs = 2_000;
-
-    /// <summary>
-    /// A champion's sprint: MaxSpeedCalculator multiplies a player's speed by 1.3 while sprinting (its private SPRINT
-    /// constant) but never an NPC's, and a GameBot is a GameNPC, so GameBot.Sprint's effect would not make it faster.
-    /// The sprint is the same factor on MaxSpeedBase (the base speed bots set to PLAYER_BASE_SPEED), which
-    /// MaxSpeedCalculator multiplies by the NPC's speed buffs and snares.
-    /// </summary>
-    private const double SprintFactor = 1.3;
 
     /// <summary>Drunkstains takes up the polearm this long before a swing is due, on top of a think interval.</summary>
     private const long SwapMarginMs = 150;
@@ -1192,7 +1207,8 @@ public sealed class GauntletChampionBrain : BotBrain
         }
         else
         {
-            ApplySpeed(champion, _step != SignatureStep.None || challengerHere && !inMelee ? SprintFactor : 1);
+            // No sprint otherwise (owner 2026-10-28: the speed boost was only for Ios's back stun).
+            ApplySpeed(champion, 1);
         }
 
         if (_step == SignatureStep.Behind && _behindRunThrough && !champion.IsIncapacitated)
@@ -1669,7 +1685,7 @@ public sealed class GauntletChampionBrain : BotBrain
         if (!champion.IsWithinRadius(challenger, drain.Range - OpenerRangeMargin))
         {
             // Out of her spell range (the challenger bows from about 1,700 away): she walks in until she can cast.
-            ApplySpeed(champion, SprintFactor);
+            ApplySpeed(champion, 1);
             champion.PathTo(new Point3D(challenger.X, challenger.Y, challenger.Z), champion.MaxSpeed);
 
             return true;
@@ -1755,7 +1771,7 @@ public sealed class GauntletChampionBrain : BotBrain
             }
             else
             {
-                ApplySpeed(champion, SprintFactor);
+                ApplySpeed(champion, 1);
 
                 if (!champion.IsMoving)
                 {
@@ -1925,7 +1941,7 @@ public sealed class GauntletChampionBrain : BotBrain
                     return true;
                 }
 
-                ApplySpeed(champion, SprintFactor);
+                ApplySpeed(champion, 1);
 
                 if (!champion.IsMoving)
                 {
@@ -2165,7 +2181,7 @@ public sealed class GauntletChampionBrain : BotBrain
 
         if (!champion.IsWithinRadius(_retreatPoint, ArrivedDistance * 2, true))
         {
-            ApplySpeed(champion, champion.HasSpeedOfSound ? MaxSpeedCalculator.SPEED4 : SprintFactor);
+            ApplySpeed(champion, champion.HasSpeedOfSound ? MaxSpeedCalculator.SPEED4 : 1);
 
             if (!champion.IsMoving)
             {
