@@ -35,6 +35,17 @@ public sealed class GauntletChampion : GameBot
     /// <summary>AtlasOF_SpeedOfSound's duration (its m_duration).</summary>
     private const int SpeedOfSoundMs = 30_000;
 
+    /// <summary>Preesh's parry chain stun (owner 2026-10-28): when it lands he uses Triple Wield.</summary>
+    public const string TripleWieldTriggerStyle = "Devastating Blow";
+
+    // Triple Wield and Flurry as TripleWieldAbilityHandler and FlurryAbilityHandler run them (both take a GamePlayer only).
+    private const int TripleWieldMs = 30_000;
+    private const long TripleWieldReuseMs = 7 * 60 * 1000;
+    private const long FlurryReuseMs = 2 * 60 * 1000;
+    private const int FlurryRange = 135;
+    private long _nextTripleWieldAt;
+    private long _nextFlurryAt;
+
     /// <summary>The player this champion fights; null once it has been removed.</summary>
     public GamePlayer Challenger { get; private set; }
 
@@ -314,7 +325,7 @@ public sealed class GauntletChampion : GameBot
             "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"],
                 ["Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire"], DrainKite: true),
             "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"],
-                ["Twin Star", "Meteor Shower", "Tornado"]),
+                ["Twin Star", "Meteor Shower", "Tornado"], BladeWork: true),
             "Drunkstains" => new ChampionSignature(["Defender's Rage"], null, [], [], Filler: "Crippling Blow", ShieldStun: true),
             "Gwyraan" => new ChampionSignature([], null, [], [], RangedDot: true),
             "Toothmouth" => new ChampionSignature(["Crushing Blow"], "Back Crush", [], [], MezRetreat: true),
@@ -601,6 +612,59 @@ public sealed class GauntletChampion : GameBot
         return true;
     }
 
+    /// <summary>
+    /// Preesh's Triple Wield (owner 2026-10-28: when his parry stun lands), as TripleWieldAbilityHandler starts it: a 30 s
+    /// effect (its extra body damage on hits is GameLiving's, for any attacker), then 7 minutes before the next. False
+    /// when it is not ready.
+    /// </summary>
+    internal bool TryTripleWield()
+    {
+        long now = GameLoop.GameLoopTime;
+
+        if (now < _nextTripleWieldAt || IsIncapacitated || !IsAlive || EffectListService.GetAbilityEffectOnTarget(this, eEffect.TripleWield) != null)
+        {
+            return false;
+        }
+
+        ECSGameEffectFactory.Create(new(this, TripleWieldMs, 1), static (in i) => new TripleWieldECSGameEffect(i));
+        _nextTripleWieldAt = now + TripleWieldReuseMs;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Preesh's Flurry on cooldown (owner 2026-10-28), as FlurryAbilityHandler deals it: slash damage of the target's
+    /// maximum health / 100 x his Celtic Dual / 4.5 less its slash resists, within 135 units and in front of him; then
+    /// 2 minutes before the next. False when it is not ready or the target is out of reach.
+    /// </summary>
+    internal bool TryFlurry(GamePlayer target)
+    {
+        long now = GameLoop.GameLoopTime;
+
+        if (target == null || !target.IsAlive || now < _nextFlurryAt || IsIncapacitated || !IsAlive
+            || !IsWithinRadius(target, FlurryRange) || !IsObjectInFront(target, 180))
+        {
+            return false;
+        }
+
+        int damage = (int) (target.MaxHealth / 100 * GetModifiedSpecLevel(Specs.Celtic_Dual) / 4.5);
+        int resistModifier = (int) (damage * (double) target.GetResist(eDamageType.Slash) * -0.01);
+        resistModifier += (int) ((damage + (double) resistModifier) * target.SpecBuffBonusCategory[eProperty.Resist_Slash] * -0.01);
+        damage = Math.Max(0, damage + resistModifier);
+
+        target.TakeDamage(this, eDamageType.Slash, damage, 0);
+
+        foreach (GamePlayer viewer in target.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+        {
+            viewer.Out.SendSpellEffectAnimation(this, target, 7103, 0, false, 0x01);
+        }
+
+        target.Out.SendMessage($"{GetName(0, true)} flurries you for {damage} damage!", PacketHandler.eChatType.CT_Damaged, PacketHandler.eChatLoc.CL_SystemWindow);
+        _nextFlurryAt = now + FlurryReuseMs;
+
+        return true;
+    }
+
     /// <summary>No corpse: GameNPC.ProcessDeath deletes the body, and RespawnInterval -1 keeps it gone.</summary>
     protected override bool RetainCorpseForResurrection => false;
 
@@ -879,6 +943,9 @@ public sealed class GauntletChampionBrain : BotBrain
     private string _shieldStunChoice;
     private bool _shieldStunOpenerDone;
     private AttackData _lastShieldStunAttack;
+
+    // The styled hit that last triggered Preesh's Triple Wield, so one landing counts once.
+    private AttackData _lastTripleWieldTrigger;
 
     public override void Think()
     {
@@ -1307,6 +1374,18 @@ public sealed class GauntletChampionBrain : BotBrain
         AttackData last = champion.attackComponent.attackAction.LastAttackData;
         string lastStyle = last != null && last.AttackResult == eAttackResult.HitStyle ? last.Style?.Name : null;
         int chainIndex = lastStyle == null ? -1 : Array.IndexOf(signature.SideChain, lastStyle);
+
+        // Preesh (owner 2026-10-28): Triple Wield once his parry chain's stun lands, and Flurry whenever it is ready.
+        if (signature.BladeWork)
+        {
+            if (last != null && last != _lastTripleWieldTrigger && lastStyle == GauntletChampion.TripleWieldTriggerStyle && stunned)
+            {
+                _lastTripleWieldTrigger = last;
+                champion.TryTripleWield();
+            }
+
+            champion.TryFlurry(challenger);
+        }
         float championAngle = GauntletPositioning.AngleFrom(challenger.X, challenger.Y, challenger.Heading, champion.X, champion.Y);
         bool facesChampion = championAngle <= RunThroughMaxAngle || championAngle >= 360 - RunThroughMaxAngle;
         bool championBehind = GauntletPositioning.Classify(championAngle) == TargetArc.Back;
@@ -2383,7 +2462,7 @@ public sealed class GauntletChampionBrain : BotBrain
 /// <param name="MezRetreat">Toothmouth: his instant mezzes (positional set-up, retreat and heal), shouts, Speed of Sound.</param>
 /// <param name="DrainKite">Ios: her ranged opener (snare, lifedrains) and her kite at 40% health.</param>
 public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] ImmunePriority, string Filler = null,
-    bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false)
+    bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false, bool BladeWork = false)
 {
     public static readonly ChampionSignature None = new([], null, [], []);
 }

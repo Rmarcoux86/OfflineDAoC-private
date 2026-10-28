@@ -275,6 +275,19 @@ public class UT_ExpeditionGauntletTactics
     }
 
     [Test]
+    public void Preesh_UsesTripleWieldAfterHisParryStun_AndFlurry()
+    {
+        ChampionSignature preesh = GauntletChampion.SignatureFor("Preesh");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(preesh.BladeWork, Is.True);
+            Assert.That(preesh.Priority, Does.Contain(GauntletChampion.TripleWieldTriggerStyle));
+            Assert.That(GauntletChampion.SignatureFor("Ios").BladeWork, Is.False);
+        });
+    }
+
+    [Test]
     public void EveryChampion_HasItsEliteAffix()
     {
         Assert.Multiple(() =>
