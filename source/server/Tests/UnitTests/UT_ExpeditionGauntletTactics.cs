@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DOL.Database;
+using DOL.GS.Expedition;
 using DOL.GS.Expedition.Gauntlet;
 using DOL.GS.Styles;
 using NUnit.Framework;
