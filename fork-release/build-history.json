@@ -1,5 +1,14 @@
 [
   {
+    "tag": "fork-v88",
+    "date": "2026-10-28",
+    "items": [
+      "Boons now show in your buff bar: one icon per boon, with what it does in its delve info.",
+      "The Savage's Savagery buffs (haste, damage, evade, parry and the resist buffs) last 30 seconds instead of 15.",
+      "XP turn-in items (Ghoul Hair and the like) no longer drop."
+    ]
+  },
+  {
     "tag": "fork-v87",
     "date": "2026-10-27",
     "items": [
