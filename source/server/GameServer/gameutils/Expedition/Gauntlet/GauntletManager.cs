@@ -747,6 +747,70 @@ public static class GauntletManager
         }
     }
 
+    /// <summary>
+    /// /gauntlet reset [round] (owner 2026-10-28: to fight champions again while testing). Ends any session (the champion
+    /// goes), then sets the saved round: round 1 for anyone; any round 1 to 5 only for a GM or a test winner (a won run
+    /// with no end time, GauntletTestKit.MarkWinner), since jumping ahead would let a real winner skip to Preesh. The
+    /// deepest round reached (for the Hall of Fame) is kept. Returns the message for the player.
+    /// </summary>
+    public static string Reset(GamePlayer player, int round)
+    {
+        if (player == null || string.IsNullOrEmpty(player.ObjectId))
+        {
+            return "No character.";
+        }
+
+        OfflineExpeditionRecord record;
+
+        try
+        {
+            record = GameServer.Database.FindObjectByKey<OfflineExpeditionRecord>(player.ObjectId);
+        }
+        catch (Exception ex)
+        {
+            return $"Your Gauntlet could not be read: {ex.Message}";
+        }
+
+        if (record == null || record.Status != ExpeditionManager.StatusWon)
+        {
+            return "Only a character that has won its expedition has a Gauntlet to reset.";
+        }
+
+        bool tester = player.Client?.Account?.PrivLevel > (uint) ePrivLevel.Player || string.IsNullOrEmpty(record.EndedUtc);
+
+        if (round != 1 && !tester)
+        {
+            return "You can only reset your Gauntlet to round 1 (/gauntlet reset).";
+        }
+
+        if (round < 1 || round > GauntletRules.Rounds)
+        {
+            return $"Choose a round from 1 to {GauntletRules.Rounds}.";
+        }
+
+        // A session in progress ends first: its champion goes and it saves, then the round below replaces its own.
+        if (GetState(player) != null)
+        {
+            Stop(player);
+        }
+
+        try
+        {
+            GauntletSave save = GauntletSave.Parse(record.GauntletJson);
+            save.Round = round;
+            record.GauntletJson = save.ToJson();
+            GameServer.Database.SaveObject(record);
+        }
+        catch (Exception ex)
+        {
+            return $"Your Gauntlet could not be reset: {ex.Message}";
+        }
+
+        string champion = GauntletChampions.ForRound(record.Seed, round)?.Name ?? "a champion";
+
+        return $"Your Gauntlet is set to round {round} ({champion}). Type /gauntlet start to fight.";
+    }
+
     /// <summary>The /gauntlet status lines.</summary>
     public static List<string> StatusLines(GamePlayer player)
     {

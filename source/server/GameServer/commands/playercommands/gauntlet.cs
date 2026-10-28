@@ -11,6 +11,7 @@ namespace DOL.GS.Commands;
     "/gauntlet start",
     "/gauntlet leave",
     "/gauntlet status",
+    "/gauntlet reset [round] (back to round 1; GMs and test winners may choose 1 to 5)",
     "/gauntlet kit (GM: test gear for a fully templated level 50)",
     "/gauntlet testwinner (GM: mark your target, or yourself, as an expedition winner for testing)")]
 public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
@@ -69,6 +70,21 @@ public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
 
                 GamePlayer target = player.TargetObject as GamePlayer ?? player;
                 client.Out.SendMessage(GauntletTestKit.MarkWinner(target), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                break;
+            }
+            case "reset":
+            {
+                int round = 1;
+
+                if (args.Length >= 3 && !int.TryParse(args[2], out round))
+                {
+                    DisplaySyntax(client);
+
+                    break;
+                }
+
+                client.Out.SendMessage(GauntletManager.Reset(player, round), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 break;
             }
