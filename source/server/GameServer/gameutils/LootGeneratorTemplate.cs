@@ -235,6 +235,9 @@ namespace DOL.GS
             }
         }
 
+        /// <summary>Fork (owner 2026-10-27): whether timed XP turn-in items (negative chance) drop; off, they are bag clutter.</summary>
+        public static bool DropsTurnInItems = false;
+
         public override LootList GenerateLoot(GameNPC mob, GameObject killer)
         {
             LootList loot = base.GenerateLoot(mob, killer);
@@ -300,6 +303,13 @@ namespace DOL.GS
 
                                     if (CanReceiveRealmDrop(lootOwner, drop))
                                     {
+                                        // Fork (owner 2026-10-27): a negative chance is a timed XP turn-in item (Ghoul Hair, Badger Stomach, ...;
+                                        // PackageID AtlasXPItem). They no longer drop (DropsTurnInItems).
+                                        if (lootTemplate.Chance < 0 && !DropsTurnInItems)
+                                        {
+                                            continue;
+                                        }
+
                                         if (lootTemplate.Chance < 0 && player != null)
                                         {
                                             timedDrops.Add(lootTemplate);
@@ -420,6 +430,13 @@ namespace DOL.GS
                                 {
                                     DbItemTemplate drop =
                                         GameServer.Database.FindObjectByKey<DbItemTemplate>(lootTemplate.ItemTemplateID);
+
+                                    // Fork (owner 2026-10-27): a negative chance is a timed XP turn-in item (Ghoul Hair, Badger Stomach, ...;
+                                    // PackageID AtlasXPItem). They no longer drop (DropsTurnInItems).
+                                    if (lootTemplate.Chance < 0 && !DropsTurnInItems)
+                                    {
+                                        continue;
+                                    }
 
                                     if (lootTemplate.Chance < 0 && player != null)
                                     {
