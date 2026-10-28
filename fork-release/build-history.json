@@ -1,5 +1,15 @@
 [
   {
+    "tag": "fork-v87",
+    "date": "2026-10-27",
+    "items": [
+      "Unique bows now carry archery bonuses (archery damage, speed and range) instead of melee ones; a bow you already have is updated when you log in. Archery speed from items now counts, up to 10%.",
+      "Executioner now works on act bosses too: below 10% health, and only to a direct hit.",
+      "Vampiric no longer rolls on damage-over-time ticks unless you are a pure caster.",
+      "Hall of Fame entries now list the run's boons."
+    ]
+  },
+  {
     "tag": "fork-v86",
     "date": "2026-10-27",
     "items": [
