@@ -7,7 +7,8 @@ namespace DOL.GS.Expedition.Gauntlet;
 
 /// <summary>
 /// /gauntlet kit (GMs only, owner 2026-10-28): gear for testing the Gauntlet as a fully templated level 50. Into the
-/// backpack: 99% armor of the class's best type with no bonuses, a 99% copy of each equipped weapon, and two template
+/// backpack: 99% armor of the class's best type with no bonuses, a 99% weapon of every type the class can use (two of each
+/// one-hander for a class that fights with a weapon in each hand, a shield and the realm's bow when it uses them), and two template
 /// pieces (a necklace and a belt) holding every stat, resist and hit point bonus at its level 50 cap
 /// (<see cref="GauntletChampion.TemplateCaps"/>) and the class's three ToA bonuses at 10%. Level and realm rank come
 /// from /player level and /player rps.
@@ -22,11 +23,6 @@ public static class GauntletTestKit
     [
         eInventorySlot.HeadArmor, eInventorySlot.TorsoArmor, eInventorySlot.ArmsArmor,
         eInventorySlot.HandsArmor, eInventorySlot.LegsArmor, eInventorySlot.FeetArmor
-    ];
-
-    private static readonly eInventorySlot[] WeaponSlots =
-    [
-        eInventorySlot.RightHandWeapon, eInventorySlot.LeftHandWeapon, eInventorySlot.TwoHandWeapon, eInventorySlot.DistanceWeapon
     ];
 
     private static readonly eProperty[] Resists =
@@ -90,13 +86,14 @@ public static class GauntletTestKit
             kit.Add(armor);
         }
 
-        foreach (eInventorySlot slot in WeaponSlots)
+        foreach ((eObjectType type, eInventorySlot hand, int copies) in WeaponsFor(player))
         {
-            DbInventoryItem weapon = player.Inventory.GetItem(slot);
-
-            if (weapon?.Template != null)
+            for (int i = 0; i < copies; i++)
             {
-                kit.Add(new DbItemUnique(weapon.Template) { Name = "Test " + weapon.Name });
+                GeneratedUniqueItem weapon = new(realm, characterClass, Level, type, hand);
+                ExpeditionUniques.ClearMagic(weapon);
+                weapon.Name = "Test " + weapon.Name;
+                kit.Add(weapon);
             }
         }
 
@@ -124,8 +121,49 @@ public static class GauntletTestKit
             given++;
         }
 
-        return $"Test kit: {given} items in your backpack (99% armor, 99% copies of your weapons, a template necklace and belt). "
+        return $"Test kit: {given} items in your backpack (99% armor, 99% weapons of every type you can use, a template necklace and belt). "
             + "Take off your other jewelry and equip them. For level and rank: /player level 50, /player rps <points>.";
+    }
+
+    /// <summary>
+    /// The weapons to make: every type of the realm's list the player can use (ExpeditionExchanger.RealmWeapons, bows
+    /// included). A one-hander is made for the left hand, twice, when the player fights with a weapon in each hand (a
+    /// left-hand item goes in either hand; GamePlayerInventory's left slot takes only those), else once for the right.
+    /// Plus a shield, and Midgard's left axe, when the player can use them.
+    /// </summary>
+    private static List<(eObjectType Type, eInventorySlot Hand, int Copies)> WeaponsFor(GamePlayer player)
+    {
+        eRealm realm = player.Realm;
+        bool dualWields = player.attackComponent.CanUseLefthandedWeapon;
+        List<(eObjectType, eInventorySlot, int)> weapons = new();
+
+        bool CanUse(eObjectType type, eInventorySlot hand)
+        {
+            return player.HasAbilityToUseItem(new DbItemTemplate { Object_Type = (int) type, Item_Type = (int) hand, Realm = (int) realm });
+        }
+
+        foreach ((eObjectType type, eInventorySlot hand, _) in ExpeditionExchanger.RealmWeapons(realm))
+        {
+            bool oneHanded = hand == eInventorySlot.RightHandWeapon;
+            eInventorySlot made = oneHanded && dualWields ? eInventorySlot.LeftHandWeapon : hand;
+
+            if (CanUse(type, made))
+            {
+                weapons.Add((type, made, oneHanded && dualWields ? 2 : 1));
+            }
+        }
+
+        if (realm == eRealm.Midgard && CanUse(eObjectType.LeftAxe, eInventorySlot.LeftHandWeapon))
+        {
+            weapons.Add((eObjectType.LeftAxe, eInventorySlot.LeftHandWeapon, 1));
+        }
+
+        if (CanUse(eObjectType.Shield, eInventorySlot.LeftHandWeapon))
+        {
+            weapons.Add((eObjectType.Shield, eInventorySlot.LeftHandWeapon, 1));
+        }
+
+        return weapons;
     }
 
     private static DbItemTemplate TemplatePiece(GamePlayer player, eUniqueSlot slot, string name, List<(eProperty Property, int Value)> lines)
