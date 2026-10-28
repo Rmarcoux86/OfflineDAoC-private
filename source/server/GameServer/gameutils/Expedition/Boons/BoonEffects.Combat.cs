@@ -30,6 +30,23 @@ public static partial class BoonEffects
     private const double BeastBondHealthFactor = 1.2;
     private const int BeastBondDamagePercent = 15;
 
+    /// <summary>
+    /// The pure casters (owner 2026-10-27): the list casters, the pet casters and the healers, and their caster base
+    /// classes. Vampiric rolls on their damage-over-time ticks; a hybrid's DoTs (Reaver, Heretic, ...) roll nothing.
+    /// </summary>
+    private static readonly HashSet<eCharacterClass> PureCasters = new()
+    {
+        eCharacterClass.Wizard, eCharacterClass.Sorcerer, eCharacterClass.Theurgist, eCharacterClass.Cabalist, eCharacterClass.Necromancer, eCharacterClass.Cleric,
+        eCharacterClass.Runemaster, eCharacterClass.Spiritmaster, eCharacterClass.Bonedancer, eCharacterClass.Warlock, eCharacterClass.Healer, eCharacterClass.Shaman,
+        eCharacterClass.Eldritch, eCharacterClass.Enchanter, eCharacterClass.Mentalist, eCharacterClass.Animist, eCharacterClass.Sluaghbinder, eCharacterClass.Druid,
+        eCharacterClass.Mage, eCharacterClass.Elementalist, eCharacterClass.Mystic, eCharacterClass.Seer, eCharacterClass.Magician, eCharacterClass.Forester
+    };
+
+    public static bool IsPureCaster(GamePlayer player)
+    {
+        return player?.CharacterClass != null && PureCasters.Contains((eCharacterClass) player.CharacterClass.ID);
+    }
+
     #region Hits the player lands
 
     /// <summary>
@@ -47,7 +64,8 @@ public static partial class BoonEffects
 
         // Damage-over-time ticks are not hits for Siphon. A style bleed is a small melee
         // side effect and rolls nothing (owner, 2026-10-24: Vampiric "procced on the bleed" for 1 health), but a DoT
-        // spell is a caster's real damage, so Vampiric rolls on its ticks (owner, same day). Executioner sees both,
+        // spell is a caster's real damage, so Vampiric rolls on its ticks (owner, same day), but only for a pure caster
+        // (owner 2026-10-27: not on a Reaver's or other hybrid's DoTs; see PureCasters). Executioner sees both,
         // so a tick can finish a monster off.
         bool styleBleed = ad.SpellHandler?.Spell?.SpellType is eSpellType.StyleBleeding;
         bool dotTick = styleBleed || ad.SpellHandler?.Spell?.SpellType is eSpellType.DamageOverTime or eSpellType.HereticDamageOverTime;
@@ -100,7 +118,8 @@ public static partial class BoonEffects
         }
 
         // Vampiric: a chance to heal half the damage.
-        if (boons.Contains(ExpeditionBoons.Vampiric) && striker.Health < striker.MaxHealth && Util.Chance(VampiricChancePercent))
+        if (boons.Contains(ExpeditionBoons.Vampiric) && (!dotTick || IsPureCaster(striker)) && striker.Health < striker.MaxHealth
+            && Util.Chance(VampiricChancePercent))
         {
             int healed = striker.ChangeHealth(striker, eHealthChangeType.Spell, Math.Max(1, dealt / 2));
 
