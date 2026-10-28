@@ -79,6 +79,11 @@ namespace DOL.GS.Styles
 
 					break;
 				case Style.eOpening.Positional:
+					// Fork (owner 2026-10-28): Ios's back stun lands from any side, so she never loses it to positioning.
+					if (living is DOL.GS.Expedition.Gauntlet.GauntletChampion { Signature.BackStunAnywhere: true } backStunner &&
+						style.Name == backStunner.Signature.BehindOpener)
+						break;
+
 					if (!living.IsObjectInFront(target, 120))
 						return false;
 

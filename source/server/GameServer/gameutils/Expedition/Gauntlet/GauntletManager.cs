@@ -529,6 +529,12 @@ public static class GauntletManager
             player.Out.SendMessage($"Round {beaten} is yours! {champion.Name} is defeated.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
             GauntletSpectators.Cheer();
 
+            // Back to where they entered the arena (owner 2026-10-28), for the next round or the victory.
+            if (player.IsAlive)
+            {
+                player.MoveTo(GauntletArena.RegionId, GauntletArena.PlayerX, GauntletArena.PlayerY, GauntletArena.PlayerZ, GauntletArena.PlayerHeading);
+            }
+
             if (beaten >= GauntletRules.Rounds)
             {
                 Complete(player, state, champion);
@@ -536,7 +542,7 @@ public static class GauntletManager
                 return;
             }
 
-            ExpeditionLoot.DropFor(player, champion, eLootRarity.Rare);
+            // Champions drop nothing (owner 2026-10-28).
             Refresh(player);
             StartRest(player, state);
 
@@ -545,7 +551,7 @@ public static class GauntletManager
     }
 
     /// <summary>
-    /// The last champion fell: the Gauntlet is won. A unique drops, the box congratulates the player, the next Gauntlet
+    /// The last champion fell: the Gauntlet is won (no drop, owner 2026-10-28). The box congratulates the player, the next Gauntlet
     /// would start from the first challenger again, and the player is taken to their bind point shortly.
     /// </summary>
     private static void Complete(GamePlayer player, GauntletState state, GauntletChampion champion)
@@ -556,7 +562,6 @@ public static class GauntletManager
             SaveState(state);
         }
 
-        ExpeditionLoot.DropFor(player, champion, eLootRarity.Unique);
         player.Out.SendMessage($"The {GauntletRules.GuildName} guild is defeated! You have passed the ultimate test.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
         player.Out.SendCustomTextWindow("The Gauntlet", new List<string>
         {

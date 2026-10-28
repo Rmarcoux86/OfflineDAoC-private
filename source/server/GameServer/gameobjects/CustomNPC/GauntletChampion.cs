@@ -324,7 +324,7 @@ public sealed class GauntletChampion : GameBot
         return name switch
         {
             "Ios" => new ChampionSignature([], "Damaging Grasp", ["Stunning Blade", "Winter's Scythe", "Blizzard Blade"],
-                ["Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire"], DrainKite: true),
+                ["Conflagration", "Flaming Scythe", "Foxfire", "Arboreal Fire"], DrainKite: true, BackStunAnywhere: true),
             "Preesh" => new ChampionSignature(["Devastating Blow", "Stunning Blow"], null, ["Ice Storm", "Tempest", "Supernova"],
                 ["Twin Star", "Meteor Shower", "Tornado"], Filler: "Hurricane", BladeWork: true, FillerFollowup: "Solar Flare"),
             "Drunkstains" => new ChampionSignature(["Defender's Rage"], null, [], [], Filler: "Crippling Blow", ShieldStun: true),
@@ -665,6 +665,9 @@ public sealed class GauntletChampion : GameBot
 
         return true;
     }
+
+    /// <summary>Champions drop nothing (owner 2026-10-28).</summary>
+    public override bool CanDropLoot => false;
 
     /// <summary>No corpse: GameNPC.ProcessDeath deletes the body, and RespawnInterval -1 keeps it gone.</summary>
     protected override bool RetainCorpseForResurrection => false;
@@ -2528,6 +2531,7 @@ public sealed class GauntletChampionBrain : BotBrain
 /// <param name="Filler">The style swung when no priority style can be; null for the champion's best anytime style
 /// (<see cref="ChampionStyles.BestFiller"/>).</param>
 /// <param name="FillerFollowup">A follow-up swung right after the filler lands (Preesh: Solar Flare after Hurricane); null for none.</param>
+/// <param name="BackStunAnywhere">Its back positional (BehindOpener) lands from any side (StyleProcessor; owner 2026-10-28: Ios).</param>
 /// <param name="ShieldStun">Drunkstains: the shield held between polearm swings, and Slam or Numb from it whenever the
 /// challenger can be stunned.</param>
 /// <param name="RangedDot">Gwyraan: his pet, his DoT as opener and on a challenger beyond melee reach, and his root escape.</param>
@@ -2535,7 +2539,7 @@ public sealed class GauntletChampionBrain : BotBrain
 /// <param name="DrainKite">Ios: her ranged opener (snare, lifedrains) and her kite at 40% health.</param>
 public sealed record ChampionSignature(string[] Priority, string BehindOpener, string[] SideChain, string[] ImmunePriority, string Filler = null,
     bool ShieldStun = false, bool RangedDot = false, bool MezRetreat = false, bool DrainKite = false, bool BladeWork = false,
-    string FillerFollowup = null)
+    string FillerFollowup = null, bool BackStunAnywhere = false)
 {
     public static readonly ChampionSignature None = new([], null, [], []);
 }

@@ -287,6 +287,8 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(GauntletChampion.SignatureFor("Ios").BladeWork, Is.False);
             Assert.That(preesh.Filler, Is.EqualTo("Hurricane"));
             Assert.That(preesh.FillerFollowup, Is.EqualTo("Solar Flare"));
+            Assert.That(GauntletChampion.SignatureFor("Ios").BackStunAnywhere, Is.True, "her back stun lands from any side");
+            Assert.That(preesh.BackStunAnywhere, Is.False);
         });
     }
 
