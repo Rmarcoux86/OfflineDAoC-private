@@ -72,10 +72,8 @@ public static class ExpeditionBoons
         new(SoulHarvest, "Soul Harvest", "Each monster you kill restores 8% of your health and 8% of your power.", false),
         new(Desperation, "Desperation", "While below half health you deal 30% more melee and spell damage.", false),
         new(GlassCannon, "Glass Cannon", "+25% melee and spell damage, but 15% less maximum health.", false),
-        new(Frostbite, "Frostbite", "Your melee hits have a 25% chance to snare the target by 40% for 8 seconds.", false),
         new(Siphon, "Siphon", "Every hit you land restores 3% of your maximum power.", false),
         new(BountyHunter, "Bounty Hunter", "Elite pack monsters and act bosses drop one extra item.", true),
-        new(Scavenger, "Scavenger", "Every Expedition drop has a 20% chance to come with a second item.", true),
         new(Glory, "Glory", $"+{GloryRealmPointPercent}% realm points for the rest of the run.", false),
         new(BlessedArms, "Blessed Arms", "A lesser strength/constitution and dexterity/quickness buff for the rest of the run.", false),
         new(MarkedPrey, "Marked Prey", "Elite pack monsters and act bosses take 20% more damage from you.", false),
@@ -86,10 +84,10 @@ public static class ExpeditionBoons
 
     /// <summary>
     /// Boons taken out of the catalog (owner 2026-10-25; Greed and Prospector 2026-10-27: the base drop rate is high
-    /// enough that a drop chance bonus barely shows).
+    /// enough that a drop chance bonus barely shows; Scavenger and Frostbite 2026-10-27).
     /// A run that has one gets a new boon choice instead.
     /// </summary>
-    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector };
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector, Scavenger, Frostbite };
 
     /// <summary>
     /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for

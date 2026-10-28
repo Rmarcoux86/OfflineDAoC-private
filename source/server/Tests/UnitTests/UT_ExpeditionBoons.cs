@@ -146,7 +146,7 @@ public class UT_ExpeditionBoons
     [Test]
     public void RolledRarity_IsUnchangedWithoutFortune()
     {
-        string[] others = { ExpeditionBoons.Scavenger, ExpeditionBoons.TreasureSense, ExpeditionBoons.Ironhide };
+        string[] others = { ExpeditionBoons.BountyHunter, ExpeditionBoons.TreasureSense, ExpeditionBoons.Ironhide };
 
         Assert.That(ExpeditionBoons.ShiftRolledRarity(others, eLootRarity.Magic), Is.EqualTo(eLootRarity.Magic));
         Assert.That(ExpeditionBoons.ShiftRolledRarity(Array.Empty<string>(), eLootRarity.Rare), Is.EqualTo(eLootRarity.Rare));
@@ -154,9 +154,9 @@ public class UT_ExpeditionBoons
     }
 
     [Test]
-    public void GreedAndProspector_AreRetiredAndNeverOffered()
+    public void RetiredBoons_AreNeverOffered()
     {
-        foreach (string id in new[] { ExpeditionBoons.Greed, ExpeditionBoons.Prospector })
+        foreach (string id in new[] { ExpeditionBoons.Greed, ExpeditionBoons.Prospector, ExpeditionBoons.Scavenger, ExpeditionBoons.Frostbite })
         {
             Assert.That(ExpeditionBoons.Retired, Does.Contain(id));
             Assert.That(ExpeditionBoons.Find(id), Is.Null);
@@ -168,8 +168,7 @@ public class UT_ExpeditionBoons
             {
                 List<string> offer = ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>());
 
-                Assert.That(offer, Does.Not.Contain(ExpeditionBoons.Greed));
-                Assert.That(offer, Does.Not.Contain(ExpeditionBoons.Prospector));
+                Assert.That(offer.Intersect(ExpeditionBoons.Retired), Is.Empty);
             }
         }
     }
@@ -213,7 +212,7 @@ public class UT_ExpeditionBoons
 
         run.Boons.Add(ExpeditionBoons.Ironhide);
         run.Boons.Add(ExpeditionBoons.Fortune);
-        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Scavenger, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
+        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
 
         List<string> lines = ExpeditionBoons.DescribeBoons(run).ToList();
         string taken = lines.Single(line => line.StartsWith("Boons:", StringComparison.Ordinal));
@@ -221,7 +220,7 @@ public class UT_ExpeditionBoons
 
         Assert.That(taken, Does.Contain("Ironhide"));
         Assert.That(taken, Does.Contain("Fortune"));
-        Assert.That(offer, Does.Contain("Scavenger"));
+        Assert.That(offer, Does.Contain("Glory"));
         Assert.That(offer, Does.Contain("Warding"));
         Assert.That(offer, Does.Contain("Bloodlust"));
     }
@@ -230,11 +229,11 @@ public class UT_ExpeditionBoons
     public void OfferLines_NumberTheOffer()
     {
         ExpeditionRun run = new() { Seed = 1, Act = 2 };
-        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Scavenger, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
+        run.PendingBoonOffer = new List<string> { ExpeditionBoons.Glory, ExpeditionBoons.Warding, ExpeditionBoons.Bloodlust };
 
         List<string> lines = ExpeditionBoons.OfferLines(run);
 
-        Assert.That(lines.Any(line => line.StartsWith("1. Scavenger", StringComparison.Ordinal)), Is.True);
+        Assert.That(lines.Any(line => line.StartsWith("1. Glory", StringComparison.Ordinal)), Is.True);
         Assert.That(lines.Any(line => line.StartsWith("2. Warding", StringComparison.Ordinal)), Is.True);
         Assert.That(lines.Any(line => line.StartsWith("3. Bloodlust", StringComparison.Ordinal)), Is.True);
 

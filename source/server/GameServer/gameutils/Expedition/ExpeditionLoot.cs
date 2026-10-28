@@ -658,13 +658,6 @@ public static class ExpeditionLoot
         rarity = ExpeditionBoons.ShiftRolledRarity(run, rarity);
 
         Deliver(player, killed, rarity);
-
-        // Scavenger: sometimes a second item, rolled on its own.
-        if (BoonEffects.RollsSecondDrop(player))
-        {
-            player.Out?.SendMessage("Scavenger: you find a second item.", eChatType.CT_Loot, eChatLoc.CL_SystemWindow);
-            Deliver(player, killed, ExpeditionBoons.ShiftRolledRarity(run, RollRarity(Random.Shared, false, forced ?? eLootRarity.Common, ExpeditionBoons.UniqueWeightMultiplier(run))));
-        }
     }
 
     private static void Deliver(GamePlayer player, GameNPC killed, eLootRarity rarity)

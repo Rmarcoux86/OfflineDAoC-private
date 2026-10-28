@@ -25,8 +25,7 @@ public static partial class BoonEffects
     /// <summary>Boons that act on hits (the global AttackedByEnemy handler).</summary>
     private static readonly HashSet<string> HitBoons = new()
     {
-        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner,
-        ExpeditionBoons.Frostbite, ExpeditionBoons.Siphon
+        ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.Siphon
     };
 
     /// <summary>Boons that watch the player's health on a timer.</summary>
@@ -60,7 +59,6 @@ public static partial class BoonEffects
         public ECSGameTimer PulseTimer;
         public int PhoenixUsedAct;
         public bool DesperationOn;
-        public long NextFrostbiteAt;
     }
 
     /// <summary>Applies every boon of the run not yet applied to this player object, then updates the client.</summary>

@@ -23,21 +23,12 @@ public static partial class BoonEffects
     private const int SoulHarvestPercent = 8;
     private const int DesperationBelowPercent = 50;
     private const int DesperationDamagePercent = 30;
-    private const int FrostbiteChancePercent = 25;
-    private const long FrostbiteCooldownMs = 4000;
-    private const int FrostbiteSnarePercent = 40;
-    private const int FrostbiteSeconds = 8;
     private const int SiphonPercent = 3;
-    private const int ScavengerChancePercent = 20;
-
-    private const int FrostbiteSpellId = 1970010;
-    private const int FrostbiteEffectGroup = 1970010;
-    private const ushort FrostbiteIcon = 2616;
 
     #region Hits the player lands
 
     /// <summary>
-    /// A hit the player lands, before its damage is applied: Executioner, Frostbite, Siphon and
+    /// A hit the player lands, before its damage is applied: Executioner, Siphon and
     /// Vampiric. <paramref name="ad"/>.Target still has its pre-hit health.
     /// </summary>
     private static void OnPlayerLandsHit(GamePlayer striker, AttackData ad)
@@ -88,12 +79,6 @@ public static partial class BoonEffects
             return;
         }
 
-        // Frostbite: a melee hit may snare the target.
-        if (boons.Contains(ExpeditionBoons.Frostbite) && ad.IsMeleeAttack && target is GameNPC snared && IsMonster(snared) && snared.IsAlive)
-        {
-            TryFrostbite(striker, state, snared);
-        }
-
         // Siphon: power from every hit.
         if (boons.Contains(ExpeditionBoons.Siphon) && !dotTick && striker.Mana < striker.MaxMana)
         {
@@ -110,52 +95,6 @@ public static partial class BoonEffects
                 striker.Out?.SendMessage($"Vampiric: you drain {healed} health.", eChatType.CT_Spell, eChatLoc.CL_SystemWindow);
             }
         }
-    }
-
-    private static void TryFrostbite(GamePlayer striker, AppliedBoons state, GameNPC target)
-    {
-        long now = GameLoop.GameLoopTime;
-
-        lock (state)
-        {
-            if (now < state.NextFrostbiteAt || !Util.Chance(FrostbiteChancePercent))
-            {
-                return;
-            }
-
-            state.NextFrostbiteAt = now + FrostbiteCooldownMs;
-        }
-
-        // The weapon-proc route (as ExpeditionElites.TryVenom): a spell handler started straight on the target.
-        ISpellHandler handler = ScriptMgr.CreateSpellHandler(striker, CreateFrostbiteSpell(striker.Level), SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
-        handler?.StartSpell(target);
-    }
-
-    private static Spell CreateFrostbiteSpell(int level)
-    {
-        DbSpell spell = new()
-        {
-            AllowAdd = false,
-            SpellID = FrostbiteSpellId,
-            Name = "Frostbite",
-            Description = "Slowed by biting cold.",
-            Icon = FrostbiteIcon,
-            ClientEffect = FrostbiteIcon,
-            TooltipId = FrostbiteIcon,
-            Value = FrostbiteSnarePercent,
-            Duration = FrostbiteSeconds,
-            Range = 0,
-            Target = eSpellTarget.ENEMY.ToString(),
-            Type = eSpellType.SpeedDecrease.ToString(),
-            EffectGroup = FrostbiteEffectGroup,
-            Uninterruptible = true,
-            Message1 = "Biting cold slows you!",
-            Message2 = "{0} is slowed by biting cold!",
-            Message3 = "The cold fades.",
-            Message4 = "{0} moves freely again."
-        };
-
-        return new Spell(spell, Math.Max(1, level));
     }
 
     #endregion
@@ -197,12 +136,6 @@ public static partial class BoonEffects
     public static int ExtraBossDrops(GamePlayer player)
     {
         return HasBoon(player, ExpeditionBoons.BountyHunter) ? 1 : 0;
-    }
-
-    /// <summary>Scavenger: whether this drop comes with a second one. Called by ExpeditionLoot.DropFor.</summary>
-    public static bool RollsSecondDrop(GamePlayer player)
-    {
-        return HasBoon(player, ExpeditionBoons.Scavenger) && Util.Chance(ScavengerChancePercent);
     }
 
     #endregion
