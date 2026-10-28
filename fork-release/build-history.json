@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v90",
+    "date": "2026-10-28",
+    "items": [
+      "The Warding boon is retired: next to nothing casts on you in an expedition. A run that took it gets a new boon choice in its place (type /run boons).",
+      "The resist window now shows your real item resist cap, including increases from Mythirians and the Second Skin boon."
+    ]
+  },
+  {
     "tag": "fork-v89",
     "date": "2026-10-28",
     "items": [
