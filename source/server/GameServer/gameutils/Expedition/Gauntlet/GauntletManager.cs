@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using DOL.Events;
@@ -341,6 +342,21 @@ public static class GauntletManager
     }
 
     /// <summary>
+    /// Ends every cooldown the player has (realm abilities, abilities, spells, styles): DisableSkills with a zero
+    /// duration removes each one and tells the client (GamePlayer.DisableSkills).
+    /// </summary>
+    private static void ResetCooldowns(GamePlayer player)
+    {
+        List<Tuple<Skill, int>> cleared = player.GetAllDisabledSkills().Select(skill => new Tuple<Skill, int>(skill, 0)).ToList();
+
+        if (cleared.Count > 0)
+        {
+            player.DisableSkills(cleared);
+            player.Out.SendMessage("Your abilities are refreshed for the round.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    /// <summary>
     /// Begins the player's current round: announces it and spawns the champion at the gate; the champion buffs there for
     /// <see cref="GauntletRules.ChampionBuffSeconds"/> and waits there until the player targets it and
     /// bows (<see cref="OnBow"/>) or attacks it (GauntletChampionBrain).
@@ -367,6 +383,9 @@ public static class GauntletManager
 
                 return false;
             }
+
+            // Every round starts fresh (owner 2026-10-28): all the player's cooldowns are reset.
+            ResetCooldowns(player);
 
             ChampionDefinition definition = PrototypeIosOnly ? GauntletChampions.Get("Ios") : GauntletChampions.ForRound(state.Seed, state.Round);
             RoundTier tier = GauntletEscalation.For(state.Round, definition?.Name);

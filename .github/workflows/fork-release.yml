@@ -31,6 +31,13 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # The NuGet packages from earlier runs, so a build does not download them again.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
       - name: Prepare server config
         shell: pwsh
         run: Copy-Item source/server/CoreServer/config/serverconfig.example.xml source/server/CoreServer/config/serverconfig.xml

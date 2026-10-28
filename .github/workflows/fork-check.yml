@@ -14,28 +14,68 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Enough history to find where the branch left main (Detect changes).
+          fetch-depth: 50
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+
+      # The NuGet packages from earlier runs, so a run does not download them again.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Server-only changes skip the launcher, launcher-only changes skip the server. Workflow changes, or a branch whose
+      # fork point from main cannot be found, run both.
+      - name: Detect changes
+        id: changes
+        shell: pwsh
+        run: |
+          git fetch --quiet --depth=50 origin main
+          $base = git merge-base HEAD FETCH_HEAD 2>$null
+          $server = 'true'
+          $launcher = 'true'
+
+          if ($LASTEXITCODE -eq 0 -and $base)
+          {
+              $files = @(git diff --name-only $base HEAD)
+
+              if ($files.Count -gt 0 -and -not ($files | Where-Object { $_ -like '.github/*' }))
+              {
+                  $server = if ($files | Where-Object { $_ -like 'source/server/*' }) { 'true' } else { 'false' }
+                  $launcher = if ($files | Where-Object { $_ -notlike 'source/server/*' }) { 'true' } else { 'false' }
+              }
+          }
+
+          Write-Output "server=$server launcher=$launcher"
+          "server=$server" >> $env:GITHUB_OUTPUT
+          "launcher=$launcher" >> $env:GITHUB_OUTPUT
 
       - name: Prepare server config
         shell: pwsh
         run: Copy-Item source/server/CoreServer/config/serverconfig.example.xml source/server/CoreServer/config/serverconfig.xml
 
       - name: Build server
+        if: steps.changes.outputs.server == 'true'
         shell: pwsh
         run: dotnet build "source/server/Dawn of Light.sln" -c Release
 
       - name: Run the fork's tests
+        if: steps.changes.outputs.server == 'true'
         shell: pwsh
         run: dotnet test source/server/Tests/Tests.csproj -c Release --no-build --filter "FullyQualifiedName~UT_Fishing|FullyQualifiedName~UT_Expedition|FullyQualifiedName~UT_MobRespawnOverrides|FullyQualifiedName~UT_ThrownRange" --logger "trx;LogFileName=fork-tests.trx" --results-directory test-results
 
       - name: Build launcher
+        if: steps.changes.outputs.launcher == 'true'
         shell: pwsh
         run: dotnet build source/tools/OfflineDaoc.Launcher/OfflineDaoc.Launcher.csproj -c Release
 
       - name: Run the launcher's tests
+        if: steps.changes.outputs.launcher == 'true'
         shell: pwsh
         run: dotnet test source/tools/OfflineDaoc.Launcher.Tests/OfflineDaoc.Launcher.Tests.csproj -c Release --logger "trx;LogFileName=launcher-tests.trx" --results-directory test-results
 
