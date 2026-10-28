@@ -25,8 +25,22 @@ public static class ExpeditionBuffs
     public const string Armor = "warding";
     public const string Endurance = "vigor";
 
+    // Blessed Arms only (owner 2026-10-28: a lesser version of every buff, bases and haste included).
+    public const string Strength = "strength";
+    public const string Constitution = "constitution";
+    public const string Dexterity = "dexterity";
+    public const string BaseArmor = "base_armor";
+    public const string Acuity = "acuity";
+    public const string Haste = "haste";
+
     /// <summary>The shrine buff groups, in a fixed order (shrine draws index into it).</summary>
     public static readonly IReadOnlyList<string> Groups = [StrengthConstitution, DexterityQuickness, Armor, Endurance];
+
+    /// <summary>
+    /// Every group, shrine ones first (their spell IDs, SpellIdBase + index, are unchanged), then those only Blessed Arms
+    /// gives. Blessed Arms gives all of them.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AllGroups = [StrengthConstitution, DexterityQuickness, Armor, Endurance, Strength, Constitution, Dexterity, BaseArmor, Acuity, Haste];
 
     /// <summary>Percent of the spec buff cap (1.875 x level) a lesser buff gives.</summary>
     public const int StrengthPercent = 60;
@@ -52,6 +66,12 @@ public static class ExpeditionBuffs
             DexterityQuickness => "Grace (dexterity and quickness)",
             Armor => "Warding (armor)",
             Endurance => "Vigor (endurance regeneration)",
+            Strength => "Strength",
+            Constitution => "Constitution",
+            Dexterity => "Dexterity",
+            BaseArmor => "Armor (base)",
+            Acuity => "Acuity",
+            Haste => "Haste",
             _ => group
         };
     }
@@ -66,6 +86,18 @@ public static class ExpeditionBuffs
             Endurance => "Shrine of Vigor",
             _ => "Shrine"
         };
+    }
+
+    /// <summary>The value of a lesser base stat or base armor buff at <paramref name="level"/>: 60% of the base buff cap (1.25 x level).</summary>
+    public static int BaseStatValue(int level)
+    {
+        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 1.25 * StrengthPercent / 100.0));
+    }
+
+    /// <summary>The lesser haste at <paramref name="level"/>: 15% at level 50, less below (60% of a strong 25% haste).</summary>
+    public static int HasteValue(int level)
+    {
+        return Math.Max(1, (int) Math.Round(Math.Max(1, level) * 0.3));
     }
 
     /// <summary>The value of a lesser stat or armor buff at <paramref name="level"/>: 60% of 1.875 x level.</summary>
@@ -93,8 +125,7 @@ public static class ExpeditionBuffs
 
         if (boons.Contains(ExpeditionBoons.BlessedArms))
         {
-            groups.Add(StrengthConstitution);
-            groups.Add(DexterityQuickness);
+            groups.UnionWith(AllGroups);
         }
 
         foreach (ShrineSpec shrine in run.CurrentAct?.Shrines ?? [])
@@ -163,6 +194,12 @@ public static class ExpeditionBuffs
         {
             StrengthConstitution => !player.HasAbility(Abilities.VampiirStrength) && !player.HasAbility(Abilities.VampiirConstitution),
             DexterityQuickness => !player.HasAbility(Abilities.VampiirDexterity) && !player.HasAbility(Abilities.VampiirQuickness),
+            Strength => !player.HasAbility(Abilities.VampiirStrength),
+            Constitution => !player.HasAbility(Abilities.VampiirConstitution),
+            Dexterity => !player.HasAbility(Abilities.VampiirDexterity),
+
+            // Acuity only helps a class with a casting stat.
+            Acuity => ExpeditionBoons.UsesPower(player),
             _ => true
         };
     }
@@ -179,6 +216,12 @@ public static class ExpeditionBuffs
             StrengthConstitution => 1517,
             DexterityQuickness => 1526,
             Armor => 1506,
+            Strength => 1457,
+            Constitution => 1486,
+            Dexterity => 1476,
+            BaseArmor => 1467,
+            Acuity => 1538,
+            Haste => 407,
             _ => 1081
         };
     }
@@ -216,9 +259,9 @@ public static class ExpeditionBuffs
             int id = effect.SpellHandler?.Spell?.ID ?? 0;
             int index = id - SpellIdBase;
 
-            if (index >= 0 && index < Groups.Count)
+            if (index >= 0 && index < AllGroups.Count)
             {
-                ours[Groups[index]] = effect;
+                ours[AllGroups[index]] = effect;
             }
         }
 
@@ -227,7 +270,7 @@ public static class ExpeditionBuffs
 
     private static void Cast(GamePlayer player, string group)
     {
-        int index = Groups.ToList().IndexOf(group);
+        int index = AllGroups.ToList().IndexOf(group);
 
         if (index < 0)
         {
@@ -239,6 +282,12 @@ public static class ExpeditionBuffs
             StrengthConstitution => (eSpellType.StrengthConstitutionBuff, StatValue(player.Level)),
             DexterityQuickness => (eSpellType.DexterityQuicknessBuff, StatValue(player.Level)),
             Armor => (eSpellType.SpecArmorFactorBuff, StatValue(player.Level)),
+            Strength => (eSpellType.StrengthBuff, BaseStatValue(player.Level)),
+            Constitution => (eSpellType.ConstitutionBuff, BaseStatValue(player.Level)),
+            Dexterity => (eSpellType.DexterityBuff, BaseStatValue(player.Level)),
+            BaseArmor => (eSpellType.BaseArmorFactorBuff, BaseStatValue(player.Level)),
+            Acuity => (eSpellType.AcuityBuff, StatValue(player.Level)),
+            Haste => (eSpellType.CombatSpeedBuff, HasteValue(player.Level)),
             _ => (eSpellType.EnduranceRegenBuff, EnduranceValue())
         };
 
