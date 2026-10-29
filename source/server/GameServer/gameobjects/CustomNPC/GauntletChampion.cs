@@ -2636,6 +2636,12 @@ public sealed class GauntletChampionBrain : BotBrain
         if (_shieldStunChoice == null)
         {
             _shieldStunChoice = ChampionTactics.ShieldStun(stunImmune, challenger.IsStunned, _shieldStunOpenerDone, Random.Shared.Next(2) == 0);
+
+            // A stun he does not have (his Shields spec too low) would be waited for forever: the other one instead.
+            if (_shieldStunChoice != null && champion.Styles?.Any(style => style.Name == _shieldStunChoice) != true)
+            {
+                _shieldStunChoice = _shieldStunChoice == ChampionTactics.Slam ? ChampionTactics.Numb : ChampionTactics.Slam;
+            }
         }
 
         string stunName = !stunImmune && !challenger.IsStunned ? _shieldStunChoice : null;
@@ -3107,7 +3113,7 @@ public sealed class IosBotSpec : BotSpec
 }
 
 /// <summary>
-/// Drunkstains's build (owner 2026-10-25): the stock ArmsmanBotSpec TwoHandHybrid, 50 Polearm, 39 Slash, 42 Shields,
+/// Drunkstains's build (owner 2026-10-25): the stock ArmsmanBotSpec TwoHandHybrid, 50 Polearm, 35 Slash, 42 Shields,
 /// 18 Parry (the stock build's 3 Crossbow left out). GameBot.SetWeapons gives it the slashing one-hander and the
 /// polearm, SetShield the shield; GauntletChampion fills a slot the item table left empty.
 /// </summary>
@@ -3120,7 +3126,9 @@ public sealed class DrunkstainsBotSpec : BotSpec
         WeaponTwoType = eObjectType.PolearmWeapon;
         Is2H = true;
         SpecType = eSpecType.TwoHandHybrid;
-        Add(ObjToSpec(WeaponOneType), 39, 0.6f);
+        // Slash 35, not 39 (owner 2026-10-28: "drunkstains never attempted to slam or numb"): with 39 the bot's points
+        // (GameBot's spec allocation) ran out at Shields 38, and Slam needs Shields 42. 35 is the most that leaves 42.
+        Add(ObjToSpec(WeaponOneType), 35, 0.6f);
         Add(ObjToSpec(WeaponTwoType), 50, 1.0f);
         Add(Specs.Shields, 42, 0.5f);
         Add(Specs.Parry, 18, 0.1f);
