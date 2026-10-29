@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v105",
+    "date": "2026-10-29",
+    "items": [
+      "Rejuvenation now restores 1% of your maximum health every 6 seconds (was 2% every 3 seconds).",
+      "Blessed Arms buffs are now 30% strength (was 40%). A used shrine (60%) still upgrades its buff."
+    ]
+  },
+  {
     "tag": "fork-v104",
     "date": "2026-10-28",
     "items": [
