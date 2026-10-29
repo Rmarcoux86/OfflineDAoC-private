@@ -507,8 +507,15 @@ public static class ExpeditionManager
         return Runs.TryGetValue(player.ObjectId, out ExpeditionRun run) && run.IsActive ? run : null;
     }
 
-    public static bool TryStartRun(GamePlayer player, int? seed, out string error)
+    public static bool TryStartRun(GamePlayer player, int? seed, out string error, bool hard = false)
     {
+        if (hard && !ExpeditionHardMode.IsUnlocked(player))
+        {
+            error = "A hard expedition opens to an account that has beaten the Gauntlet.";
+
+            return false;
+        }
+
         error = null;
 
         if (player?.Client == null)
@@ -595,9 +602,10 @@ public static class ExpeditionManager
             Status = StatusActive,
             CurrentAct = plan,
             StartedUtc = DateTime.UtcNow,
+            Hard = hard,
             Record = existing
         };
-        run.AddLog($"Expedition begun by {player.Name} with seed {runSeed}.");
+        run.AddLog(hard ? $"Hard expedition begun by {player.Name} with seed {runSeed}." : $"Expedition begun by {player.Name} with seed {runSeed}.");
         run.AddLog($"Act 1: {plan.ZoneName} (levels {plan.MinLevel}-{plan.MaxLevel}).");
 
         player.Emote(eEmote.StagFrenzy);
@@ -731,6 +739,7 @@ public static class ExpeditionManager
             record.RealmPointsEarned = run.RealmPointsEarned;
             record.RerollsUsed = run.RerollsUsed;
             record.PlayedSecondsAtWin = run.PlayedSecondsAtWin;
+            record.Hard = run.Hard;
 
             if (record.IsPersisted)
             {
@@ -1250,6 +1259,7 @@ public static class ExpeditionManager
             RealmPointsEarned = record.RealmPointsEarned,
             RerollsUsed = record.RerollsUsed,
             PlayedSecondsAtWin = record.PlayedSecondsAtWin,
+            Hard = record.Hard,
             LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,

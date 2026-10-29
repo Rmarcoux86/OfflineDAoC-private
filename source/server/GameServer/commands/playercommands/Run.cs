@@ -17,6 +17,8 @@ namespace DOL.GS.Commands;
     "/run boon <1-3>",
     "/run reroll",
     "/run seed",
+    "/run new hard [seed] (a hard expedition, for an account that has beaten the Gauntlet)",
+    "/run rules (the rules of a hard expedition)",
     "/run abandon",
     "/run gauntlet",
     "/run debug")]
@@ -45,10 +47,19 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
             case "new":
             {
                 int? seed = null;
+                bool hard = args.Length >= 3 && string.Equals(args[2], "hard", StringComparison.OrdinalIgnoreCase);
+                int seedIndex = hard ? 3 : 2;
 
-                if (args.Length >= 3)
+                if (hard && !ExpeditionHardMode.IsUnlocked(player))
                 {
-                    if (!int.TryParse(args[2], out int parsed))
+                    client.Out.SendMessage("A hard expedition opens to an account that has beaten the Gauntlet.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                if (args.Length > seedIndex)
+                {
+                    if (!int.TryParse(args[seedIndex], out int parsed))
                     {
                         client.Out.SendMessage("The seed must be a whole number.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
@@ -66,7 +77,11 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                 }
 
                 // TryStartRun checks everything again when the answer comes.
-                client.Out.SendCustomDialog("Start an expedition? Your Hardcore flag will be ON: death ends the run and deletes this character.", (dialogPlayer, response) =>
+                string question = hard
+                    ? "Start a HARD expedition? Everything is stronger and the safety nets are gone (/run rules). Your Hardcore flag will be ON: death ends the run and deletes this character."
+                    : "Start an expedition? Your Hardcore flag will be ON: death ends the run and deletes this character.";
+
+                client.Out.SendCustomDialog(question, (dialogPlayer, response) =>
                 {
                     if (response != 1)
                     {
@@ -75,11 +90,18 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
                         return;
                     }
 
-                    if (!ExpeditionManager.TryStartRun(dialogPlayer, seed, out string error))
+                    if (!ExpeditionManager.TryStartRun(dialogPlayer, seed, out string error, hard))
                     {
                         dialogPlayer.Out.SendMessage(error, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
                     }
                 });
+
+                return;
+            }
+
+            case "rules":
+            {
+                client.Out.SendCustomTextWindow("Hard expedition", ExpeditionHardMode.RulesLines());
 
                 return;
             }

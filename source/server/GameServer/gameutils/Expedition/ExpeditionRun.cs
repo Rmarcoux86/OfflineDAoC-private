@@ -304,6 +304,20 @@ public class OfflineExpeditionRecord : DataObject
         }
     }
 
+    private bool m_hard;
+
+    /// <summary>True for a hard-mode run (ExpeditionHardMode, owner 2026-10-29): unlocked by beating the Gauntlet.</summary>
+    [DataElement(AllowDbNull = false)]
+    public bool Hard
+    {
+        get { return m_hard; }
+        set
+        {
+            Dirty = true;
+            m_hard = value;
+        }
+    }
+
     private string m_gauntletJson;
 
     /// <summary>
@@ -381,6 +395,9 @@ public sealed class ExpeditionRun
     public DateTime StartedUtc;
     public DateTime? EndedUtc;
     public List<string> Log = new();
+
+    /// <summary>True for a hard-mode run (ExpeditionHardMode).</summary>
+    public bool Hard;
 
     /// <summary>Ids of the boons taken on this run, in the order taken (see ExpeditionBoons).</summary>
     public List<string> Boons = new();
