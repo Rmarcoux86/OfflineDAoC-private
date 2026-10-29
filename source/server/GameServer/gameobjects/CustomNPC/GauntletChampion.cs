@@ -249,7 +249,8 @@ public sealed class GauntletChampion : GameBot
         // Its elite affix (owner 2026-10-28): the effect, and the affix before its name ("Swift Ios Raven Ardent").
         if (!string.IsNullOrEmpty(definition.Affix))
         {
-            ExpeditionElites.ApplyChampionAffix(this, definition.Affix);
+            // Preesh keeps Swift's faster swings (owner 2026-10-28); the others get an affix's run speed only.
+            ExpeditionElites.ApplyChampionAffix(this, definition.Affix, definition.Name == GauntletChampions.FinalChampion);
         }
 
         RefreshItemBonuses();

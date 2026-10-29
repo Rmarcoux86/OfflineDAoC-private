@@ -340,7 +340,8 @@ public static class ExpeditionElites
     /// forgotten on its death (the Dying handler) or by <see cref="Forget"/> when it is removed. It never counts for loot or
     /// realm points: a champion is a bot, never a lootable kill.
     /// </summary>
-    public static bool ApplyChampionAffix(GameNPC npc, string affix)
+    /// <param name="swiftSwings">Swift's faster swings too (owner 2026-10-28: Preesh only; other champions get its run speed only).</param>
+    public static bool ApplyChampionAffix(GameNPC npc, string affix, bool swiftSwings = false)
     {
         if (npc == null || string.IsNullOrEmpty(affix))
         {
@@ -362,7 +363,7 @@ public static class ExpeditionElites
         }
 
         EnsureHandlers();
-        ApplyAffix(npc, state, affix, true);
+        ApplyAffix(npc, state, affix, swiftSwings);
         npc.Name = EliteName(affix, state.OriginalName);
 
         return true;
@@ -375,8 +376,8 @@ public static class ExpeditionElites
     }
 
     /// <summary>An affix's own effect (Venomous and Frenzied act through the AttackedByEnemy handler).</summary>
-    /// <param name="champion">A Gauntlet champion: Swift gives it the run speed only (owner 2026-10-28: Ios hit too hard).</param>
-    private static void ApplyAffix(GameNPC npc, EliteState state, string affix, bool champion = false)
+    /// <param name="swiftSwings">Swift's faster swings as well as its run speed (false for most Gauntlet champions, owner 2026-10-28).</param>
+    private static void ApplyAffix(GameNPC npc, EliteState state, string affix, bool swiftSwings = true)
     {
         switch (affix)
         {
@@ -389,7 +390,7 @@ public static class ExpeditionElites
                 }
 
                 // NPC swing time is base x MeleeSpeed% (MeleeSpeedPercentCalculator: 100 - buff for NPCs).
-                if (!champion)
+                if (swiftSwings)
                 {
                     AddBonus(npc, state, eProperty.MeleeSpeed, SwiftMeleeSpeedBonus);
                 }
