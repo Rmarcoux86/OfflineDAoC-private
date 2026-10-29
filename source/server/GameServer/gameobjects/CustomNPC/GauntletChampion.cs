@@ -850,6 +850,9 @@ public sealed class GauntletChampionBrain : BotBrain
     /// </summary>
     private const int RunThroughThinkMs = 1;
 
+    /// <summary>The think pace while a manoeuvre (Ios's opener or kite, Gwyraan's escape, Toothmouth's mez) runs.</summary>
+    private const int ManoeuvreThinkMs = 200;
+
     /// <summary>Meanwhile the bot's own fight (BotBrain.AttackMostWanted) runs at its usual pace.</summary>
     private const long PressureThinkMs = 500;
 
@@ -1038,6 +1041,10 @@ public sealed class GauntletChampionBrain : BotBrain
         // runs: no BotBrain fight moves the champion or hits the challenger meanwhile.
         if (ThinkManoeuvre(champion, challengerHere ? challenger : null, now))
         {
+            // A bot in combat thinks about every 1.5 s (BotBrain sets it again on its next own think), so a stop, the snare
+            // and the drain took a think each (owner 2026-10-28: Ios "runs up, stops, does nothing for 3 seconds").
+            ThinkInterval = ManoeuvreThinkMs;
+
             return;
         }
 
