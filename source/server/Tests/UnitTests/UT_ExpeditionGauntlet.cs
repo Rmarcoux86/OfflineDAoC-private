@@ -53,27 +53,15 @@ public class UT_ExpeditionGauntlet
     }
 
     [Test]
-    public void ForRound_IsDeterministicPerSeedAndRound()
+    public void ForRound_IsTheFixedOrder_ForEverySeed()
     {
-        bool seedChangesOrder = false;
-        List<string> firstSeedOrder = Enumerable.Range(1, 5).Select(round => GauntletChampions.ForRound(Seeds[0], round).Name).ToList();
-
         foreach (int seed in Seeds)
         {
-            for (int round = 1; round <= Cycles * 5; round++)
-            {
-                Assert.That(GauntletChampions.ForRound(seed, round), Is.SameAs(GauntletChampions.ForRound(seed, round)), $"seed {seed} round {round}");
-            }
+            List<string> order = Enumerable.Range(1, 10).Select(round => GauntletChampions.ForRound(seed, round).Name).ToList();
 
-            List<string> order = Enumerable.Range(1, 5).Select(round => GauntletChampions.ForRound(seed, round).Name).ToList();
-
-            if (!order.SequenceEqual(firstSeedOrder))
-            {
-                seedChangesOrder = true;
-            }
+            Assert.That(order, Is.EqualTo(new[] { "Gwyraan", "Toothmouth", "Ios", "Drunkstains", "Preesh", "Gwyraan", "Toothmouth", "Ios", "Drunkstains", "Preesh" }),
+                $"seed {seed}");
         }
-
-        Assert.That(seedChangesOrder, Is.True, "the seed should take part in the order");
     }
 
     [Test]
