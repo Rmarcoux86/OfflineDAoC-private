@@ -202,13 +202,6 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(ChampionTactics.ToothmouthLowHealth(49, true, true, false, true), Is.EqualTo(LowHealthAction.SpeedOfSoundRetreat), "mez immune");
             Assert.That(ChampionTactics.ToothmouthLowHealth(49, false, false, false, true), Is.EqualTo(LowHealthAction.SpeedOfSoundRetreat));
             Assert.That(ChampionTactics.ToothmouthLowHealth(49, false, false, false, false), Is.EqualTo(LowHealthAction.None));
-
-            // Toothmouth's positional mez: above half health, on a challenger he can mez.
-            Assert.That(ChampionTactics.ToothmouthPositionalMez(100, true, false, false, false), Is.True);
-            Assert.That(ChampionTactics.ToothmouthPositionalMez(49, true, false, false, false), Is.False);
-            Assert.That(ChampionTactics.ToothmouthPositionalMez(100, true, true, false, false), Is.False, "mez immune");
-            Assert.That(ChampionTactics.ToothmouthPositionalMez(100, true, false, false, true), Is.False, "stunned");
-            Assert.That(ChampionTactics.ToothmouthPositionalMez(100, true, false, false, false, false), Is.False, "no mez before he opens in melee");
         });
     }
 

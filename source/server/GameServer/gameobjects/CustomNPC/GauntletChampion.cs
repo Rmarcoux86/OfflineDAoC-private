@@ -990,8 +990,6 @@ public sealed class GauntletChampionBrain : BotBrain
     private long _mezCastTick;
     private bool _positionalMez;
 
-    // Toothmouth has swung at his challenger this fight (owner 2026-10-28: he opens by running in to melee, not with a mez).
-    private bool _meleeOpened;
     private bool _retreating;
     private bool _retreatBySpeedOfSound;
     private long _retreatStartTick;
@@ -2322,8 +2320,8 @@ public sealed class GauntletChampionBrain : BotBrain
     /// <summary>
     /// Toothmouth (owner 2026-10-27, replacing the once-per-fight rule). Below half health
     /// (ChampionTactics.ToothmouthLowHealth): whenever an instant mez is ready and lands, he retreats and heals; with no
-    /// mez, Speed of Sound and the same retreat. Above half health, a ready mez sets up his positional: he walks behind the
-    /// mezzed challenger (<see cref="UpdateStep"/>) for Back Crush, then Crushing Blow. His shout is woven into his melee
+    /// mez, Speed of Sound and the same retreat. Above half health he never mezzes (owner 2026-10-28: the mez is
+    /// saved for the escape). His shout is woven into his melee
     /// (<see cref="InstantSpells"/>). True while this owns the think.
     /// </summary>
     private bool ThinkToothmouth(GauntletChampion champion, GamePlayer challenger, long now)
@@ -2333,13 +2331,10 @@ public sealed class GauntletChampionBrain : BotBrain
             _retreating = false;
             _mezCastTick = 0;
             _positionalMez = false;
-            _meleeOpened = false;
             ApplySpeed(champion, 1);
 
             return false;
         }
-
-        _meleeOpened = _meleeOpened || champion.attackComponent.attackAction.LastAttackData?.Target == challenger;
 
         if (_retreating)
         {
@@ -2412,11 +2407,7 @@ public sealed class GauntletChampionBrain : BotBrain
             return true;
         }
 
-        if (ChampionTactics.ToothmouthPositionalMez(champion.HealthPercent, mez != null, mezImmune, challenger.IsMezzed, challenger.IsStunned, _meleeOpened))
-        {
-            return CastMez(champion, challenger, mez, MezPurpose.Positional, now);
-        }
-
+        // No mez for his positional (owner 2026-10-28: "He needs to save it for his escape to heal").
         return false;
     }
 
@@ -2833,16 +2824,6 @@ public static class ChampionTactics
         }
 
         return speedOfSoundReady ? LowHealthAction.SpeedOfSoundRetreat : LowHealthAction.None;
-    }
-
-    /// <summary>
-    /// Toothmouth's positional set-up in his loop: a ready mez on a challenger he can mez, once he has opened in melee
-    /// (owner 2026-10-28: he runs in to melee first, no mez opener).
-    /// </summary>
-    public static bool ToothmouthPositionalMez(int healthPercent, bool mezReady, bool challengerMezImmune, bool challengerMezzed, bool challengerStunned,
-        bool meleeOpened = true)
-    {
-        return meleeOpened && healthPercent >= LowHealthPercent && mezReady && !challengerMezImmune && !challengerMezzed && !challengerStunned;
     }
 
     /// <summary>
