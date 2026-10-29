@@ -18,7 +18,8 @@ public static partial class BoonEffects
     private const string StateKey = "EXPEDITION_BOONS_APPLIED";
 
     private const int RejuvenationIntervalMilliseconds = 3000;
-    private const int RejuvenationPercent = 2;
+    // 1% (owner 2026-10-29: nerfed from 2%).
+    private const int RejuvenationPercent = 1;
     private const int VampiricChancePercent = 25;
     private const int PulseIntervalMilliseconds = 500;
     private const int IconIntervalMilliseconds = 2000;

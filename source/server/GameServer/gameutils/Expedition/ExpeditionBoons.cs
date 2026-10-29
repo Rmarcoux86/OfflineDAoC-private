@@ -68,7 +68,7 @@ public static class ExpeditionBoons
         new(Bloodlust, "Bloodlust", "+15% melee critical hit chance (the 50% cap still applies).", false),
         new(Thornmail, "Thornmail", "Monsters that hit you in melee take heat damage (3 + your level) on every hit.", false),
         new(Vampiric, "Vampiric", "Each hit you land (melee or spell) has a 25% chance to heal you for half its damage.", false),
-        new(Rejuvenation, "Rejuvenation", "You regenerate 2% of your maximum health every 3 seconds, even in combat.", false),
+        new(Rejuvenation, "Rejuvenation", "You regenerate 1% of your maximum health every 3 seconds, even in combat.", false),
         new(ArcaneFury, "Arcane Fury", "+15% spell critical hit chance.", false),
         new(Executioner, "Executioner", "Any hit you land on a monster below 15% health kills it outright; an act boss only below 10%, and only to a direct hit.", false),
         new(PhoenixFeather, "Phoenix Feather", "Once per act, when your health falls below 25% you are instantly healed to 60%.", false),

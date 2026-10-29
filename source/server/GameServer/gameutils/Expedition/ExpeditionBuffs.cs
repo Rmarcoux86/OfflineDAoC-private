@@ -89,7 +89,7 @@ public static class ExpeditionBuffs
     }
 
     /// <summary>A Blessed Arms buff's strength, in percent of the cap (owner 2026-10-28: below a shrine's, so a shrine upgrades it).</summary>
-    public const int BlessedArmsPercent = 40;
+    public const int BlessedArmsPercent = 30;
 
     /// <summary>The value of a lesser base stat or base armor buff at <paramref name="level"/>: a percent of the base buff cap (1.25 x level).</summary>
     public static int BaseStatValue(int level, int percent = StrengthPercent)
