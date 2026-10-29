@@ -290,11 +290,11 @@ public class UT_ExpeditionGauntletTactics
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GauntletChampions.Get("Ios").Affix, Is.EqualTo(ExpeditionElites.Swift));
+            Assert.That(GauntletChampions.Get("Ios").Affix, Is.EqualTo(ExpeditionElites.Frenzied));
             Assert.That(GauntletChampions.Get("Toothmouth").Affix, Is.EqualTo(ExpeditionElites.Stalwart));
             Assert.That(GauntletChampions.Get("Gwyraan").Affix, Is.EqualTo(ExpeditionElites.Venomous));
             Assert.That(GauntletChampions.Get("Drunkstains").Affix, Is.EqualTo(ExpeditionElites.Armoured));
-            Assert.That(GauntletChampions.Get("Preesh").Affix, Is.EqualTo(ExpeditionElites.Frenzied));
+            Assert.That(GauntletChampions.Get("Preesh").Affix, Is.EqualTo(ExpeditionElites.Swift));
             Assert.That(ExpeditionElites.EliteName(ExpeditionElites.Swift, "Ios Raven Ardent"), Is.EqualTo("Swift Ios Raven Ardent"));
         });
     }

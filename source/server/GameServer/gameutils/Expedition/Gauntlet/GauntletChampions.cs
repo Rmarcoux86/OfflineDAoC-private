@@ -21,7 +21,7 @@ public static class GauntletChampions
     public static readonly IReadOnlyList<ChampionDefinition> All = new List<ChampionDefinition>
     {
         // At 50% health: a melee speed and damage burst.
-        new("Ios", (int) eCharacterClass.Valewalker, (int) eRace.Celt, (int) eGender.Female, "burst", ExpeditionElites.Swift),
+        new("Ios", (int) eCharacterClass.Valewalker, (int) eRace.Celt, (int) eGender.Female, "burst", ExpeditionElites.Frenzied),
 
         // Polearm bleeds, one Purge, a taunt that forces its target.
         new("Drunkstains", (int) eCharacterClass.Armsman, (int) eRace.HalfOgre, (int) eGender.Male, "attrition", ExpeditionElites.Armoured),
@@ -33,7 +33,7 @@ public static class GauntletChampions
         new("Gwyraan", (int) eCharacterClass.Druid, (int) eRace.Celt, (int) eGender.Male, "pet-heal", ExpeditionElites.Venomous),
 
         // Dual wield, high evade; Vanish once per fight and reappear behind the player.
-        new("Preesh", (int) eCharacterClass.Blademaster, (int) eRace.Firbolg, (int) eGender.Male, "vanish", ExpeditionElites.Frenzied)
+        new("Preesh", (int) eCharacterClass.Blademaster, (int) eRace.Firbolg, (int) eGender.Male, "vanish", ExpeditionElites.Swift)
     };
 
     /// <summary>The champion with this name (case-insensitive), or null when there is none.</summary>
