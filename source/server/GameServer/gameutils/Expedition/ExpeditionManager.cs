@@ -770,6 +770,12 @@ public static class ExpeditionManager
         BossSpec boss = run.CurrentAct?.Boss;
         string bossName = string.IsNullOrEmpty(boss?.Title) ? boss?.BaseMobName : boss.Title;
 
+        // A hard run's act boss is the act's Gauntlet champion (ExpeditionHardBosses).
+        if (run.Hard)
+        {
+            bossName = ExpeditionHardBosses.ChampionFor(run.Act).Name;
+        }
+
         run.AddLog($"Act {run.Act}: every objective is done. {bossName ?? "The act boss"} has come.");
         Save(run);
 
@@ -793,7 +799,8 @@ public static class ExpeditionManager
         }
 
         run.BossesKilled++;
-        run.AddLog($"Act {run.Act}: {finished?.Boss?.Title ?? "the act boss"} is slain.");
+        string slain = run.Hard ? ExpeditionHardBosses.ChampionFor(run.Act).Name : finished?.Boss?.Title;
+        run.AddLog($"Act {run.Act}: {slain ?? "the act boss"} is slain.");
         ExpeditionRealm.OnBossKilled(player, run.Act, run.Act >= ActGenerator.ActCount);
 
         if (run.Act >= ActGenerator.ActCount)
@@ -1029,7 +1036,7 @@ public static class ExpeditionManager
             AddLoc(lines, "Camp", plan.RegionId, plan.CampX, plan.CampY);
 
             AddObjectives(lines, plan);
-            AddBoss(lines, plan);
+            AddBoss(lines, plan, run.Hard);
             AddElites(lines, plan);
             AddShrines(lines, plan);
             AddServices(lines, plan);
@@ -1080,7 +1087,7 @@ public static class ExpeditionManager
         }
     }
 
-    private static void AddBoss(List<string> lines, ActPlan plan)
+    private static void AddBoss(List<string> lines, ActPlan plan, bool hard)
     {
         if (plan.Boss == null)
         {
@@ -1089,10 +1096,21 @@ public static class ExpeditionManager
 
         lines.Add(string.Empty);
         lines.Add("-- BOSS --");
-        lines.Add($"{plan.Boss.Title}");
-        // A named boss keeps the monster it is built on to itself (owner 2026-10-25: it looks like its own race and class).
-        bool named = plan.Boss.Title != plan.Boss.BaseMobName && !plan.Boss.Title.StartsWith("Warden of ", StringComparison.Ordinal);
-        lines.Add(named ? $"{Indent}level {plan.Boss.Level}" : $"{Indent}level {plan.Boss.Level} {plan.Boss.BaseMobName}");
+
+        if (hard)
+        {
+            // A hard run's act boss is the act's Gauntlet champion (ExpeditionHardBosses).
+            Gauntlet.ChampionDefinition champion = ExpeditionHardBosses.ChampionFor(plan.Act);
+            lines.Add($"{champion.Name}, Gauntlet champion");
+            lines.Add($"{Indent}level {ExpeditionHardBosses.LevelFor(plan)} {(eCharacterClass) champion.ClassId}");
+        }
+        else
+        {
+            lines.Add($"{plan.Boss.Title}");
+            // A named boss keeps the monster it is built on to itself (owner 2026-10-25: it looks like its own race and class).
+            bool named = plan.Boss.Title != plan.Boss.BaseMobName && !plan.Boss.Title.StartsWith("Warden of ", StringComparison.Ordinal);
+            lines.Add(named ? $"{Indent}level {plan.Boss.Level}" : $"{Indent}level {plan.Boss.Level} {plan.Boss.BaseMobName}");
+        }
 
         string status = plan.BossKilled ? "slain" : plan.BossSpawned ? "has appeared" : "appears when every objective is done";
         lines.Add($"{Indent}{status}");
