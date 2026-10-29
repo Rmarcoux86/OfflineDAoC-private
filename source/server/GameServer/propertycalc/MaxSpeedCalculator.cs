@@ -29,6 +29,12 @@ namespace DOL.GS.PropertyCalc
             if (living.IsCrowdControlled && living.effectListComponent.GetEffects().FirstOrDefault(x => x.GetType() == typeof(SpeedOfSoundECSEffect)) == null)
                 return 0;
 
+            // Fork (owner 2026-10-28): a Gauntlet challenger stands still until they bow to their champion.
+            if (living is GamePlayer gauntletPlayer && DOL.GS.Expedition.Gauntlet.GauntletManager.AwaitingBow(gauntletPlayer))
+            {
+                return 0;
+            }
+
             double speedIncrease = living.BuffBonusMultCategory1.Get((int)property);
             double maxSpeedBase = living.MaxSpeedBase;
 

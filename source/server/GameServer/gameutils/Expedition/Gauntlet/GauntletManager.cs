@@ -190,6 +190,16 @@ public static class GauntletManager
 
     #region Start, rounds, death, leave
 
+    /// <summary>
+    /// True while the player's champion waits to be bowed to: the player stands frozen where they entered
+    /// (owner 2026-10-28: "freeze player at port in spot until the duel has commenced via bow"; MaxSpeedCalculator).
+    /// </summary>
+    public static bool AwaitingBow(GamePlayer player)
+    {
+        return player != null && player.CurrentRegionID == GauntletArena.RegionId && States.TryGetValue(player.ObjectId, out GauntletState state) &&
+            state.Champion is { IsAlive: true, Engaged: false };
+    }
+
     public static GauntletState GetState(GamePlayer player)
     {
         if (player == null)
@@ -427,6 +437,9 @@ public static class GauntletManager
             // measured from there (owner 2026-10-25: the champion stays where it appears).
             state.Champion = champion;
 
+            // Frozen until the bow (AwaitingBow).
+            player.Out.SendUpdateMaxSpeed();
+
             List<string> lines = state.Round <= 1
                 ? new List<string>
                 {
@@ -499,6 +512,7 @@ public static class GauntletManager
         }
 
         champion.Engaged = true;
+        player.Out.SendUpdateMaxSpeed();
 
         foreach (GamePlayer watcher in champion.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
         {
@@ -533,6 +547,7 @@ public static class GauntletManager
                 }
 
                 state.Champion = null;
+                champion.Challenger?.Out.SendUpdateMaxSpeed();
                 beaten = state.Round;
                 state.Depth = Math.Max(state.Depth, beaten);
                 state.Round = beaten + 1;
@@ -948,6 +963,7 @@ public static class GauntletManager
     {
         GauntletChampion champion = state.Champion;
         state.Champion = null;
+        champion?.Challenger?.Out.SendUpdateMaxSpeed();
 
         // Its elite affix state goes with it (a slain champion's went on its death).
         ExpeditionElites.Forget(champion);

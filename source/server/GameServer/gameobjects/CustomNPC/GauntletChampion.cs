@@ -582,6 +582,9 @@ public sealed class GauntletChampion : GameBot
         if (!Engaged && ad != null && IsChallengerSide(ad.Attacker))
         {
             Engaged = true;
+
+            // The challenger was frozen until the fight began (GauntletManager.AwaitingBow).
+            Challenger?.Out.SendUpdateMaxSpeed();
         }
 
         if (ad != null && ad.Target == this && ad.AttackResult == eAttackResult.HitStyle && ad.Style?.Name == NumbStyleName)
