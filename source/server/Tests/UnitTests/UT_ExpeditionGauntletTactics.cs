@@ -189,11 +189,12 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(ChampionTactics.IosLowHealth(30, false, false), Is.EqualTo(LowHealthAction.IgnorePain));
             Assert.That(ChampionTactics.IosLowHealth(20, true, true), Is.EqualTo(LowHealthAction.None), "once");
 
-            // Gwyraan: the root escape whenever possible, and no instant heal.
-            Assert.That(ChampionTactics.GwyraanLowHealth(50, true, false), Is.EqualTo(LowHealthAction.None));
-            Assert.That(ChampionTactics.GwyraanLowHealth(49, true, false), Is.EqualTo(LowHealthAction.RootEscape));
-            Assert.That(ChampionTactics.GwyraanLowHealth(49, true, true), Is.EqualTo(LowHealthAction.None), "root immune");
-            Assert.That(ChampionTactics.GwyraanLowHealth(49, false, false), Is.EqualTo(LowHealthAction.None), "root on cooldown");
+            // Gwyraan: the root escape whenever possible, else the instant heal.
+            Assert.That(ChampionTactics.GwyraanLowHealth(50, true, false, true), Is.EqualTo(LowHealthAction.None));
+            Assert.That(ChampionTactics.GwyraanLowHealth(49, true, false, true), Is.EqualTo(LowHealthAction.RootEscape));
+            Assert.That(ChampionTactics.GwyraanLowHealth(49, true, true, true), Is.EqualTo(LowHealthAction.InstantHeal), "root immune");
+            Assert.That(ChampionTactics.GwyraanLowHealth(49, false, false, true), Is.EqualTo(LowHealthAction.InstantHeal), "root on cooldown");
+            Assert.That(ChampionTactics.GwyraanLowHealth(49, false, false, false), Is.EqualTo(LowHealthAction.None));
 
             // Toothmouth: a mez retreat whenever a mez is ready, else Speed of Sound.
             Assert.That(ChampionTactics.ToothmouthLowHealth(50, true, false, false, true), Is.EqualTo(LowHealthAction.None));
@@ -262,6 +263,7 @@ public class UT_ExpeditionGauntletTactics
             Assert.That(ChampionSpells.Named(spells, "Major Restoration")?.Name, Is.EqualTo("Major Restoration"));
             Assert.That(ChampionSpells.Named(spells, "Cycle of Death"), Is.Null);
             Assert.That(ChampionSpells.BestSelfHeal(spells, 50)?.Name, Is.EqualTo("Greater Regrowth"), "the best by value, which is why his is named");
+            Assert.That(ChampionSpells.BestInstantHeal(spells, 50)?.Name, Is.EqualTo("Bith's Benison"));
             Assert.That(ChampionSpells.Best(spells, eSpellType.SpeedDecrease, 34, true)?.Name, Is.EqualTo("Veil Path"));
         });
     }
