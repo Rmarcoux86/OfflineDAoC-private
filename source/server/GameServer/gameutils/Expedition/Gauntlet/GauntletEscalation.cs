@@ -44,6 +44,15 @@ public static class GauntletEscalation
         };
     }
 
+    /// <summary>
+    /// The tier of each champion of a hard winner's two-champion round (owner 2026-10-29): the round's own tier at the
+    /// final champion's realm rank, <see cref="FinalChampionRealmRank"/>.
+    /// </summary>
+    public static RoundTier ForPair(int round)
+    {
+        return For(round, GauntletChampions.FinalChampion);
+    }
+
     public static RoundTier For(int round, string championName = null)
     {
         round = Math.Max(1, round);

@@ -584,6 +584,9 @@ public sealed class GauntletChampion : GameBot
         {
             Engaged = true;
 
+            // A hard winner's two-champion round: its partner joins the fight too.
+            GauntletManager.OnChampionEngaged(this);
+
             // The challenger was frozen until the fight began (GauntletManager.AwaitingBow).
             Challenger?.Out.SendUpdateMaxSpeed();
         }

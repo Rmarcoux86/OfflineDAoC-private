@@ -17,6 +17,7 @@ namespace DOL.GS.Expedition.Gauntlet;
 /// experience or constitution loss, GamePlayer's two hooks), removes the champion and releases the player at the arena
 /// entrance with the round unchanged. Round and depth are saved in <see cref="OfflineExpeditionRecord.GauntletJson"/>.
 /// The champions come in cycles of five, Preesh last (GauntletChampions.ForRound); <see cref="PrototypeIosOnly"/> makes every round Ios.
+/// A hard run's winner has a sixth round (GauntletRules.RoundsFor): two champions at once (GauntletChampions.PairFor).
 /// </summary>
 public static class GauntletManager
 {
@@ -197,7 +198,32 @@ public static class GauntletManager
     public static bool AwaitingBow(GamePlayer player)
     {
         return player != null && player.CurrentRegionID == GauntletArena.RegionId && States.TryGetValue(player.ObjectId, out GauntletState state) &&
-            state.Champion is { IsAlive: true, Engaged: false };
+            state.Champions.Any(champion => champion.IsAlive && !champion.Engaged);
+    }
+
+    /// <summary>The session whose round holds this champion, or null.</summary>
+    private static GauntletState StateOf(GauntletChampion champion)
+    {
+        if (champion == null)
+        {
+            return null;
+        }
+
+        foreach (GauntletState state in States.Values)
+        {
+            if (state.Champions.Contains(champion))
+            {
+                return state;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>The champions' names, as "A" or "A and B".</summary>
+    private static string NamesOf(List<GauntletChampion> champions)
+    {
+        return string.Join(" and ", champions.Select(champion => champion.Name));
     }
 
     public static GauntletState GetState(GamePlayer player)
@@ -327,6 +353,13 @@ public static class GauntletManager
         {
             state.Record = record;
             state.Seed = record?.Seed ?? player.ObjectId.GetHashCode();
+            state.Hard = record?.Hard == true;
+
+            // A round past this Gauntlet's last (a sixth round saved on a run that is not hard) starts over.
+            if (state.Round > GauntletRules.RoundsFor(state))
+            {
+                state.Round = 1;
+            }
         }
 
         // Fork (owner 2026-10-27): the won run's boons carry into the Gauntlet (less Phoenix Feather and the loot boons).
@@ -397,51 +430,72 @@ public static class GauntletManager
             // Every round starts fresh (owner 2026-10-28): all the player's cooldowns are reset.
             ResetCooldowns(player);
 
-            ChampionDefinition definition = PrototypeIosOnly ? GauntletChampions.Get("Ios") : GauntletChampions.ForRound(state.Seed, state.Round);
-            RoundTier tier = GauntletEscalation.For(state.Round, definition?.Name);
-            GauntletChampion champion;
+            // A hard winner's sixth round is two champions at once (owner 2026-10-29), each at the final champion's realm
+            // rank, one each side of the gate; every other round is one champion at the gate.
+            bool pair = !PrototypeIosOnly && GauntletRules.IsPairRound(state, state.Round);
+            List<ChampionDefinition> definitions = pair
+                ? GauntletChampions.PairFor(state.Seed)
+                : new List<ChampionDefinition> { PrototypeIosOnly ? GauntletChampions.Get("Ios") : GauntletChampions.ForRound(state.Seed, state.Round) };
+            List<GauntletChampion> champions = new();
+            RoundTier tier = null;
 
-            try
+            for (int i = 0; i < definitions.Count; i++)
             {
-                champion = new GauntletChampion(player, definition, state.Round, tier);
-            }
-            catch (Exception ex)
-            {
-                if (Log.IsErrorEnabled)
+                ChampionDefinition definition = definitions[i];
+                tier = pair ? GauntletEscalation.ForPair(state.Round) : GauntletEscalation.For(state.Round, definition?.Name);
+                GauntletChampion champion;
+
+                try
                 {
-                    Log.Error($"[GAUNTLET] The round {state.Round} champion could not be made for {player.Name}.", ex);
+                    champion = new GauntletChampion(player, definition, state.Round, tier);
+                }
+                catch (Exception ex)
+                {
+                    if (Log.IsErrorEnabled)
+                    {
+                        Log.Error($"[GAUNTLET] The round {state.Round} champion could not be made for {player.Name}.", ex);
+                    }
+
+                    champions.ForEach(made => made.Remove());
+                    player.Out.SendMessage("The champion could not be summoned. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return false;
                 }
 
-                player.Out.SendMessage("The champion could not be summoned. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                (int x, int y) = pair ? GauntletArena.PairSpawn(i == 0 ? -1 : 1) : (GauntletArena.GateX, GauntletArena.GateY);
+                champion.X = x;
+                champion.Y = y;
+                champion.Z = GauntletArena.GateZ;
+                champion.Heading = GauntletArena.GateHeading;
+                champion.CurrentRegionID = GauntletArena.RegionId;
+                champion.BuffUntilTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffSeconds * 1000L;
+                champion.PrefightDeadlineTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffMaxSeconds * 1000L;
 
-                return false;
+                if (!champion.AddToWorld())
+                {
+                    champion.Remove();
+                    champions.ForEach(made => made.Remove());
+                    player.Out.SendMessage("The champion could not enter the arena. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return false;
+                }
+
+                // Preesh fights with Blessed Arms (owner 2026-10-29).
+                if (definition.Name == GauntletChampions.FinalChampion)
+                {
+                    ExpeditionBuffs.ApplyBlessedArms(champion);
+                }
+
+                champions.Add(champion);
             }
 
-            champion.X = GauntletArena.GateX;
-            champion.Y = GauntletArena.GateY;
-            champion.Z = GauntletArena.GateZ;
-            champion.Heading = GauntletArena.GateHeading;
-            champion.CurrentRegionID = GauntletArena.RegionId;
-            champion.BuffUntilTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffSeconds * 1000L;
-            champion.PrefightDeadlineTick = GameLoop.GameLoopTime + GauntletRules.ChampionBuffMaxSeconds * 1000L;
-
-            if (!champion.AddToWorld())
-            {
-                champion.Remove();
-                player.Out.SendMessage("The champion could not enter the arena. Please report this.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-
-                return false;
-            }
-
-            // Preesh fights with Blessed Arms (owner 2026-10-29).
-            if (definition.Name == GauntletChampions.FinalChampion)
-            {
-                ExpeditionBuffs.ApplyBlessedArms(champion);
-            }
-
-            // AddToWorld made the gate its spawn point: it waits there, returns there when leashed, and the leash is
-            // measured from there (owner 2026-10-25: the champion stays where it appears).
-            state.Champion = champion;
+            // AddToWorld made each one's own spot its spawn point: it waits there, returns there when leashed, and its
+            // leash is measured from there (owner 2026-10-25: the champion stays where it appears).
+            state.Champions = champions;
+            state.ReadyAnnounced = false;
+            GauntletChampion first = champions[0];
+            string names = NamesOf(champions);
+            int rounds = GauntletRules.RoundsFor(state);
 
             // Frozen until the bow (AwaitingBow).
             player.Out.SendUpdateMaxSpeed();
@@ -455,26 +509,40 @@ public static class GauntletManager
                     string.Empty,
                     $"The {GauntletRules.GuildName} guild.",
                     string.Empty,
-                    $"Its {GauntletRules.Rounds} members will face you one at a time, each of a higher realm rank than the last. Defeat them all to finish the Gauntlet.",
+                    state.Hard
+                        ? $"Its {GauntletRules.Rounds} members will face you one at a time, each of a higher realm rank than the last. Your expedition was a hard one, so a sixth round follows: two of them at once. Defeat them all to finish the Gauntlet."
+                        : $"Its {GauntletRules.Rounds} members will face you one at a time, each of a higher realm rank than the last. Defeat them all to finish the Gauntlet.",
                     string.Empty,
                     "How it works:",
                     "- Each challenger prepares its buffs where it stands and waits for you. Prepare yourself too.",
-                    $"- When you are ready, target {champion.Name} and type /bow (or /duel challenge) to begin the fight.",
+                    $"- When you are ready, target {first.Name} and type /bow (or /duel challenge) to begin the fight.",
                     "- Attacking it also starts the fight.",
                     "- Win, and the next challenger steps forward after a short rest.",
                     "- If you fall, you return here with no death penalty; type /gauntlet start to face the same challenger again.",
                     "- /gauntlet status shows where you are; /gauntlet leave takes you to your bind point."
                 }
-                : new List<string>
-                {
-                    $"Challenger {state.Round} of {GauntletRules.Rounds}",
-                    string.Empty,
-                    $"{champion.Name} of {GauntletRules.GuildName} steps forward (realm rank {tier.RealmRank}).",
-                    string.Empty,
-                    $"Target {champion.Name} and type /bow (or /duel challenge) when you are ready."
-                };
+                : pair
+                    ? new List<string>
+                    {
+                        $"Challenger {state.Round} of {rounds}",
+                        string.Empty,
+                        $"{names} of {GauntletRules.GuildName} step forward together (realm rank {tier.RealmRank}).",
+                        string.Empty,
+                        "Both fight you at once. The round is yours only when both have fallen.",
+                        $"Target either of them and type /bow (or /duel challenge) when you are ready."
+                    }
+                    : new List<string>
+                    {
+                        $"Challenger {state.Round} of {rounds}",
+                        string.Empty,
+                        $"{first.Name} of {GauntletRules.GuildName} steps forward (realm rank {tier.RealmRank}).",
+                        string.Empty,
+                        $"Target {first.Name} and type /bow (or /duel challenge) when you are ready."
+                    };
 
-            player.Out.SendMessage($"The Gauntlet, round {state.Round}: {champion.Name} steps into the arena!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+            player.Out.SendMessage(pair
+                ? $"The Gauntlet, round {state.Round}: {names} step into the arena!"
+                : $"The Gauntlet, round {state.Round}: {first.Name} steps into the arena!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
             player.Out.SendCustomTextWindow("The Gauntlet", lines);
 
             return true;
@@ -495,8 +563,53 @@ public static class GauntletManager
             return;
         }
 
-        player.Out.SendMessage($"{champion.Name} awaits your challenge. Target {champion.Name} and type /bow when you are ready.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-        player.Out.SendMessage($"{champion.Name} awaits your challenge. Target {champion.Name} and type /bow when you are ready.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        string message = $"{champion.Name} awaits your challenge. Target {champion.Name} and type /bow when you are ready.";
+        GauntletState state = StateOf(champion);
+
+        if (state != null)
+        {
+            lock (state)
+            {
+                List<GauntletChampion> champions = state.Champions;
+
+                // A pair is announced once, when the last of the two is ready, naming both.
+                if (champions.Count > 1)
+                {
+                    if (state.ReadyAnnounced || champions.Any(other => !other.AtCentre))
+                    {
+                        return;
+                    }
+
+                    state.ReadyAnnounced = true;
+                    message = $"{NamesOf(champions)} await your challenge. Target either of them and type /bow when you are ready.";
+                }
+            }
+        }
+
+        player.Out.SendMessage(message, eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage(message, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+    }
+
+    /// <summary>
+    /// One champion of a pair was drawn into the fight by an attack (GauntletChampion.OnAttackedByEnemy): its partner
+    /// joins at once, as a bow engages both. Nothing changes for a single champion.
+    /// </summary>
+    public static void OnChampionEngaged(GauntletChampion champion)
+    {
+        GauntletState state = StateOf(champion);
+
+        if (state == null)
+        {
+            return;
+        }
+
+        foreach (GauntletChampion other in state.Champions)
+        {
+            if (other != champion && other.IsAlive && !other.Engaged)
+            {
+                other.Engaged = true;
+            }
+        }
     }
 
     /// <summary>
@@ -510,28 +623,47 @@ public static class GauntletManager
             return;
         }
 
-        if (!champion.AtCentre)
+        // One bow engages every champion of the round (a hard winner's sixth round has two).
+        List<GauntletChampion> champions = GetState(player)?.Champions;
+
+        if (champions == null || !champions.Contains(champion))
         {
-            player.Out.SendMessage($"{champion.Name} is still preparing. Wait a moment, then bow again.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            champions = new List<GauntletChampion> { champion };
+        }
+
+        champions = champions.Where(other => other.IsAlive).ToList();
+        GauntletChampion preparing = champions.FirstOrDefault(other => !other.AtCentre);
+
+        if (preparing != null)
+        {
+            player.Out.SendMessage($"{preparing.Name} is still preparing. Wait a moment, then bow again.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
             return;
         }
 
-        champion.Engaged = true;
-        player.Out.SendUpdateMaxSpeed();
-
-        foreach (GamePlayer watcher in champion.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+        foreach (GauntletChampion other in champions)
         {
-            watcher.Out.SendEmoteAnimation(champion, eEmote.Bow);
+            other.Engaged = true;
         }
 
-        player.Out.SendMessage($"{champion.Name} bows in return. Fight!", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-        player.Out.SendMessage($"{champion.Name} bows in return. Fight!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendUpdateMaxSpeed();
+
+        foreach (GauntletChampion other in champions)
+        {
+            foreach (GamePlayer watcher in other.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+            {
+                watcher.Out.SendEmoteAnimation(other, eEmote.Bow);
+            }
+        }
+
+        string message = champions.Count > 1 ? $"{NamesOf(champions)} bow in return. Fight!" : $"{champion.Name} bows in return. Fight!";
+        player.Out.SendMessage(message, eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage(message, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
     }
 
     /// <summary>
-    /// The champion died (GauntletChampion.ProcessDeath, only on a real death): the round is beaten, one Rare-or-better
-    /// item is given, the round number goes up and the rest begins.
+    /// The champion died (GauntletChampion.ProcessDeath, only on a real death): it leaves the round's champions; when none
+    /// is left the round is beaten, the round number goes up and the rest begins.
     /// </summary>
     public static void OnChampionDied(GauntletChampion champion)
     {
@@ -544,25 +676,40 @@ public static class GauntletManager
         {
             GamePlayer player;
             int beaten;
+            List<GauntletChampion> standing;
 
             lock (state)
             {
-                if (state.Champion != champion)
+                if (!state.Champions.Contains(champion))
                 {
                     continue;
                 }
 
-                state.Champion = null;
+                standing = state.Champions.Where(other => other != champion).ToList();
+                state.Champions = standing;
                 champion.Challenger?.Out.SendUpdateMaxSpeed();
-                beaten = state.Round;
-                state.Depth = Math.Max(state.Depth, beaten);
-                state.Round = beaten + 1;
-                SaveState(state);
                 player = champion.Challenger;
+                beaten = state.Round;
+
+                // A pair's round is beaten only when both have fallen.
+                if (standing.Count == 0)
+                {
+                    state.Depth = Math.Max(state.Depth, beaten);
+                    state.Round = beaten + 1;
+                    SaveState(state);
+                }
             }
 
             if (player == null || player.ObjectState != GameObject.eObjectState.Active)
             {
+                return;
+            }
+
+            if (standing.Count > 0)
+            {
+                player.Out.SendMessage($"{champion.Name} falls! {NamesOf(standing)} still stands.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                GauntletSpectators.Cheer();
+
                 return;
             }
 
@@ -575,7 +722,7 @@ public static class GauntletManager
                 player.MoveTo(GauntletArena.RegionId, GauntletArena.PlayerX, GauntletArena.PlayerY, GauntletArena.PlayerZ, GauntletArena.PlayerHeading);
             }
 
-            if (beaten >= GauntletRules.Rounds)
+            if (beaten >= GauntletRules.RoundsFor(state))
             {
                 Complete(player, state, champion);
 
@@ -602,12 +749,17 @@ public static class GauntletManager
             SaveState(state);
         }
 
-        player.Out.SendMessage($"The {GauntletRules.GuildName} guild is defeated! You have passed the ultimate test.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+        // A hard winner's sixth round won: the guild is defeated in full (owner 2026-10-29).
+        player.Out.SendMessage(state.Hard
+            ? $"The {GauntletRules.GuildName} guild is defeated in full! You have passed the ultimate test."
+            : $"The {GauntletRules.GuildName} guild is defeated! You have passed the ultimate test.", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
         player.Out.SendCustomTextWindow("The Gauntlet", new List<string>
         {
-            $"You have defeated the {GauntletRules.GuildName} guild!",
+            state.Hard ? $"You have defeated the {GauntletRules.GuildName} guild in full!" : $"You have defeated the {GauntletRules.GuildName} guild!",
             string.Empty,
-            $"All {GauntletRules.Rounds} of its members have fallen before you. You have passed the ultimate test.",
+            state.Hard
+                ? "All six rounds are won: every one of its members has fallen before you, the last two together. You have passed the ultimate test."
+                : $"All {GauntletRules.Rounds} of its members have fallen before you. You have passed the ultimate test.",
             string.Empty,
             $"You are taken to your bind point in {GauntletRules.ReturnAfterVictorySeconds} seconds."
         });
@@ -770,8 +922,9 @@ public static class GauntletManager
 
     /// <summary>
     /// /gauntlet reset [round] (owner 2026-10-28: to fight champions again while testing). Ends any session (the champion
-    /// goes), then sets the saved round: round 1 for anyone; any round 1 to 5 only for a GM or a test winner (a won run
-    /// with no end time, GauntletTestKit.MarkWinner), since jumping ahead would let a real winner skip to Preesh. The
+    /// goes), then sets the saved round: round 1 for anyone; any round 1 to 5 (6 after a hard run, GauntletRules.RoundsFor)
+    /// only for a GM or a test winner (a won run with no end time, GauntletTestKit.MarkWinner), since jumping ahead would let
+    /// a real winner skip to Preesh. The
     /// deepest round reached (for the Hall of Fame) is kept. Returns the message for the player.
     /// </summary>
     public static string Reset(GamePlayer player, int round)
@@ -804,9 +957,11 @@ public static class GauntletManager
             return "You can only reset your Gauntlet to round 1 (/gauntlet reset).";
         }
 
-        if (round < 1 || round > GauntletRules.Rounds)
+        int rounds = GauntletRules.RoundsFor(record.Hard);
+
+        if (round < 1 || round > rounds)
         {
-            return $"Choose a round from 1 to {GauntletRules.Rounds}.";
+            return $"Choose a round from 1 to {rounds}.";
         }
 
         // A session in progress ends first: its champion goes and it saves, then the round below replaces its own.
@@ -827,7 +982,9 @@ public static class GauntletManager
             return $"Your Gauntlet could not be reset: {ex.Message}";
         }
 
-        string champion = GauntletChampions.ForRound(record.Seed, round)?.Name ?? "a champion";
+        string champion = record.Hard && round == GauntletRules.HardRounds
+            ? string.Join(" and ", GauntletChampions.PairFor(record.Seed).Select(definition => definition.Name))
+            : GauntletChampions.ForRound(record.Seed, round)?.Name ?? "a champion";
 
         return $"Your Gauntlet is set to round {round} ({champion}). Type /gauntlet start to fight.";
     }
@@ -845,9 +1002,14 @@ public static class GauntletManager
                 lines.Add($"Round: {state.Round}");
                 lines.Add($"Depth (rounds beaten): {state.Depth}");
 
+                if (state.Hard)
+                {
+                    lines.Add($"Rounds: {GauntletRules.HardRounds} (a hard run's Gauntlet: the sixth is two champions at once)");
+                }
+
                 if (state.ChampionOut)
                 {
-                    lines.Add($"Fighting: {state.Champion.Name}");
+                    lines.Add($"Fighting: {NamesOf(state.Champions.Where(champion => champion.IsAlive).ToList())}");
                 }
                 else if (state.IsResting)
                 {
@@ -886,6 +1048,12 @@ public static class GauntletManager
         GauntletSave save = GauntletSave.Parse(record.GauntletJson);
         lines.Add($"Round: {save.Round}");
         lines.Add($"Depth (rounds beaten): {save.Depth}");
+
+        if (record.Hard)
+        {
+            lines.Add($"Rounds: {GauntletRules.HardRounds} (a hard run's Gauntlet: the sixth is two champions at once)");
+        }
+
         lines.Add(GauntletArena.IsConfigured ? "Type /gauntlet start to enter." : GauntletArena.NotSetUpMessage);
 
         return lines;
@@ -964,16 +1132,20 @@ public static class GauntletManager
         return (int) Math.Min(RestAnnounceMs, remaining);
     }
 
-    /// <summary>Removes the round's champion without counting a kill. Call under the state's lock.</summary>
+    /// <summary>Removes the round's champions (one, or a pair) without counting a kill. Call under the state's lock.</summary>
     private static void RemoveChampion(GauntletState state)
     {
-        GauntletChampion champion = state.Champion;
-        state.Champion = null;
-        champion?.Challenger?.Out.SendUpdateMaxSpeed();
+        List<GauntletChampion> champions = state.Champions;
+        state.Champions = new List<GauntletChampion>();
 
-        // Its elite affix state goes with it (a slain champion's went on its death).
-        ExpeditionElites.Forget(champion);
-        champion?.Remove();
+        foreach (GauntletChampion champion in champions)
+        {
+            champion.Challenger?.Out.SendUpdateMaxSpeed();
+
+            // Its elite affix state goes with it (a slain champion's went on its death).
+            ExpeditionElites.Forget(champion);
+            champion.Remove();
+        }
     }
 
     /// <summary>Call under the state's lock.</summary>

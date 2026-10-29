@@ -46,6 +46,7 @@ public static class ExpeditionHardMode
         {
             return GameServer.Database.SelectObjects<OfflineExpeditionRecord>(DB.Column("AccountName").IsEqualTo(account))
                 .Any(record => record.Status == ExpeditionManager.StatusWon && !string.IsNullOrEmpty(record.EndedUtc) &&
+                    // Five rounds beaten unlocks it for everyone; a hard winner's sixth round is their extra.
                     GauntletSave.Parse(record.GauntletJson).Depth >= GauntletRules.Rounds);
         }
         catch (Exception ex)
@@ -64,6 +65,9 @@ public static class ExpeditionHardMode
             "A hard expedition. Everything that follows is stronger than you remember:",
             string.Empty,
             "- Opens to an account that has beaten the Gauntlet.",
+
+            // gauntlet
+            "- Win a hard expedition and your Gauntlet has a sixth round: two SmuG champions at once, both at realm rank 10.",
         };
     }
 }

@@ -181,8 +181,10 @@ public static class GauntletTestKit
     /// /gauntlet testwinner (GMs only, owner 2026-10-28): marks a character with no active run as having won its
     /// expedition, so it enters the Gauntlet as a player would: no boons, Gauntlet progress from round 1, Hardcore off. Its
     /// EndedUtc stays empty so the launcher's Hall of Fame never lists it (MainForm.ReadLocalExpeditionWins). Returns the message.
+    /// <paramref name="hard"/> (/gauntlet testwinner hard) marks the run as a hard run, so its Gauntlet has the sixth round
+    /// (GauntletRules.HardRounds); without it the record is not hard.
     /// </summary>
-    public static string MarkWinner(GamePlayer target)
+    public static string MarkWinner(GamePlayer target, bool hard = false)
     {
         if (target == null || string.IsNullOrEmpty(target.ObjectId))
         {
@@ -212,6 +214,7 @@ public static class GauntletTestKit
             record.BoonsJson = "[]";
             record.PendingBoonOfferJson = "[]";
             record.GauntletJson = string.Empty;
+            record.Hard = hard;
 
             if (isNew)
             {
@@ -230,7 +233,8 @@ public static class GauntletTestKit
             return $"{target.Name} could not be marked: {ex.Message}";
         }
 
-        return $"{target.Name} is now a test winner: /gauntlet start works for them without GM, with no boons, from round 1. "
+        return $"{target.Name} is now a {(hard ? "hard-run " : string.Empty)}test winner: /gauntlet start works for them without GM, with no boons, from round 1"
+            + (hard ? $", through {GauntletRules.HardRounds} rounds. " : ". ")
             + "Test winners are never listed in the Hall of Fame.";
     }
 

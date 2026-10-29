@@ -48,6 +48,31 @@ public static class GauntletRules
     /// </summary>
     public const int Rounds = 5;
 
+    /// <summary>
+    /// The rounds of a hard-mode winner's Gauntlet (owner 2026-10-29: a sixth round for a hard run's winner): the five,
+    /// then two champions at once (GauntletChampions.PairFor). Beating <see cref="Rounds"/> still counts as beating the
+    /// Gauntlet for the hard-mode unlock (ExpeditionHardMode.IsUnlocked); the sixth is the hard winner's extra.
+    /// </summary>
+    public const int HardRounds = 6;
+
+    /// <summary>The rounds of a Gauntlet whose won run was a hard run (<see cref="HardRounds"/>) or not (<see cref="Rounds"/>).</summary>
+    public static int RoundsFor(bool hard)
+    {
+        return hard ? HardRounds : Rounds;
+    }
+
+    /// <summary>The rounds of this session's Gauntlet (<see cref="GauntletState.Hard"/>); a null state has the normal five.</summary>
+    public static int RoundsFor(GauntletState state)
+    {
+        return RoundsFor(state?.Hard == true);
+    }
+
+    /// <summary>True when this round of the session is the hard winner's two-champion round.</summary>
+    public static bool IsPairRound(GauntletState state, int round)
+    {
+        return state?.Hard == true && round == HardRounds;
+    }
+
     /// <summary>The champions' guild, shown under their names: the expedition's ultimate test.</summary>
     public const string GuildName = "SmuG";
 

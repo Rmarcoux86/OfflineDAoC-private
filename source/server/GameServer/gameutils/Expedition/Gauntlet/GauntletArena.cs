@@ -1,3 +1,5 @@
+using System;
+
 namespace DOL.GS.Expedition.Gauntlet;
 
 /// <summary>
@@ -50,6 +52,22 @@ public static class GauntletArena
     public const int Radius = 3000;
 
     public const string NotSetUpMessage = "The Gauntlet arena is not set up yet.";
+
+    /// <summary>How far each of a two-champion round's champions stands from the gate, to either side (owner 2026-10-29).</summary>
+    public const int PairOffset = 150;
+
+    /// <summary>
+    /// Where one of a two-champion round's champions appears: <see cref="PairOffset"/> from the gate along the line
+    /// perpendicular to the gate-to-player direction, to the left (<paramref name="side"/> -1) or the right (+1).
+    /// </summary>
+    public static (int X, int Y) PairSpawn(int side)
+    {
+        double dx = PlayerX - GateX;
+        double dy = PlayerY - GateY;
+        double length = Math.Sqrt(dx * dx + dy * dy);
+
+        return ((int) Math.Round(GateX - dy / length * PairOffset * side), (int) Math.Round(GateY + dx / length * PairOffset * side));
+    }
 
     private static readonly object Sync = new();
     private static GamePlayer _occupant;
