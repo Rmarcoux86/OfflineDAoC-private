@@ -72,6 +72,14 @@ namespace DOL.GS.Commands
                 return;
             }
 
+            // Hard mode (owner 2026-10-29): a character that died on a hard expedition stays dead.
+            if (DOL.GS.Expedition.ExpeditionHardMode.DiedOnHardRun(chosen.DOLCharacters_ID))
+            {
+                DisplayMessage(client, "A hard expedition has no recovery.");
+
+                return;
+            }
+
             if (GameServer.Database.SelectObjects<DbCoreCharacter>(DB.Column("Name").IsEqualTo(chosen.Name)).Any())
             {
                 DisplayMessage(client, $"A character named {chosen.Name} already exists, so it can't be restored.");

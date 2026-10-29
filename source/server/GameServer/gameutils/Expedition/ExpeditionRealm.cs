@@ -108,7 +108,7 @@ public static class ExpeditionRealm
 
     /// <summary>
     /// Gives realm points through the normal path (xp-style server rate, realm rank-ups and their messages), scaled by
-    /// expedition_rp_rate and the Glory boon, and adds what was actually gained to the run's total and to the account (ExpeditionAccountRealm).
+    /// expedition_rp_rate, the Glory boon and a hard run's double (ExpeditionHardMode.RealmPointFactor), and adds what was actually gained to the run's total and to the account (ExpeditionAccountRealm).
     /// </summary>
     private static void Grant(GamePlayer player, int basePoints)
     {
@@ -119,7 +119,7 @@ public static class ExpeditionRealm
             return;
         }
 
-        long amount = (long) Math.Round(basePoints * Properties.EXPEDITION_RP_RATE * ExpeditionBoons.RealmPointFactor(run));
+        long amount = (long) Math.Round(basePoints * Properties.EXPEDITION_RP_RATE * ExpeditionBoons.RealmPointFactor(run) * ExpeditionHardMode.RealmPointFactor(run));
 
         if (amount <= 0)
         {

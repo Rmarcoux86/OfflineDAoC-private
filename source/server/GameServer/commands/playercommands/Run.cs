@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using DOL.GS.Expedition;
 using DOL.GS.PacketHandler;
@@ -20,6 +21,7 @@ namespace DOL.GS.Commands;
     "/run seed",
     "/run new hard [seed] (a hard expedition, for an account that has beaten the Gauntlet)",
     "/run rules (the rules of a hard expedition)",
+    "/run inherit <n> (a hard expedition: take one unique from your Gauntlet winner, once)",
     "/run abandon",
     "/run gauntlet",
     "/run debug")]
@@ -103,6 +105,45 @@ public class RunCommandHandler : AbstractCommandHandler, ICommandHandler
             case "rules":
             {
                 client.Out.SendCustomTextWindow("Hard expedition", ExpeditionHardMode.RulesLines());
+
+                return;
+            }
+
+            case "inherit":
+            {
+                if (run == null || !ExpeditionHardMode.IsHard(run))
+                {
+                    client.Out.SendMessage("Only a hard expedition inherits a unique. Type /run new hard to start one.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                // Without a number the offer is shown.
+                if (args.Length < 3)
+                {
+                    List<string> offer = ExpeditionHardMode.InheritOfferLines(player, run);
+
+                    if (offer.Count == 0)
+                    {
+                        string none = string.IsNullOrEmpty(run.InheritedUnique) ? "Your account's Gauntlet winners carry no unique to inherit." : $"This expedition has already inherited {run.InheritedUnique}.";
+                        client.Out.SendMessage(none, eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                        return;
+                    }
+
+                    client.Out.SendCustomTextWindow("Inherit a unique", offer);
+
+                    return;
+                }
+
+                if (!int.TryParse(args[2], out int pick))
+                {
+                    client.Out.SendMessage("Type /run inherit followed by the number of the unique, for example /run inherit 2.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+
+                    return;
+                }
+
+                client.Out.SendMessage(ExpeditionHardMode.TryInherit(player, run, pick), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 return;
             }

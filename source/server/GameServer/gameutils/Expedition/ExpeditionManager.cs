@@ -631,7 +631,16 @@ public static class ExpeditionManager
         // right after MoveTo, and a window or dialog sent then crashed it (owner's friend, 2026-10-23).
         WhenSettled(player, (ushort)plan.RegionId, () =>
         {
-            player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
+            // A hard run opens on its rules and the unique it may inherit (/run journal has the act).
+            if (ExpeditionHardMode.IsHard(run))
+            {
+                ExpeditionHardMode.OnActArrival(player, run);
+            }
+            else
+            {
+                player.Out.SendCustomTextWindow("Expedition journal", JournalLines(run).ToList());
+            }
+
             ExpeditionPromotion.OnRunStarted(player);
             GiveRecallStone(player);
         });
@@ -740,6 +749,7 @@ public static class ExpeditionManager
             record.RerollsUsed = run.RerollsUsed;
             record.PlayedSecondsAtWin = run.PlayedSecondsAtWin;
             record.Hard = run.Hard;
+            record.InheritedUnique = run.InheritedUnique ?? string.Empty;
 
             if (record.IsPersisted)
             {
@@ -903,6 +913,11 @@ public static class ExpeditionManager
                 else
                 {
                     player.Out.SendCustomTextWindow("Expedition journal", JournalLines(current).ToList());
+                }
+
+                if (ExpeditionHardMode.IsHard(current))
+                {
+                    ExpeditionHardMode.OnActArrival(player, current);
                 }
             });
 
@@ -1260,6 +1275,7 @@ public static class ExpeditionManager
             RerollsUsed = record.RerollsUsed,
             PlayedSecondsAtWin = record.PlayedSecondsAtWin,
             Hard = record.Hard,
+            InheritedUnique = string.IsNullOrEmpty(record.InheritedUnique) ? null : record.InheritedUnique,
             LootByRarity = new[] { record.LootCommon, record.LootMagic, record.LootRare, record.LootEpic, record.LootUnique },
             StartedUtc = DateTime.TryParse(record.StartedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime started) ? started : DateTime.UtcNow,
             EndedUtc = DateTime.TryParse(record.EndedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime ended) ? ended : null,

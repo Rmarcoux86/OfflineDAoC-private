@@ -36,7 +36,8 @@ public static class ExpeditionRecovery
             return false;
         }
 
-        if (record == null || record.Status != ExpeditionManager.StatusDead)
+        // A hard expedition has no recovery (ExpeditionHardMode; /recover refuses the character before this).
+        if (record == null || record.Status != ExpeditionManager.StatusDead || record.Hard)
         {
             return false;
         }

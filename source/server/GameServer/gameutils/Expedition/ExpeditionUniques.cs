@@ -944,6 +944,10 @@ public static class ExpeditionUniques
             return;
         }
 
+        // A hard run's inherited unique starts at the early tier's level and grows from there (ExpeditionHardMode).
+        string inherited = null;
+        bool inheritedRead = false;
+
         foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
         {
             UniqueDefinition definition = item == null ? null : FindByName(item.Name);
@@ -953,8 +957,15 @@ public static class ExpeditionUniques
                 continue;
             }
 
+            if (!inheritedRead)
+            {
+                inherited = ExpeditionHardMode.InheritedUniqueOf(player);
+                inheritedRead = true;
+            }
+
             int cap = TierCapLevel(definition.Tier);
-            int wanted = Math.Clamp((int) player.Level, TierMinLevel(definition.Tier), cap);
+            int floor = definition.Name == inherited ? TierMinLevel(eUniqueTier.Early) : TierMinLevel(definition.Tier);
+            int wanted = Math.Clamp((int) player.Level, floor, cap);
             bool describe = item.Description != DescriptionFor(definition);
             eObjectType objectType = (eObjectType) item.Template.Object_Type;
             bool weapon = (objectType >= eObjectType._FirstWeapon && objectType <= eObjectType._LastWeapon) || objectType == eObjectType.Shield;

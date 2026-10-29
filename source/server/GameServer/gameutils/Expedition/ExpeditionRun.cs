@@ -318,6 +318,23 @@ public class OfflineExpeditionRecord : DataObject
         }
     }
 
+    private string m_inheritedUnique;
+
+    /// <summary>
+    /// A hard run's unique taken from the account's Gauntlet winner with /run inherit (ExpeditionHardMode); empty until
+    /// one is taken, and on every other run.
+    /// </summary>
+    [DataElement(AllowDbNull = true, Varchar = 64)]
+    public string InheritedUnique
+    {
+        get { return m_inheritedUnique; }
+        set
+        {
+            Dirty = true;
+            m_inheritedUnique = value;
+        }
+    }
+
     private string m_gauntletJson;
 
     /// <summary>
@@ -398,6 +415,9 @@ public sealed class ExpeditionRun
 
     /// <summary>True for a hard-mode run (ExpeditionHardMode).</summary>
     public bool Hard;
+
+    /// <summary>The unique a hard run took from the account's Gauntlet winner (/run inherit); null until one is taken.</summary>
+    public string InheritedUnique;
 
     /// <summary>Ids of the boons taken on this run, in the order taken (see ExpeditionBoons).</summary>
     public List<string> Boons = new();
