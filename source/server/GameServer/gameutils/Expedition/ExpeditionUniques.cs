@@ -137,7 +137,7 @@ public static class ExpeditionUniques
         new("Heartwood of the First Grove", eUniqueTier.Late, eUniqueSlot.Chest,
             "Grown, not forged, from the oldest tree in the world. It mends what strikes it.",
             eUniqueProc.Heal,
-            new UniqueLine[] { new(eProperty.Strength, 17), new(eProperty.Constitution, 21), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 18), new(eProperty.Constitution, 20), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
         new("Wyrmbane, the Last Ember", eUniqueTier.Late, eUniqueSlot.Weapon,
             "Quenched in a dragon's heart. The ember in its core has burned for three ages.",
             eUniqueProc.Damage,
@@ -157,7 +157,7 @@ public static class ExpeditionUniques
         new("Belt of the Restless Dead", eUniqueTier.Late, eUniqueSlot.Belt,
             "Every buckle is a finger bone. They tap, softly, when danger is near.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 17), new(eProperty.Constitution, 19), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 58), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
+            new UniqueLine[] { new(eProperty.Strength, 18), new(eProperty.Constitution, 18), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 58), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
     };
 
     #region Tiers and caps
