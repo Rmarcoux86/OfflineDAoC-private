@@ -53,6 +53,9 @@ namespace DOL.GS.Spells
             double duration = base.CalculateEffectDuration(target);
             duration *= target.GetModified(eProperty.SpeedDecreaseDurationReduction) * 0.01;
 
+            // Expedition Dirty Fighting (a hard expedition boon): a snare landed from behind lasts longer.
+            duration = DOL.GS.Expedition.BoonEffects.DirtyFightingDuration(Caster, target, (int) duration);
+
             if (duration < 1)
                 duration = 1;
             else if (duration > Spell.Duration * 4)

@@ -18,6 +18,15 @@ public static class ExpeditionBoons
 {
     public const int OfferSize = 3;
 
+    /// <summary>A hard expedition's offer: two choices instead of three (owner 2026-10-29).</summary>
+    public const int HardOfferSize = 2;
+
+    /// <summary>The number of boons an offer holds: <see cref="HardOfferSize"/> on a hard expedition, else <see cref="OfferSize"/>.</summary>
+    public static int OfferSizeFor(bool hard)
+    {
+        return hard ? HardOfferSize : OfferSize;
+    }
+
     /// <summary>How many times a run may reroll a boon offer (/run reroll).</summary>
     public const int RerollsPerRun = 2;
 
@@ -61,6 +70,13 @@ public static class ExpeditionBoons
     public const string Sharpshooter = "sharpshooter";
     public const string Skirmisher = "skirmisher";
 
+    // Hard expedition only (HardOnly).
+    public const string Juggernaut = "juggernaut";
+    public const string Ambush = "ambush";
+    public const string SilentDeath = "silent_death";
+    public const string Poisoner = "poisoner";
+    public const string DirtyFighting = "dirty_fighting";
+
     /// <summary>Realm points added by Glory, in percent.</summary>
     public const int GloryRealmPointPercent = 50;
 
@@ -95,7 +111,23 @@ public static class ExpeditionBoons
         new(Deadeye, "Deadeye", "+15% ranged critical hit chance (the 50% cap still applies).", false),
         new(Sharpshooter, "Sharpshooter", "+25% bow damage and 10% faster draws, but 20% less melee damage.", false),
         new(Skirmisher, "Skirmisher", "+25% melee damage and 10% faster swings, but 20% less bow damage.", false),
+
+        // Hard expedition only (HardOnly): appended, so a normal run's offers are drawn as before.
+        new(Juggernaut, "Juggernaut", "+25% maximum health, and mesmerize, stun and snare on you last half as long.", false),
+        new(Ambush, "Ambush", "Your first hit on a monster that is not yet fighting does 50% more damage.", false),
+        new(SilentDeath, "Silent Death", "Killing a monster before it fights back restores 20% of your health and 10% of your endurance.", false),
+        new(Poisoner, "Poisoner", "Your weapon poisons' damage over time lasts 50% longer and ticks 25% harder.", false),
+        new(DirtyFighting, "Dirty Fighting", "Stuns and snares you land from behind your target last 30% longer.", false),
     };
+
+    /// <summary>
+    /// Boons only offered on a hard expedition (owner 2026-10-29): never in a normal run's offers, filtered as
+    /// <see cref="CasterOnly"/> is.
+    /// </summary>
+    public static readonly IReadOnlySet<string> HardOnly = new HashSet<string>(StringComparer.Ordinal) { Juggernaut, Ambush, SilentDeath, Poisoner, DirtyFighting };
+
+    /// <summary>Boons never offered on a hard expedition (owner 2026-10-29): Phoenix Feather.</summary>
+    public static readonly IReadOnlySet<string> NotInHard = new HashSet<string>(StringComparer.Ordinal) { PhoenixFeather };
 
     /// <summary>
     /// Boons taken out of the catalog (owner 2026-10-25; Greed and Prospector 2026-10-27: the base drop rate is high
@@ -139,7 +171,7 @@ public static class ExpeditionBoons
 
         if (!offerWaiting && run.Act > 1)
         {
-            OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player));
+            OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player), ExpeditionHardMode.IsHard(run));
         }
 
         run.AddLog($"Act {run.Act}: a removed boon was taken off the run{(hadTaken ? "; a new boon choice is offered" : "; the offer was drawn again")}.");
@@ -208,26 +240,28 @@ public static class ExpeditionBoons
     #region Offers
 
     /// <summary>
-    /// The offer for an act break: up to three boons not in <paramref name="taken"/>, the same for the same seed, act,
+    /// The offer for an act break: up to three boons (two on a hard expedition, <paramref name="hard"/>) not in <paramref name="taken"/>, the same for the same seed, act,
     /// taken boons and reroll. Every boon left is equally likely (owner 2026-10-27: no slot is kept for a loot boon). A reroll
     /// (<paramref name="reroll"/> above 0) draws from boons not in <paramref name="exclude"/> (the offer being
     /// rerolled) and only falls back to them when too few others are left.
     /// </summary>
     public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, bool usesPower = true,
-        IReadOnlyCollection<string> exclude = null, int reroll = 0, bool hasPet = false, bool melee = true, bool ranged = false)
+        IReadOnlyCollection<string> exclude = null, int reroll = 0, bool hasPet = false, bool melee = true, bool ranged = false, bool hard = false)
     {
         var rng = new Random(unchecked(seed * 131 + act + reroll * 7919));
+        int size = OfferSizeFor(hard);
         List<BoonDefinition> available = Catalog
             .Where(boon => taken == null || !taken.Contains(boon.Id))
             .Where(boon => usesPower || !CasterOnly.Contains(boon.Id))
             .Where(boon => hasPet || !PetOnly.Contains(boon.Id))
             .Where(boon => melee || !MeleeOnly.Contains(boon.Id))
             .Where(boon => ranged || !RangedOnly.Contains(boon.Id))
+            .Where(boon => hard ? !NotInHard.Contains(boon.Id) : !HardOnly.Contains(boon.Id))
             .ToList();
         List<BoonDefinition> fresh = available.Where(boon => exclude == null || !exclude.Contains(boon.Id)).ToList();
         var offer = new List<BoonDefinition>();
 
-        while (offer.Count < OfferSize && fresh.Count > 0)
+        while (offer.Count < size && fresh.Count > 0)
         {
             BoonDefinition pick = fresh[rng.Next(fresh.Count)];
             offer.Add(pick);
@@ -236,7 +270,7 @@ public static class ExpeditionBoons
         }
 
         // Too few fresh boons left (late in a run): fill from the rerolled offer.
-        while (offer.Count < OfferSize && available.Count > 0)
+        while (offer.Count < size && available.Count > 0)
         {
             BoonDefinition pick = available[rng.Next(available.Count)];
             offer.Add(pick);
@@ -252,7 +286,7 @@ public static class ExpeditionBoons
     /// Returns false when every boon is taken.
     /// </summary>
     public static bool OfferAtActBreak(ExpeditionRun run, int finishedAct, out bool replacedUnclaimed, bool usesPower = true, bool hasPet = false,
-        bool melee = true, bool ranged = false)
+        bool melee = true, bool ranged = false, bool hard = false)
     {
         replacedUnclaimed = false;
 
@@ -266,7 +300,7 @@ public static class ExpeditionBoons
         lock (run.Boons)
         {
             replacedUnclaimed = run.PendingBoonOffer.Count > 0;
-            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), usesPower, hasPet: hasPet, melee: melee, ranged: ranged);
+            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), usesPower, hasPet: hasPet, melee: melee, ranged: ranged, hard: hard);
             run.PendingBoonOffer = offer;
         }
 
@@ -368,16 +402,17 @@ public static class ExpeditionBoons
         if (offer.Count > 0)
         {
             int rerollsLeft = Math.Max(0, RerollsPerRun - run.RerollsUsed);
+            bool hard = ExpeditionHardMode.IsHard(run);
             lines.Add("Choose one boon with /run boon <number>. It lasts the whole run.");
             lines.Add(rerollsLeft > 0
-                ? $"Don't like these? /run reroll draws 3 different ones ({rerollsLeft} reroll{(rerollsLeft == 1 ? string.Empty : "s")} left this run)."
+                ? $"Don't like these? /run reroll draws {OfferSizeFor(hard)} different ones ({rerollsLeft} reroll{(rerollsLeft == 1 ? string.Empty : "s")} left this run)."
                 : "No rerolls left this run.");
             lines.Add(string.Empty);
 
             for (int i = 0; i < offer.Count; i++)
             {
                 BoonDefinition boon = Find(offer[i]);
-                lines.Add($"{i + 1}. {boon?.Name ?? offer[i]}{(boon?.IsLoot == true ? " (loot)" : string.Empty)}: {boon?.Effect ?? "unknown boon"}");
+                lines.Add($"{i + 1}. {boon?.Name ?? offer[i]}{(boon?.IsLoot == true ? " (loot)" : string.Empty)}: {EffectFor(boon, hard) ?? "unknown boon"}");
             }
         }
         else
@@ -391,7 +426,7 @@ public static class ExpeditionBoons
         foreach (string id in taken)
         {
             BoonDefinition boon = Find(id);
-            lines.Add($"- {boon?.Name ?? id}: {boon?.Effect ?? "unknown boon"}");
+            lines.Add($"- {boon?.Name ?? id}: {EffectFor(boon, ExpeditionHardMode.IsHard(run)) ?? "unknown boon"}");
         }
 
         return lines;
@@ -446,10 +481,11 @@ public static class ExpeditionBoons
 
         // One boon per act won: a run still owed one (a retired boon was taken off while this offer was waiting) gets
         // its next choice straight away.
-        bool owed = OwesBoon(run) && OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player));
+        bool owed = OwesBoon(run) && OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player),
+            ExpeditionHardMode.IsHard(run));
         ExpeditionManager.Save(run);
 
-        message = $"You take the boon {name}: {boon?.Effect ?? "unknown boon"}";
+        message = $"You take the boon {name}: {EffectFor(boon, ExpeditionHardMode.IsHard(run)) ?? "unknown boon"}";
 
         if (owed)
         {
@@ -460,6 +496,30 @@ public static class ExpeditionBoons
     }
 
     #endregion
+
+    /// <summary>
+    /// A boon's effect text for the run: on a hard expedition Rejuvenation and Blessed Arms say their weaker values
+    /// (owner 2026-10-29: 60% of normal). Null for an unknown boon.
+    /// </summary>
+    public static string EffectFor(BoonDefinition boon, bool hard)
+    {
+        if (boon == null)
+        {
+            return null;
+        }
+
+        if (!hard)
+        {
+            return boon.Effect;
+        }
+
+        return boon.Id switch
+        {
+            Rejuvenation => $"You regenerate 1% of your maximum health every {BoonEffects.RejuvenationIntervalFor(true) / 1000} seconds, even in combat (hard expedition).",
+            BlessedArms => boon.Effect + $" Weaker on a hard expedition: {ExpeditionBuffs.HardBlessedArmsPercent}% of the cap instead of {ExpeditionBuffs.BlessedArmsPercent}%.",
+            _ => boon.Effect
+        };
+    }
 
     /// <summary>True when no offer is waiting and the run has fewer boons than acts won.</summary>
     public static bool OwesBoon(ExpeditionRun run)
@@ -540,7 +600,7 @@ public static class ExpeditionBoons
 
             rerollNumber = run.RerollsUsed + 1;
             List<string> offer = RollOffer(run.Seed, Math.Max(1, run.Act - 1), run.Boons.ToList(), UsesPower(player),
-                run.PendingBoonOffer.ToList(), rerollNumber, HasPet(player), FightsInMelee(player), IsRanged(player));
+                run.PendingBoonOffer.ToList(), rerollNumber, HasPet(player), FightsInMelee(player), IsRanged(player), ExpeditionHardMode.IsHard(run));
 
             if (offer.Count == 0)
             {

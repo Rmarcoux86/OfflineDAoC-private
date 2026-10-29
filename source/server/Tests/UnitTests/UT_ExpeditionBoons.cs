@@ -77,7 +77,8 @@ public class UT_ExpeditionBoons
     [Test]
     public void Offer_GivesEveryBoonTheSameChance()
     {
-        var seen = ExpeditionBoons.Catalog.ToDictionary(boon => boon.Id, _ => 0);
+        // A normal run: the hard-expedition-only boons are never offered (UT_ExpeditionHardBoons).
+        var seen = ExpeditionBoons.Catalog.Where(boon => !ExpeditionBoons.HardOnly.Contains(boon.Id)).ToDictionary(boon => boon.Id, _ => 0);
         const int Offers = 20000;
 
         for (int seed = 1; seed <= Offers / 4; seed++)
@@ -91,7 +92,7 @@ public class UT_ExpeditionBoons
             }
         }
 
-        double expected = Offers * (double) ExpeditionBoons.OfferSize / ExpeditionBoons.Catalog.Count;
+        double expected = Offers * (double) ExpeditionBoons.OfferSize / seen.Count;
 
         foreach ((string id, int count) in seen)
         {

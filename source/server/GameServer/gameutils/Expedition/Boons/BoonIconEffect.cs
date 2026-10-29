@@ -39,7 +39,14 @@ public sealed class BoonIconEffect : ECSGameAbilityEffect
         [ExpeditionBoons.Overreach] = 4276,
         [ExpeditionBoons.Deadeye] = 413,
         [ExpeditionBoons.Sharpshooter] = 484,
-        [ExpeditionBoons.Skirmisher] = 1566
+        [ExpeditionBoons.Skirmisher] = 1566,
+
+        // Hard expedition only: Determination, Grove's Assassin, Bringer of Death, Lethal Poison, Cripple.
+        [ExpeditionBoons.Juggernaut] = 5471,
+        [ExpeditionBoons.Ambush] = 11469,
+        [ExpeditionBoons.SilentDeath] = 9023,
+        [ExpeditionBoons.Poisoner] = 4092,
+        [ExpeditionBoons.DirtyFighting] = 683
     };
 
     private const ushort DefaultIcon = 2882;

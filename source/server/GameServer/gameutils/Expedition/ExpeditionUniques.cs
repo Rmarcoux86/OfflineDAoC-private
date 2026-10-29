@@ -10,12 +10,16 @@ using DOL.Logging;
 
 namespace DOL.GS.Expedition;
 
-/// <summary>The level band a unique belongs to: Early (levels 1-19), Mid (20-39), Late (40+).</summary>
+/// <summary>
+/// The level band a unique belongs to: Early (levels 1-19), Mid (20-39), Late (40+). Hard is a late unique that only a
+/// hard expedition finds (owner 2026-10-29), drawn with the Late ones (<see cref="ExpeditionUniques.InTier"/>).
+/// </summary>
 public enum eUniqueTier
 {
     Early = 0,
     Mid = 1,
-    Late = 2
+    Late = 2,
+    Hard = 3
 }
 
 /// <summary>
@@ -55,7 +59,7 @@ public sealed record UniqueDefinition(string Name, eUniqueTier Tier, eUniqueSlot
 /// drop picks from the tier that matches the finder's level and skips the uniques already found on the run until the
 /// whole tier was found.
 /// <para>
-/// The bonuses are worth 60, 80 and 100 utility by tier and stay under the item caps of the tier's top level (stats level * 1.5, StatCalculator.cs:157;
+/// The bonuses are worth 60, 80 and 100 utility by tier (130 for the hard-expedition-only Hard tier) and stay under the item caps of the tier's top level (stats level * 1.5, StatCalculator.cs:157;
 /// hit points level * 4, MaxHealthCalculator.cs:153; resists level / 2 + 1, ResistCalculator.cs:99; skills level / 5 + 1,
 /// SkillLevelCalculator.cs:35). Below that level the server simply clamps the total item bonus to the player's own cap,
 /// so a unique found early grows with its owner.
@@ -157,7 +161,22 @@ public static class ExpeditionUniques
         new("Belt of the Restless Dead", eUniqueTier.Late, eUniqueSlot.Belt,
             "Every buckle is a finger bone. They tap, softly, when danger is near.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 18), new(eProperty.Constitution, 18), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 58), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
+            new UniqueLine[] { new(eProperty.Strength, 18), new(eProperty.Constitution, 18), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 58), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) }),
+
+        // Hard (owner 2026-10-29): late uniques only a hard expedition finds, worth 130 utility, usable from level 40 with
+        // the level 50 caps.
+        new("Gravewarden's Oath", eUniqueTier.Hard, eUniqueSlot.Weapon,
+            "Sworn over a grave that was dug twice. The blade remembers the first burial and means to prevent the second.",
+            eUniqueProc.None,
+            new UniqueLine[] { new(eProperty.Strength, 28), new(eProperty.Dexterity, 26), new(eProperty.Quickness, 23), new(eProperty.MaxHealth, 72), new(eProperty.Resist_Heat, 10), new(eProperty.AllSkills, 3) }),
+        new("Hauberk of the Unbroken Road", eUniqueTier.Hard, eUniqueSlot.Chest,
+            "Every ring was taken from a traveller who turned back. The one who wore it never did.",
+            eUniqueProc.None,
+            new UniqueLine[] { new(eProperty.Constitution, 30), new(eProperty.Strength, 23), new(eProperty.MaxHealth, 96), new(eProperty.Resist_Crush, 9), new(eProperty.Resist_Slash, 10), new(eProperty.AllSkills, 3) }),
+        new("Tear of the Second Dawn", eUniqueTier.Hard, eUniqueSlot.Jewel,
+            "Wept by the sun on the morning it rose over a world it had already seen end once.",
+            eUniqueProc.None,
+            new UniqueLine[] { new(eProperty.Dexterity, 28), new(eProperty.Quickness, 25), new(eProperty.MaxHealth, 88), new(eProperty.Resist_Spirit, 10), new(eProperty.Resist_Body, 10), new(eProperty.AllSkills, 3) })
     };
 
     #region Tiers and caps
@@ -179,7 +198,7 @@ public static class ExpeditionUniques
         return tier switch
         {
             eUniqueTier.Mid => 20,
-            eUniqueTier.Late => 40,
+            eUniqueTier.Late or eUniqueTier.Hard => 40,
             _ => 1
         };
     }
@@ -190,7 +209,7 @@ public static class ExpeditionUniques
         return tier switch
         {
             eUniqueTier.Mid => 40,
-            eUniqueTier.Late => 50,
+            eUniqueTier.Late or eUniqueTier.Hard => 50,
             _ => 20
         };
     }
@@ -224,13 +243,17 @@ public static class ExpeditionUniques
         return 0;
     }
 
-    public static List<UniqueDefinition> InTier(eUniqueTier tier)
+    /// <summary>
+    /// The uniques of a tier. On a hard expedition (<paramref name="hard"/>) the Late tier also holds the Hard uniques
+    /// (owner 2026-10-29: added to the late pool, not in place of it); a normal run never sees them.
+    /// </summary>
+    public static List<UniqueDefinition> InTier(eUniqueTier tier, bool hard = false)
     {
         List<UniqueDefinition> list = new();
 
         foreach (UniqueDefinition definition in Catalog)
         {
-            if (definition.Tier == tier)
+            if (definition.Tier == tier || (hard && tier == eUniqueTier.Late && definition.Tier == eUniqueTier.Hard))
             {
                 list.Add(definition);
             }
@@ -245,11 +268,11 @@ public static class ExpeditionUniques
 
     /// <summary>
     /// Picks a unique of the tier that is not in <paramref name="found"/> and adds its name there. When every unique of
-    /// the tier was found, any of them can come again.
+    /// the tier was found, any of them can come again. On a hard expedition the late pool holds the Hard uniques too.
     /// </summary>
-    public static UniqueDefinition Pick(Random rng, eUniqueTier tier, ISet<string> found)
+    public static UniqueDefinition Pick(Random rng, eUniqueTier tier, ISet<string> found, bool hard = false)
     {
-        List<UniqueDefinition> all = InTier(tier);
+        List<UniqueDefinition> all = InTier(tier, hard);
         List<UniqueDefinition> fresh = new();
 
         foreach (UniqueDefinition definition in all)
@@ -1044,7 +1067,7 @@ public static class ExpeditionUniques
 
         lock (found)
         {
-            return Pick(Random.Shared, TierFor(player.Level), found);
+            return Pick(Random.Shared, TierFor(player.Level), found, ExpeditionHardMode.IsHard(run));
         }
     }
 

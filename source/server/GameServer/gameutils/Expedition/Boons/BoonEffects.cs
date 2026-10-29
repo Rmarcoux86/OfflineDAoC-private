@@ -17,8 +17,9 @@ public static partial class BoonEffects
 {
     private const string StateKey = "EXPEDITION_BOONS_APPLIED";
 
-    // Every 6 s (owner 2026-10-29: was every 3 s).
+    // Every 6 s (owner 2026-10-29: was every 3 s); every 10 s on a hard expedition (owner 2026-10-29: 60% of normal).
     private const int RejuvenationIntervalMilliseconds = 6000;
+    private const int HardRejuvenationIntervalMilliseconds = 10000;
     // 1% (owner 2026-10-29: nerfed from 2%).
     private const int RejuvenationPercent = 1;
     private const int VampiricChancePercent = 25;
@@ -29,7 +30,7 @@ public static partial class BoonEffects
     private static readonly HashSet<string> HitBoons = new()
     {
         ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.Siphon,
-        ExpeditionBoons.HuntersInstinct, ExpeditionBoons.BeastBond
+        ExpeditionBoons.HuntersInstinct, ExpeditionBoons.BeastBond, ExpeditionBoons.Ambush, ExpeditionBoons.SilentDeath, ExpeditionBoons.Poisoner
     };
 
     /// <summary>Boons that watch the player's health on a timer.</summary>
@@ -54,6 +55,14 @@ public static partial class BoonEffects
         [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) },
         [ExpeditionBoons.Berserker] = new[] { (eProperty.MeleeDamage, 30), (eProperty.MeleeSpeed, 15) },
 
+        // Juggernaut (hard expedition only): the crowd control reductions are percents off the duration, read by the
+        // Mesmerize/Stun/SpeedDecreaseDurationPercentCalculator from AbilityBonus (the player's side of Stalwart).
+        [ExpeditionBoons.Juggernaut] = new[]
+        {
+            (eProperty.Of_Toughness, 25), (eProperty.MesmerizeDurationReduction, JuggernautCrowdControlReduction),
+            (eProperty.StunDurationReduction, JuggernautCrowdControlReduction), (eProperty.SpeedDecreaseDurationReduction, JuggernautCrowdControlReduction)
+        },
+
         // SpellRange and CastingSpeed are percents outside the item caps (SpellRangePercentCalculator, TOABonusCalculator);
         // RangedDamage and ArcherySpeed likewise, CriticalArcheryHitChance capped at 50 (owner 2026-10-29).
         [ExpeditionBoons.Overreach] = new[] { (eProperty.SpellRange, 15), (eProperty.CastingSpeed, 10) },
@@ -69,6 +78,9 @@ public static partial class BoonEffects
     };
 
     private const int SecondSkinResistPercent = 10;
+
+    /// <summary>Juggernaut: mesmerize, stun and snare on the player last this many percent less (as a Stalwart elite's).</summary>
+    public const int JuggernautCrowdControlReduction = ExpeditionElites.StalwartCrowdControlReduction;
     private const int SecondSkinResistCapBonus = 5;
 
     /// <summary>Second Skin: how much higher the player's resist cap from items is (0 without the boon). Called by ResistCalculator.</summary>
@@ -86,6 +98,10 @@ public static partial class BoonEffects
         public ECSGameTimer PulseTimer;
         public int PhoenixUsedAct;
         public bool DesperationOn;
+
+        // Silent Death: the monster the player's last hit landed on, and whether it was unaware then (IsUnaware).
+        public GameNPC LastHitMonster;
+        public bool LastHitUnaware;
 
         // The buff bar icons (BoonIconEffect) by boon id, and the timer that puts back one that death or a cancel ended.
         public readonly Dictionary<string, BoonIconEffect> Icons = new();
@@ -174,7 +190,8 @@ public static partial class BoonEffects
 
                 if (id == ExpeditionBoons.Rejuvenation && state.RejuvenationTimer == null)
                 {
-                    state.RejuvenationTimer = new ECSGameTimer(player, timer => RejuvenationTick(player, state), RejuvenationIntervalMilliseconds);
+                    state.RejuvenationTimer = new ECSGameTimer(player, timer => RejuvenationTick(player, state),
+                        RejuvenationIntervalFor(ExpeditionHardMode.IsHard(player)));
                 }
 
                 if (HitBoons.Contains(id))
@@ -387,7 +404,13 @@ public static partial class BoonEffects
         }
     }
 
-    /// <summary>Every 3 seconds: 2% of maximum health, in or out of combat. Stops when the run or the boon is gone.</summary>
+    /// <summary>Rejuvenation's interval: every 6 seconds, every 10 on a hard expedition.</summary>
+    public static int RejuvenationIntervalFor(bool hard)
+    {
+        return hard ? HardRejuvenationIntervalMilliseconds : RejuvenationIntervalMilliseconds;
+    }
+
+    /// <summary>Every 6 seconds (10 on a hard expedition): 1% of maximum health, in or out of combat. Stops when the run or the boon is gone.</summary>
     private static int RejuvenationTick(GamePlayer player, AppliedBoons state)
     {
         ExpeditionRun run = ExpeditionManager.GetRun(player);
@@ -407,7 +430,7 @@ public static partial class BoonEffects
             player.ChangeHealth(player, eHealthChangeType.Regenerate, Math.Max(1, player.MaxHealth * RejuvenationPercent / 100));
         }
 
-        return RejuvenationIntervalMilliseconds;
+        return RejuvenationIntervalFor(ExpeditionHardMode.IsHard(run));
     }
 
     private static void EnsureHandlers()

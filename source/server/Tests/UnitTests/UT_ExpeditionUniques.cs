@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using DOL.GS.Expedition;
 using NUnit.Framework;
 
@@ -21,10 +22,14 @@ public class UT_ExpeditionUniques
             Assert.That(names.Add(definition.Name), Is.True, $"duplicate name {definition.Name}");
         }
 
-        foreach (eUniqueTier tier in Enum.GetValues<eUniqueTier>())
+        foreach (eUniqueTier tier in new[] { eUniqueTier.Early, eUniqueTier.Mid, eUniqueTier.Late })
         {
             Assert.That(ExpeditionUniques.InTier(tier).Count, Is.GreaterThanOrEqualTo(6), $"{tier}");
         }
+
+        // The hard expedition's own late uniques: a weapon, a chest and a jewel.
+        Assert.That(ExpeditionUniques.InTier(eUniqueTier.Hard).Select(definition => definition.Slot),
+            Is.EquivalentTo(new[] { eUniqueSlot.Weapon, eUniqueSlot.Chest, eUniqueSlot.Jewel }));
     }
 
     [Test]
@@ -76,6 +81,7 @@ public class UT_ExpeditionUniques
             {
                 eUniqueTier.Early => 60,
                 eUniqueTier.Mid => 80,
+                eUniqueTier.Hard => 130,
                 _ => 100
             };
 
@@ -157,7 +163,8 @@ public class UT_ExpeditionUniques
         Assert.That(ExpeditionUniques.TierFor(40), Is.EqualTo(eUniqueTier.Late));
         Assert.That(ExpeditionUniques.TierFor(50), Is.EqualTo(eUniqueTier.Late));
 
-        foreach (eUniqueTier tier in Enum.GetValues<eUniqueTier>())
+        // Hard is never a finder's tier: it joins the Late pool on a hard expedition (ExpeditionUniques.InTier).
+        foreach (eUniqueTier tier in new[] { eUniqueTier.Early, eUniqueTier.Mid, eUniqueTier.Late })
         {
             Assert.That(ExpeditionUniques.TierFor(ExpeditionUniques.TierMinLevel(tier)), Is.EqualTo(tier));
             Assert.That(ExpeditionUniques.TierCapLevel(tier), Is.GreaterThan(ExpeditionUniques.TierMinLevel(tier)));

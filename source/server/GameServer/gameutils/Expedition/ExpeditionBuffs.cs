@@ -91,6 +91,9 @@ public static class ExpeditionBuffs
     /// <summary>A Blessed Arms buff's strength, in percent of the cap (owner 2026-10-28: below a shrine's, so a shrine upgrades it).</summary>
     public const int BlessedArmsPercent = 30;
 
+    /// <summary>Blessed Arms on a hard expedition (owner 2026-10-29: 60% of its normal value).</summary>
+    public const int HardBlessedArmsPercent = 18;
+
     /// <summary>The value of a lesser base stat or base armor buff at <paramref name="level"/>: a percent of the base buff cap (1.25 x level).</summary>
     public static int BaseStatValue(int level, int percent = StrengthPercent)
     {
@@ -111,13 +114,18 @@ public static class ExpeditionBuffs
 
     /// <summary>
     /// A wanted group's strength: a used shrine's (<see cref="StrengthPercent"/>) for the rest of its act, else Blessed
-    /// Arms's (<see cref="BlessedArmsPercent"/>).
+    /// Arms's (<see cref="BlessedArmsPercent"/>, or <see cref="HardBlessedArmsPercent"/> on a hard expedition).
     /// </summary>
     public static int PercentFor(ExpeditionRun run, string group)
     {
         bool fromShrine = run?.CurrentAct?.Shrines?.Any(shrine => shrine != null && shrine.Used && shrine.Group == group) == true;
 
-        return fromShrine ? StrengthPercent : BlessedArmsPercent;
+        if (fromShrine)
+        {
+            return StrengthPercent;
+        }
+
+        return ExpeditionHardMode.IsHard(run) ? HardBlessedArmsPercent : BlessedArmsPercent;
     }
 
     /// <summary>The buff groups the run grants right now: its buff boons, and the used shrines of the current act.</summary>
