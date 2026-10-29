@@ -1,5 +1,14 @@
 [
   {
+    "tag": "fork-v99",
+    "date": "2026-10-28",
+    "items": [
+      "Expedition uniques are rebalanced in even steps: early uniques are worth about 60 utility, mid about 80 and late about 100. Late uniques are much weaker than before (Wyrmbane drops from 60/55/50 stats to about 20 each).",
+      "Unique ToA bonuses now step up evenly: one 3% bonus on early uniques, two 4% bonuses on mid and three 5% bonuses on late.",
+      "Uniques you already own update to the new values the next time you log in."
+    ]
+  },
+  {
     "tag": "fork-v98",
     "date": "2026-10-28",
     "items": [
