@@ -15,6 +15,8 @@ public class UT_ExpeditionHardBosses
     public void ChampionFor_FollowsTheGauntletOrder()
     {
         Assert.That(ExpeditionHardBosses.ChampionFor(1).Name, Is.EqualTo("Gwyraan"));
+        Assert.That(ExpeditionHardBosses.HealthMultiplierFor(1), Is.EqualTo(4), "the act boss's own 3 + act");
+        Assert.That(ExpeditionHardBosses.HealthMultiplierFor(5), Is.EqualTo(8));
         Assert.That(ExpeditionHardBosses.ChampionFor(2).Name, Is.EqualTo("Toothmouth"));
         Assert.That(ExpeditionHardBosses.ChampionFor(3).Name, Is.EqualTo("Ios"));
         Assert.That(ExpeditionHardBosses.ChampionFor(4).Name, Is.EqualTo("Drunkstains"));

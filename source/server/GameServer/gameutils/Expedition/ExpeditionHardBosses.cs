@@ -28,6 +28,15 @@ public static class ExpeditionHardBosses
         return (byte) Math.Clamp((plan?.MaxLevel ?? 0) + 2, 1, GauntletChampion.SpawnLevel);
     }
 
+    /// <summary>
+    /// The act boss champion's health multiplier: 3 + the act, the act boss's own (BossSpec.HealthMultiplier, ActGenerator),
+    /// so the champion's pool matches the boss it replaces while it hits harder and plays its signature.
+    /// </summary>
+    public static int HealthMultiplierFor(int act)
+    {
+        return 3 + Math.Clamp(act, 1, GauntletChampions.All.Count);
+    }
+
     /// <summary>Spawns the act's champion where its boss would stand; null when it cannot be made or placed.</summary>
     public static GauntletChampion Spawn(GamePlayer player, ActPlan plan)
     {

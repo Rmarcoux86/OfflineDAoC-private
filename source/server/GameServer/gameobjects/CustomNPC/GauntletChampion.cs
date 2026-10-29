@@ -229,7 +229,8 @@ public sealed class GauntletChampion : GameBot
 
         // An early round's champion hits for less (GauntletEscalation.WeakenedPercent): melee (AttackComponent's damage type
         // modifier) and spells (SpellHandler's effectiveness); its health is cut in MaxHealth.
-        int weakened = GauntletEscalation.WeakenedPercent(round);
+        // A hard run's act boss is never weakened (owner 2026-10-29: hard mode).
+        int weakened = actBoss ? 0 : GauntletEscalation.WeakenedPercent(round);
         AbilityBonus[eProperty.MeleeDamage] -= weakened;
         AbilityBonus[eProperty.SpellDamage] -= weakened;
 
@@ -385,6 +386,12 @@ public sealed class GauntletChampion : GameBot
         get
         {
             int health = Definition?.Affix == ExpeditionElites.Stalwart ? base.MaxHealth * ExpeditionElites.StalwartHealthMultiplier : base.MaxHealth;
+
+            // A hard run's act boss (owner 2026-10-29): the act boss's health pool (ExpeditionHardBosses.HealthMultiplierFor), never weakened.
+            if (ActBoss)
+            {
+                return health * ExpeditionHardBosses.HealthMultiplierFor(Round);
+            }
 
             return health * (100 - GauntletEscalation.WeakenedPercent(Round)) / 100;
         }

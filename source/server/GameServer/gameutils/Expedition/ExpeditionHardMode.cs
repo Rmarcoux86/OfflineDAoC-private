@@ -72,7 +72,7 @@ public static class ExpeditionHardMode
             "- Realm points are doubled for the whole run.",
 
             // gauntlet
-            "- Win a hard expedition and your Gauntlet has a sixth round: two SmuG champions at once, both at realm rank 10.",
+            $"- Win a hard expedition and your Gauntlet has a sixth round: two {GauntletRules.GuildName} champions at once, both at realm rank 10.",
 
             // boons
             $"- Boon offers hold {ExpeditionBoons.HardOfferSize} choices instead of {ExpeditionBoons.OfferSize}, and Phoenix Feather is never offered.",
