@@ -45,10 +45,10 @@ public static class ExpeditionShrines
     /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
     /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
     /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>); 5 also leaves out camps deeper than the essence shredders
-    /// (<see cref="DormantMaxCampLevel"/>). A shrine placed by an older rule is moved again, keeping its camp and kills when
+    /// (<see cref="DormantMaxCampLevel"/>); 6 judges a monster by its strongest anywhere in the zone. A shrine placed by an older rule is moved again, keeping its camp and kills when
     /// that camp is still worthy.
     /// </summary>
-    public const int DormantPlacementVersion = 5;
+    public const int DormantPlacementVersion = 6;
 
     /// <summary>The level a player is assumed to reach act 5 at (owner 2026-10-28) for <see cref="IsWorthyCamp"/>.</summary>
     public const int DormantArrivalLevel = 42;
@@ -339,8 +339,14 @@ public static class ExpeditionShrines
             return false;
         }
 
-        // Only camps that con at least yellow on arrival; all of them if the zone has none.
-        List<AutonomousCapnBryGoalCatalog.Entry> camps = allCamps.Where(c => IsWorthyCamp(c.Levels)).ToList();
+        // Only camps that con at least yellow on arrival, of a monster no stronger anywhere in the zone than the shredders
+        // (owner 2026-10-28: a camp of level 54-60 mahr passed on its own levels, but mahr go up to 67 and live deeper);
+        // all of them if the zone has none.
+        Dictionary<string, int> strongestByName = allCamps.Where(c => c.Levels != null && c.Levels.Count > 0)
+            .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Max(c => c.Levels.Max()), StringComparer.OrdinalIgnoreCase);
+        List<AutonomousCapnBryGoalCatalog.Entry> camps = allCamps
+            .Where(c => IsWorthyCamp(c.Levels) && strongestByName.GetValueOrDefault(c.Name) <= DormantMaxCampLevel).ToList();
 
         if (camps.Count == 0)
         {
