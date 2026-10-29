@@ -25,7 +25,7 @@ public static class GauntletEscalation
 
     /// <summary>
     /// The tier of a round (1-based; below 1 counts as 1). Every champion wears a full template without ToA bonuses
-    /// (GauntletChampion). Its realm rank is the round (owner 2026-10-28), up to
+    /// (GauntletChampion). Its realm rank is twice the round (owner 2026-10-29), up to
     /// <see cref="MaxRealmRank"/>; the final champion's is always <see cref="FinalChampionRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
     /// affix; 15-19 one helper; from 20 two helpers and +5% stats for each round over 20.
     /// </summary>
@@ -48,11 +48,11 @@ public static class GauntletEscalation
     {
         round = Math.Max(1, round);
 
-        // One rank a round from RR1 (owner 2026-10-28: "Round 1 should be rr1, then round 2 rr2"): RR1 to RR4 for the
-        // first four fights; the final champion is always RR10.
+        // Two ranks a round (owner 2026-10-29: "do rr2, rr4, rr6, rr8, and then rr10"): RR2 to RR8 for the first four
+        // fights; the final champion is always RR10.
         int rank = string.Equals(championName, GauntletChampions.FinalChampion, StringComparison.Ordinal)
             ? FinalChampionRealmRank
-            : Math.Min(round, MaxRealmRank);
+            : Math.Min(round * 2, MaxRealmRank);
 
         // Realm abilities from the first round (owner 2026-10-27).
         if (round < 5)

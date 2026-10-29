@@ -121,13 +121,13 @@ public class UT_ExpeditionGauntlet
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(1, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(4, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(1), Is.EqualTo(new RoundTier(2, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(4), Is.EqualTo(new RoundTier(8, true, false, false, 0, 0)));
             Assert.That(GauntletEscalation.For(5, GauntletChampions.FinalChampion), Is.EqualTo(new RoundTier(10, true, false, false, 0, 0)));
-            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(9, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.For(9), Is.EqualTo(new RoundTier(14, true, false, false, 0, 0)));
             Assert.That(GauntletEscalation.For(10, GauntletChampions.FinalChampion), Is.EqualTo(new RoundTier(10, true, true, true, 0, 0)));
             Assert.That(GauntletEscalation.For(14), Is.EqualTo(new RoundTier(14, true, true, true, 0, 0)));
-            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(5, true, false, false, 0, 0)), "round 5 by another champion");
+            Assert.That(GauntletEscalation.For(5), Is.EqualTo(new RoundTier(10, true, false, false, 0, 0)), "round 5 by another champion");
             Assert.That(GauntletEscalation.For(1, GauntletChampions.FinalChampion).RealmRank, Is.EqualTo(10), "Preesh is always RR10");
             Assert.That(new[] { 1, 2, 3, 4, 5 }.Select(GauntletEscalation.WeakenedPercent), Is.EqualTo(new[] { 20, 13, 7, 0, 0 }), "weaker early rounds");
             Assert.That(GauntletEscalation.For(15), Is.EqualTo(new RoundTier(14, true, true, true, 1, 0)));
@@ -197,7 +197,7 @@ public class UT_ExpeditionGauntlet
     {
         Assert.Multiple(() =>
         {
-            Assert.That(Enumerable.Range(1, 5).Select(round => GauntletEscalation.For(round, round == 5 ? GauntletChampions.FinalChampion : null).RealmRank), Is.EqualTo(new[] { 1, 2, 3, 4, 10 }));
+            Assert.That(Enumerable.Range(1, 5).Select(round => GauntletEscalation.For(round, round == 5 ? GauntletChampions.FinalChampion : null).RealmRank), Is.EqualTo(new[] { 2, 4, 6, 8, 10 }));
             Assert.That(DOL.GS.Expedition.Gauntlet.GauntletChampion.TemplateCaps(50), Is.EqualTo((75, 26, 200)));
         });
     }
