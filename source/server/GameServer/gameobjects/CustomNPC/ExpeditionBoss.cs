@@ -118,20 +118,7 @@ public sealed class ExpeditionBoss : GameNPC
         boss.Z = spec.Z;
         boss.Heading = 0;
 
-        // Never out of reach (owner 2026-10-27): a spot in the air, as a flying monster's spawn point can be, is moved
-        // down to the floor beneath it.
-        Zone zone = boss.CurrentRegion?.GetZone(spec.X, spec.Y);
-        IPathfindingMgr nav = PathfindingProvider.Instance;
-
-        if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
-        {
-            Vector3? floor = nav.GetFloorBeneath(zone, new Vector3(spec.X, spec.Y, spec.Z), 2500, nav.DefaultFilters);
-
-            if (floor.HasValue && spec.Z - (int) floor.Value.Z > 50)
-            {
-                boss.Z = (int) floor.Value.Z;
-            }
-        }
+        boss.Z = FloorZ(boss.CurrentRegion, spec.X, spec.Y, spec.Z);
 
         if (boss.CurrentRegion == null || !boss.AddToWorld())
         {
@@ -141,6 +128,28 @@ public sealed class ExpeditionBoss : GameNPC
         }
 
         return boss;
+    }
+
+    /// <summary>
+    /// Never out of reach (owner 2026-10-27): a spot in the air, as a flying monster's spawn point can be, is moved down to
+    /// the floor beneath it. Also used for a hard run's act boss champion and its helper pack.
+    /// </summary>
+    public static int FloorZ(Region region, int x, int y, int z)
+    {
+        Zone zone = region?.GetZone(x, y);
+        IPathfindingMgr nav = PathfindingProvider.Instance;
+
+        if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
+        {
+            Vector3? floor = nav.GetFloorBeneath(zone, new Vector3(x, y, z), 2500, nav.DefaultFilters);
+
+            if (floor.HasValue && z - (int) floor.Value.Z > 50)
+            {
+                return (int) floor.Value.Z;
+            }
+        }
+
+        return z;
     }
 
     /// <summary>The base mob row: one in the boss's region first, then any row with that name.</summary>
@@ -169,24 +178,8 @@ public sealed class ExpeditionBoss : GameNPC
     {
         // Credit is decided before the base call, which clears the attacker list (GameLiving.cs:2050).
         GamePlayer owner = _owner;
-        bool credited = false;
-
-        if (owner != null)
-        {
-            credited = ObjectiveTracker.IsCreditedTo(owner, killer);
-
-            if (!credited)
-            {
-                foreach (GameLiving attacker in attackComponent.AttackerTracker.Attackers)
-                {
-                    if (ObjectiveTracker.IsCreditedTo(owner, attacker))
-                    {
-                        credited = true;
-                        break;
-                    }
-                }
-            }
-        }
+        bool credited = owner != null && ObjectiveTracker.IsBossKillCredited(owner, killer, this);
+        string ownerKey = OwnerKey;
 
         base.ProcessDeath(killer);
 
@@ -197,7 +190,7 @@ public sealed class ExpeditionBoss : GameNPC
 
         try
         {
-            ObjectiveTracker.OnBossDied(this, credited);
+            ObjectiveTracker.OnBossDied(this, ownerKey, credited);
         }
         catch (Exception ex)
         {

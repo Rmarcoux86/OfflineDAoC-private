@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -90,6 +91,16 @@ public sealed class ActPlan
     public BossSpec Boss;
     public bool BossSpawned;
     public bool BossKilled;
+
+    /// <summary>
+    /// A hard run's bounty (<see cref="ExpeditionBounty"/>): when the act's objectives must be done by for the boss to come
+    /// alone. Set at the act's arrival; null while the player is away (then <see cref="BountySecondsLeft"/> holds what was
+    /// left) and on a normal run. <see cref="BountyMissed"/> is set once the deadline passed before the boss came: the boss
+    /// then always comes with its helper pack, at every respawn too.
+    /// </summary>
+    public DateTime? BountyDeadlineUtc;
+    public double? BountySecondsLeft;
+    public bool BountyMissed;
 
     // Plans saved before elite packs existed have no "Elites" member; System.Text.Json then keeps this initialiser.
     public List<EliteCamp> Elites = new();

@@ -5,6 +5,7 @@ using System.Reflection;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.Events;
+using DOL.GS.Expedition.Gauntlet;
 using DOL.GS.PacketHandler;
 using DOL.Logging;
 
@@ -13,8 +14,11 @@ namespace DOL.GS.Expedition;
 /// <summary>
 /// Follows a run's act objectives for one attached player: kills (the player's own, their pets', their companion
 /// bots' and their group's), reach-point objectives and the mists boundary that keeps the player in the act's zone.
-/// When every objective is done it spawns the act boss (<see cref="ExpeditionBoss"/>) and tells
-/// <see cref="ExpeditionManager"/>; when the boss dies it hands out the boss loot (<see cref="ExpeditionLoot.BossDrops"/>) and reports the kill.
+/// When every objective is done it spawns the act boss (<see cref="ExpeditionBoss"/>; on a hard run the act's Gauntlet
+/// champion, <see cref="ExpeditionHardBosses"/>, with a helper pack when the act's bounty ran out,
+/// <see cref="ExpeditionBounty"/>) and tells <see cref="ExpeditionManager"/>; when the boss dies it hands out the boss loot
+/// (<see cref="ExpeditionLoot.BossDrops"/>) and reports the kill. On a hard run the tick also keeps the act's bounty timer
+/// and the dark sky (<see cref="ExpeditionWeather"/>).
 /// <para>
 /// Kill credit: GameLiving.ProcessDeath (GameLiving.cs:1996) raises EnemyKilled on the owner of a pet or companion
 /// bot (BotBrain is an IControlledBrain whose owner is the player) and on group players in range, so the per-player
@@ -58,9 +62,20 @@ public static class ObjectiveTracker
         public long MistsWarnedAt;
         public bool Detached;
 
-        public ExpeditionBoss Boss;
+        /// <summary>The act boss: an <see cref="ExpeditionBoss"/>, or on a hard run a <see cref="GauntletChampion"/> (ActBoss).</summary>
+        public GameNPC Boss;
         public bool BossPending;
         public long BossRespawnAt;
+
+        /// <summary>The boss's helper pack (a hard run whose bounty ran out); they go when the boss leaves.</summary>
+        public List<GameNPC> BossHelpers = new();
+
+        /// <summary>A hard run: the bounty timer and the dark sky are kept (read at attach).</summary>
+        public bool Hard;
+
+        /// <summary>The smallest bounty warning given this attach (ExpeditionBounty.WarningDue); int.MaxValue for none.</summary>
+        public int BountyWarned = int.MaxValue;
+        public bool BountyRunOutTold;
 
         /// <summary>Indexes into <c>Plan.Elites</c> of the elite camps this attach has woken (tick only).</summary>
         public readonly HashSet<int> WokenEliteCamps = new();
@@ -94,8 +109,15 @@ public static class ObjectiveTracker
             Player = player,
             Key = player.ObjectId,
             Plan = plan,
-            GraceUntil = GameLoop.GameLoopTime + GraceMs
+            GraceUntil = GameLoop.GameLoopTime + GraceMs,
+            Hard = ExpeditionHardMode.IsHard(run)
         };
+
+        // A hard run's bounty starts with the act and goes on from where it paused at the last logout.
+        if (state.Hard && ExpeditionBounty.Resume(plan, DateTime.UtcNow))
+        {
+            ExpeditionManager.Save(run);
+        }
 
         States[state.Key] = state;
         GameEventMgr.AddHandler(player, GameLivingEvent.EnemyKilled, OnPlayerEnemyKilled);
@@ -153,13 +175,16 @@ public static class ObjectiveTracker
             return;
         }
 
-        ExpeditionBoss boss;
+        GameNPC boss;
+        List<GameNPC> helpers;
 
         lock (state.Sync)
         {
             state.Detached = true;
             boss = state.Boss;
             state.Boss = null;
+            helpers = state.BossHelpers;
+            state.BossHelpers = new List<GameNPC>();
             state.RecentKills.Clear();
         }
 
@@ -169,16 +194,71 @@ public static class ObjectiveTracker
         // Elite packs woken for this player turn back into the world's ordinary monsters.
         ExpeditionElites.RestoreAll(state.Player);
 
-        // The boss leaves with the player; Attach spawns it fresh (BossSpawned is saved, BossKilled is not set).
-        if (boss != null)
+        // A hard run: the bounty stands still while the player is away (the caller saves the run), and the sky clears.
+        if (state.Hard)
         {
-            boss.Release();
+            ExpeditionBounty.Pause(state.Plan, DateTime.UtcNow);
+        }
 
-            if (boss.ObjectState == GameObject.eObjectState.Active)
+        ExpeditionWeather.Stop(state.Player);
+
+        // The boss leaves with the player; Attach spawns it fresh (BossSpawned is saved, BossKilled is not set).
+        RemoveBoss(boss);
+        ExpeditionBounty.Despawn(helpers);
+    }
+
+    /// <summary>Takes an act boss out of the world without a kill: it no longer reports to the tracker.</summary>
+    private static void RemoveBoss(GameNPC boss)
+    {
+        if (boss is GauntletChampion champion)
+        {
+            ExpeditionHardBosses.Remove(champion);
+
+            return;
+        }
+
+        if (boss is ExpeditionBoss expeditionBoss)
+        {
+            expeditionBoss.Release();
+
+            if (expeditionBoss.ObjectState == GameObject.eObjectState.Active)
             {
-                boss.Delete();
+                expeditionBoss.Delete();
             }
         }
+    }
+
+    /// <summary>True for an act boss: an ExpeditionBoss, or a hard run's act boss champion.</summary>
+    internal static bool IsActBoss(GameObject target)
+    {
+        return target is ExpeditionBoss or GauntletChampion { ActBoss: true };
+    }
+
+    /// <summary>
+    /// True when an act boss's kill is the run player's: the killer, or anyone on the boss's attacker list, is credited to
+    /// them (<see cref="IsCreditedTo"/>). Read before GameLiving.ProcessDeath clears the attacker list.
+    /// </summary>
+    internal static bool IsBossKillCredited(GamePlayer owner, GameObject killer, GameLiving boss)
+    {
+        if (owner == null || boss == null)
+        {
+            return false;
+        }
+
+        if (IsCreditedTo(owner, killer))
+        {
+            return true;
+        }
+
+        foreach (GameLiving attacker in boss.attackComponent.AttackerTracker.Attackers)
+        {
+            if (IsCreditedTo(owner, attacker))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     #endregion
@@ -312,9 +392,9 @@ public static class ObjectiveTracker
         // merely despawns; only a living that is really dying (handled by the ReaperService) or at 0 health counts.
         GamePlayer player = state.Player;
 
-        if (target == null || target is ExpeditionBoss || !(target.IsBeingHandledByReaperService || target.Health <= 0))
+        if (target == null || IsActBoss(target) || !(target.IsBeingHandledByReaperService || target.Health <= 0))
         {
-            ExpeditionDebug.Report(player, $"kill of {target?.Name} ignored: not a dying monster (boss {target is ExpeditionBoss}, reaper {target?.IsBeingHandledByReaperService}, health {target?.Health}).");
+            ExpeditionDebug.Report(player, $"kill of {target?.Name} ignored: not a dying monster (boss {IsActBoss(target)}, reaper {target?.IsBeingHandledByReaperService}, health {target?.Health}).");
 
             return;
         }
@@ -604,6 +684,14 @@ public static class ObjectiveTracker
             return TickIntervalMs;
         }
 
+        // A hard run: the bounty's warnings, and the dark sky over the act's region while the player is in it.
+        if (state.Hard)
+        {
+            CheckBounty(state, run, plan, player);
+        }
+
+        ExpeditionWeather.Tick(player, run, plan);
+
         if (player.IsAlive)
         {
             CheckReachPoints(state, run, plan, player);
@@ -774,21 +862,75 @@ public static class ObjectiveTracker
         return true;
     }
 
+    /// <summary>
+    /// A hard run's bounty (ExpeditionBounty): the warnings at 5 minutes and 1 minute left, and the word when it runs out,
+    /// until the boss comes.
+    /// </summary>
+    private static void CheckBounty(TrackerState state, ExpeditionRun run, ActPlan plan, GamePlayer player)
+    {
+        if (plan.BossSpawned || plan.BossKilled || !plan.BountyDeadlineUtc.HasValue)
+        {
+            return;
+        }
+
+        DateTime now = DateTime.UtcNow;
+
+        if (ExpeditionBounty.HasRunOut(plan.BountyDeadlineUtc, now))
+        {
+            if (!plan.BountyMissed)
+            {
+                plan.BountyMissed = true;
+                run.AddLog($"Act {plan.Act}: the bounty ran out. The boss will come with a helper pack.");
+                ExpeditionManager.Save(run);
+            }
+
+            if (!state.BountyRunOutTold)
+            {
+                state.BountyRunOutTold = true;
+                Tell(player, "The bounty has run out! The act boss will come with a helper pack.", true);
+            }
+
+            return;
+        }
+
+        double left = ExpeditionBounty.SecondsLeft(plan.BountyDeadlineUtc, now);
+        int warning = ExpeditionBounty.WarningDue(left, state.BountyWarned);
+
+        if (warning == 0)
+        {
+            return;
+        }
+
+        state.BountyWarned = warning;
+        Tell(player, $"The bounty runs out in {ExpeditionBounty.FormatLeft(left)}: finish every objective first, or the act boss comes with a helper pack.", true);
+    }
+
     /// <summary>Spawns the act boss. The caller has set <c>state.BossPending</c> under the lock.</summary>
     private static void SpawnBoss(TrackerState state, ActPlan plan)
     {
         GamePlayer player = state.Player;
-        ExpeditionBoss boss = null;
+        GameNPC boss = null;
+
+        // A hard run: the boss's coming settles the bounty, met or missed, once (a failed spawn's retry keeps it).
+        if (state.Hard)
+        {
+            ExpeditionBounty.Decide(plan, DateTime.UtcNow);
+        }
 
         try
         {
-            if (plan.Boss != null)
+            if (plan.Boss == null)
             {
-                boss = ExpeditionBoss.Spawn(player, plan.Boss);
+                log.Warn($"[EXPEDITION] Act {plan.Act} of {player.Name} has no boss spec.");
+            }
+            else if (state.Hard)
+            {
+                // A hard run (owner 2026-10-29): the act's Gauntlet champion in the boss's place.
+                boss = ExpeditionHardBosses.Spawn(player, plan);
             }
             else
             {
-                log.Warn($"[EXPEDITION] Act {plan.Act} of {player.Name} has no boss spec.");
+                boss = ExpeditionBoss.Spawn(player, plan.Boss);
             }
         }
         catch (Exception ex)
@@ -824,8 +966,7 @@ public static class ObjectiveTracker
 
         if (discard)
         {
-            boss.Release();
-            boss.Delete();
+            RemoveBoss(boss);
 
             return;
         }
@@ -834,8 +975,14 @@ public static class ObjectiveTracker
 
         Tell(player, bossLoc == null ? $"{boss.Name} has appeared at {plan.ZoneName}!" : $"{boss.Name} has appeared at {plan.ZoneName}, at {bossLoc}!", true);
 
-        // A named boss with a line shouts it as it appears; the player hears it wherever they are in the zone.
-        string quote = ActGenerator.BossQuote(plan.Boss?.Title);
+        if (state.Hard)
+        {
+            ArriveWithBounty(state, plan, boss);
+        }
+
+        // A named boss with a line shouts it as it appears; the player hears it wherever they are in the zone. A hard run's
+        // champion is not that boss and keeps quiet.
+        string quote = state.Hard ? null : ActGenerator.BossQuote(plan.Boss?.Title);
 
         if (quote != null)
         {
@@ -849,10 +996,54 @@ public static class ObjectiveTracker
         }
     }
 
+    /// <summary>
+    /// A hard run's boss arrival: a boss whose bounty ran out (now or earlier) comes with its helper pack, and the player
+    /// is told either way.
+    /// </summary>
+    private static void ArriveWithBounty(TrackerState state, ActPlan plan, GameNPC boss)
+    {
+        if (!plan.BountyMissed)
+        {
+            Tell(state.Player, $"The bounty was met: {boss.Name} comes alone.", true);
+
+            return;
+        }
+
+        List<GameNPC> pack = ExpeditionBounty.SpawnPack(boss, plan);
+        List<GameNPC> old;
+        bool discard = false;
+
+        lock (state.Sync)
+        {
+            old = state.BossHelpers;
+
+            if (state.Detached || state.Boss != boss)
+            {
+                discard = true;
+            }
+            else
+            {
+                state.BossHelpers = pack;
+            }
+        }
+
+        if (discard)
+        {
+            ExpeditionBounty.Despawn(pack);
+
+            return;
+        }
+
+        ExpeditionBounty.Despawn(old);
+        Tell(state.Player, pack.Count > 0 ? $"The bounty ran out: {boss.Name} arrives with a helper pack of {pack.Count}!" : $"The bounty ran out, but {boss.Name}'s helpers could not come.", true);
+    }
+
     /// <summary>Respawns a boss that should be up but is not (the player came back, or it died to someone else).</summary>
     private static void UpkeepBoss(TrackerState state, ActPlan plan, long now)
     {
         bool spawn = false;
+        GameNPC upBoss = null;
+        List<GameNPC> helpers = null;
 
         lock (state.Sync)
         {
@@ -863,12 +1054,23 @@ public static class ObjectiveTracker
 
             if (state.Boss != null && state.Boss.ObjectState == GameObject.eObjectState.Active)
             {
-                return;
+                upBoss = state.Boss;
+                helpers = state.BossHelpers;
             }
+            else
+            {
+                state.Boss = null;
+                state.BossPending = true;
+                spawn = true;
+            }
+        }
 
-            state.Boss = null;
-            state.BossPending = true;
-            spawn = true;
+        // The helper pack (a hard run's missed bounty) joins whatever the boss fights.
+        if (upBoss != null)
+        {
+            ExpeditionBounty.Assist(upBoss, helpers);
+
+            return;
         }
 
         if (spawn)
@@ -879,7 +1081,8 @@ public static class ObjectiveTracker
 
     private static void RemoveStaleBoss(TrackerState state)
     {
-        ExpeditionBoss boss;
+        GameNPC boss;
+        List<GameNPC> helpers;
 
         lock (state.Sync)
         {
@@ -891,16 +1094,21 @@ public static class ObjectiveTracker
             }
 
             state.Boss = null;
+            helpers = state.BossHelpers;
+            state.BossHelpers = new List<GameNPC>();
         }
 
-        boss.Release();
-        boss.Delete();
+        RemoveBoss(boss);
+        ExpeditionBounty.Despawn(helpers);
     }
 
-    /// <summary>Called by <see cref="ExpeditionBoss.ProcessDeath"/> after the base death processing.</summary>
-    internal static void OnBossDied(ExpeditionBoss boss, bool credited)
+    /// <summary>
+    /// Called by <see cref="ExpeditionBoss.ProcessDeath"/> and, for a hard run's act boss, by GauntletChampion.ProcessDeath,
+    /// after the base death processing. <paramref name="ownerKey"/> is the run player's ObjectId.
+    /// </summary>
+    internal static void OnBossDied(GameNPC boss, string ownerKey, bool credited)
     {
-        if (boss?.OwnerKey == null || !States.TryGetValue(boss.OwnerKey, out TrackerState state))
+        if (boss == null || ownerKey == null || !States.TryGetValue(ownerKey, out TrackerState state))
         {
             return;
         }

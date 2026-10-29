@@ -129,9 +129,19 @@ public sealed class GauntletChampion : GameBot
     /// </summary>
     public bool Engaged { get; internal set; }
 
-    public GauntletChampion(GamePlayer challenger, ChampionDefinition definition, int round, RoundTier tier)
-        : base((byte) definition.ClassId, definition.Name, (byte) definition.RaceId, (byte) definition.Gender, SpawnLevel, eSpecType.None, BuildFor(definition))
+    /// <summary>
+    /// True for a hard run's act boss (ExpeditionHardBosses, owner 2026-10-29: "make the act bosses the champion versions
+    /// from the original gauntlet"): it fights from the start like a boss, with no bow and no arena, and its death is the
+    /// act boss's (ObjectiveTracker.OnBossDied: the boss loot and realm points). It is never part of a Gauntlet session.
+    /// </summary>
+    public bool ActBoss { get; }
+
+    /// <param name="level">Its level: <see cref="SpawnLevel"/> in the Gauntlet, the act's top level + 2 for an act boss.</param>
+    /// <param name="actBoss">A hard run's act boss (<see cref="ActBoss"/>).</param>
+    public GauntletChampion(GamePlayer challenger, ChampionDefinition definition, int round, RoundTier tier, byte? level = null, bool actBoss = false)
+        : base((byte) definition.ClassId, definition.Name, (byte) definition.RaceId, (byte) definition.Gender, level ?? SpawnLevel, eSpecType.None, BuildFor(definition))
     {
+        ActBoss = actBoss;
         Challenger = challenger;
         Definition = definition;
         Round = round;
@@ -146,18 +156,18 @@ public sealed class GauntletChampion : GameBot
         {
             if (Inventory.GetItem(eInventorySlot.TwoHandWeapon) == null)
             {
-                BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.PolearmWeapon, eInventorySlot.TwoHandWeapon, eDamageType.Slash);
+                BotEquipment.SetWeaponROG(this, Realm, characterClass, Level, eObjectType.PolearmWeapon, eInventorySlot.TwoHandWeapon, eDamageType.Slash);
             }
 
             if (Inventory.GetItem(eInventorySlot.RightHandWeapon) == null)
             {
-                BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.SlashingWeapon, eInventorySlot.RightHandWeapon, eDamageType.Slash);
+                BotEquipment.SetWeaponROG(this, Realm, characterClass, Level, eObjectType.SlashingWeapon, eInventorySlot.RightHandWeapon, eDamageType.Slash);
             }
 
             if (Inventory.GetItem(eInventorySlot.LeftHandWeapon) == null)
             {
                 // A shield's Type_Damage is its size (BotEquipment.SetShield); 3 is a large shield.
-                BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Shield, eInventorySlot.LeftHandWeapon, (eDamageType) 3);
+                BotEquipment.SetWeaponROG(this, Realm, characterClass, Level, eObjectType.Shield, eInventorySlot.LeftHandWeapon, (eDamageType) 3);
             }
 
             SwitchWeapon(eActiveWeaponSlot.TwoHanded);
@@ -256,8 +266,17 @@ public sealed class GauntletChampion : GameBot
         RefreshItemBonuses();
         Health = MaxHealth;
 
-        // The leash is measured from SpawnPoint: where it appears (GameNPC.AddToWorld sets it).
-        TetherRange = GauntletRules.LeashRadius;
+        if (actBoss)
+        {
+            // An act boss fights at once, as a boss does: no bow. Its leash is the act boss's (an ExpeditionBoss sets none,
+            // so TetherRange stays as GameNPC leaves it; whoever spawns it may set one, and the brain honours it).
+            Engaged = true;
+        }
+        else
+        {
+            // The leash is measured from SpawnPoint: where it appears (GameNPC.AddToWorld sets it).
+            TetherRange = GauntletRules.LeashRadius;
+        }
 
         GauntletChampionBrain brain = new() { IsHealer = (Brain as BotBrain)?.IsHealer ?? false };
         SetOwnBrain(brain);
@@ -285,7 +304,7 @@ public sealed class GauntletChampion : GameBot
 
         if (right == null)
         {
-            BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Blunt, eInventorySlot.RightHandWeapon, eDamageType.Crush);
+            BotEquipment.SetWeaponROG(this, Realm, characterClass, Level, eObjectType.Blunt, eInventorySlot.RightHandWeapon, eDamageType.Crush);
         }
 
         DbInventoryItem left = Inventory.GetItem(eInventorySlot.LeftHandWeapon);
@@ -299,7 +318,7 @@ public sealed class GauntletChampion : GameBot
         if (left == null)
         {
             // A shield's Type_Damage is its size (BotEquipment.SetShield); 1 is a small shield, all a Shield 1 class may use.
-            BotEquipment.SetWeaponROG(this, Realm, characterClass, SpawnLevel, eObjectType.Shield, eInventorySlot.LeftHandWeapon, (eDamageType) 1);
+            BotEquipment.SetWeaponROG(this, Realm, characterClass, Level, eObjectType.Shield, eInventorySlot.LeftHandWeapon, (eDamageType) 1);
         }
 
         SwitchWeapon(eActiveWeaponSlot.Standard);
@@ -450,7 +469,7 @@ public sealed class GauntletChampion : GameBot
                 continue;
             }
 
-            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, SpawnLevel, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, GearRarityFor(round, Random.Shared));
+            GeneratedUniqueItem rolled = ExpeditionLoot.RollFor(_homeRealm, (eCharacterClass) CharacterClass.ID, Level, (eObjectType) item.Object_Type, (eInventorySlot) item.Item_Type, GearRarityFor(round, Random.Shared));
 
             if (rolled == null)
             {
@@ -723,6 +742,10 @@ public sealed class GauntletChampion : GameBot
 
     public override void ProcessDeath(GameObject killer)
     {
+        // An act boss's credit is decided before the base call, which clears the attacker list (as ExpeditionBoss does).
+        GamePlayer owner = ActBoss ? Challenger : null;
+        bool credited = owner != null && ObjectiveTracker.IsBossKillCredited(owner, killer, this);
+
         // Its pet (Gwyraan's) dies with it.
         ReleasePet();
         base.ProcessDeath(killer);
@@ -732,7 +755,23 @@ public sealed class GauntletChampion : GameBot
         {
             GauntletManager.OnChampionDied(this);
         }
+
+        if (owner == null)
+        {
+            return;
+        }
+
+        try
+        {
+            ObjectiveTracker.OnBossDied(this, owner.ObjectId, credited);
+        }
+        catch (Exception ex)
+        {
+            ActBossLog.Error($"[EXPEDITION] Act boss champion death handling failed for {owner.Name}.", ex);
+        }
     }
+
+    private static readonly DOL.Logging.Logger ActBossLog = DOL.Logging.LoggerManager.Create(typeof(GauntletChampion));
 
     /// <summary>Takes the champion (and its pet) out of the world for good, without counting a kill.</summary>
     public void Remove()
@@ -755,7 +794,10 @@ public sealed class GauntletChampion : GameBot
         }
     }
 
-    /// <summary>True for the challenger and anything the challenger controls (pets).</summary>
+    /// <summary>
+    /// True for the challenger and anything the challenger controls (pets). An act boss also takes on whoever fights for
+    /// the run's player (its group, companion bots and their pets: ObjectiveTracker.IsCreditedTo).
+    /// </summary>
     public bool IsChallengerSide(GameLiving living)
     {
         GamePlayer challenger = Challenger;
@@ -766,6 +808,11 @@ public sealed class GauntletChampion : GameBot
         }
 
         if (living == challenger)
+        {
+            return true;
+        }
+
+        if (ActBoss && ObjectiveTracker.IsCreditedTo(challenger, living))
         {
             return true;
         }
@@ -801,7 +848,7 @@ public sealed class GauntletChampion : GameBot
             {
                 Id_nb = "gauntlet_champion_cloak",
                 Name = "Champion's Cloak",
-                Level = 50,
+                Level = Level,
                 Item_Type = (int) eInventorySlot.Cloak,
                 Object_Type = (int) eObjectType.Magical,
                 Model = ExpeditionBossLooks.CloakModel
@@ -951,6 +998,9 @@ public sealed class GauntletChampionBrain : BotBrain
     }
 
     private long _nextHuntTick;
+
+    // An act boss out of a fight (ThinkActBossIdle).
+    private bool _actBossIdle;
     private SignatureStep _step;
     private long _stepUntil;
     private long _nextBehindTick;
@@ -1057,6 +1107,19 @@ public sealed class GauntletChampionBrain : BotBrain
         bool challengerHere = challenger != null && challenger.IsAlive &&
             challenger.ObjectState == GameObject.eObjectState.Active && challenger.CurrentRegion == champion.CurrentRegion;
 
+        // An act boss (owner 2026-10-29) notices the run's player as a boss does: within the boss's aggro range (not through
+        // stealth), or once the player is on its aggro list (an attack, or the fight going on).
+        if (champion.ActBoss)
+        {
+            challengerHere = challengerHere && (GetBaseAggroAmount(challenger) > 0 ||
+                !challenger.IsStealthed && champion.IsWithinRadius(challenger, ExpeditionBoss.BossAggroRange));
+
+            if (ThinkActBossIdle(champion, challengerHere))
+            {
+                return;
+            }
+        }
+
         // A manoeuvre (Ios's ranged opener or kite, Gwyraan's escape, Toothmouth's mez or retreat) owns the think while it
         // runs: no BotBrain fight moves the champion or hits the challenger meanwhile.
         if (ThinkManoeuvre(champion, challengerHere ? challenger : null, now))
@@ -1083,7 +1146,7 @@ public sealed class GauntletChampionBrain : BotBrain
             {
                 // It cannot see a hidden challenger, so it hunts where they are; GamePlayer.UncoverStealthAction's
                 // normal rules reveal them once it is close.
-                if (now >= _nextHuntTick)
+                if (now >= _nextHuntTick && !champion.ActBoss)
                 {
                     _nextHuntTick = now + HuntRepathMs;
                     champion.PathTo(new Point3D(challenger.X, challenger.Y, challenger.Z), (short) (champion.MaxSpeed / 2));
@@ -1106,6 +1169,43 @@ public sealed class GauntletChampionBrain : BotBrain
         }
 
         base.Think();
+    }
+
+    /// <summary>
+    /// An act boss out of a fight (nobody on its aggro list, the run's player not noticed): it ends whatever manoeuvre was
+    /// running, keeps its pre-fight buffs (and Gwyraan his pet) up as a waiting champion does, and walks back to where it
+    /// appeared. True while this owns the think.
+    /// </summary>
+    private bool ThinkActBossIdle(GauntletChampion champion, bool challengerNoticed)
+    {
+        if (challengerNoticed || HasAggro)
+        {
+            _actBossIdle = false;
+
+            return false;
+        }
+
+        if (!_actBossIdle)
+        {
+            _actBossIdle = true;
+            ResetFight(champion);
+            champion.StopAttack();
+            champion.TargetObject = null;
+        }
+
+        if (PrefightStep(champion))
+        {
+            return true;
+        }
+
+        base.Think();
+
+        if (!champion.IsMoving && !champion.IsWithinRadius(champion.SpawnPoint, CentreReachedDistance * 2))
+        {
+            champion.WalkTo(champion.SpawnPoint, champion.MaxSpeed);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -2522,11 +2622,16 @@ public sealed class GauntletChampionBrain : BotBrain
 
     #endregion
 
-    /// <summary>A point past the champion's spot away from the challenger, within the leash (80% of it).</summary>
+    /// <summary>
+    /// A point past the champion's spot away from the challenger, within the leash (80% of it). The spot is where it
+    /// appeared (the arena's gate, or an act boss's place in its zone); an act boss with no leash of its own runs as far
+    /// as the Gauntlet's leash would let it.
+    /// </summary>
     private static Point3D RetreatPointFrom(GauntletChampion champion, GamePlayer challenger)
     {
+        int leash = champion.TetherRange > 0 ? champion.TetherRange : GauntletRules.LeashRadius;
         (int x, int y) = GauntletPositioning.RetreatPoint(champion.SpawnPoint.X, champion.SpawnPoint.Y, challenger.X, challenger.Y,
-            (int) (GauntletRules.LeashRadius * RetreatLeashShare));
+            (int) (leash * RetreatLeashShare));
 
         return new Point3D(x, y, champion.SpawnPoint.Z);
     }
