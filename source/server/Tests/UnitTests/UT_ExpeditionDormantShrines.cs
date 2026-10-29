@@ -35,6 +35,8 @@ public class UT_ExpeditionDormantShrines
             Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 42, 45, 47 }), Is.True, "orange and red too");
             Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 35, 36, 38 }), Is.True, "its strongest is yellow");
             Assert.That(ExpeditionShrines.IsWorthyCamp(new int[0]), Is.False);
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 49, 55, 60 }), Is.True, "essence shredders, the deepest");
+            Assert.That(ExpeditionShrines.IsWorthyCamp(new[] { 51, 60, 67 }), Is.False, "succubi, deeper than the shredders");
         });
     }
 

@@ -44,21 +44,36 @@ public static class ExpeditionShrines
     /// Act 5: the placement rule. 1 (fork-v76) moved the shrine 800-2,000 units from its camp, which put it far from the
     /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
     /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
-    /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>). A shrine placed by an older rule is moved again, keeping
-    /// its camp and kills when that camp is still worthy.
+    /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>); 5 also leaves out camps deeper than the essence shredders
+    /// (<see cref="DormantMaxCampLevel"/>). A shrine placed by an older rule is moved again, keeping its camp and kills when
+    /// that camp is still worthy.
     /// </summary>
-    public const int DormantPlacementVersion = 4;
+    public const int DormantPlacementVersion = 5;
 
     /// <summary>The level a player is assumed to reach act 5 at (owner 2026-10-28) for <see cref="IsWorthyCamp"/>.</summary>
     public const int DormantArrivalLevel = 42;
 
     /// <summary>
+    /// The strongest monster a shrine's camp may have (owner 2026-10-28: in Darkness Falls the deepest should be the
+    /// shredders; essence shredders are levels 49 to 60, while the crawlers, hulks, nightmares, mahr and succubi go past 60).
+    /// </summary>
+    public const int DormantMaxCampLevel = 60;
+
+    /// <summary>
     /// A camp worth waking a shrine at (owner 2026-10-28: Darkness Falls shrines were beside grey camps): its strongest
-    /// monster cons at least yellow to a level <see cref="DormantArrivalLevel"/> player (level 38 or more).
+    /// monster cons at least yellow to a level <see cref="DormantArrivalLevel"/> player (level 38 or more), and is no
+    /// stronger than <see cref="DormantMaxCampLevel"/>.
     /// </summary>
     public static bool IsWorthyCamp(IReadOnlyCollection<int> levels)
     {
-        return levels != null && levels.Count > 0 && ConLevels.GetConLevel(DormantArrivalLevel, levels.Max()) >= (int) ConColor.YELLOW;
+        if (levels == null || levels.Count == 0)
+        {
+            return false;
+        }
+
+        int strongest = levels.Max();
+
+        return strongest <= DormantMaxCampLevel && ConLevels.GetConLevel(DormantArrivalLevel, strongest) >= (int) ConColor.YELLOW;
     }
 
     private const string DormantWarnedProperty = "expedition.shrine.dormantWarned";
