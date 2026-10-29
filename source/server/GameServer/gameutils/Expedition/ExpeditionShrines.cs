@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using DOL.AI.Brain;
 using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Expedition;
@@ -15,6 +16,13 @@ namespace DOL.GS.Expedition;
 public static class ExpeditionShrines
 {
     public const int ShrinesPerAct = 3;
+
+    /// <summary>
+    /// A hard expedition's shrines per act (owner 2026-10-29: "Shrines should require elite packs to get them. Entire pack
+    /// needs to die to get it. Like the change we had before on DF"): two, each beside an elite pack and dormant until the
+    /// whole pack is slain (<see cref="PlaceHard"/>). Fewer when the act has fewer elite packs.
+    /// </summary>
+    public const int HardShrinesPerAct = 2;
     public const int DiscoverRadius = 2000;
     public const int UseRadius = 300;
 
@@ -99,17 +107,79 @@ public static class ExpeditionShrines
     /// True when a monster of this name, killed at this point, counts for the shrine: its camp's monster (an elite's
     /// name carries an affix in front, "Swift essence shredder") within <see cref="DormantCampRadius"/> of the camp.
     /// </summary>
-    public static bool CountsFor(ShrineSpec shrine, string name, int regionId, int x, int y)
+    /// <param name="ofCamp">The monster is an elite of the shrine's own pack (ExpeditionElites.CampOf): a hard shrine then counts it wherever it died.</param>
+    public static bool CountsFor(ShrineSpec shrine, string name, int regionId, int x, int y, bool ofCamp = false)
     {
         if (!IsDormant(shrine) || string.IsNullOrEmpty(name) || string.IsNullOrEmpty(shrine.CampMob) || regionId != shrine.RegionId)
         {
             return false;
         }
 
+        // A hard shrine counts only the pack's elites: the camp's monster with at least one affix in front.
+        if (shrine.HardPack)
+        {
+            bool nearCamp = Dist2(x, y, shrine.CampX, shrine.CampY) <= (long) DormantCampRadius * DormantCampRadius;
+
+            return MatchesCampMob(name, shrine.CampMob, out int affixes) && affixes > 0 && (ofCamp || nearCamp);
+        }
+
         bool sameMob = string.Equals(name, shrine.CampMob, StringComparison.OrdinalIgnoreCase) ||
                        name.EndsWith(" " + shrine.CampMob, StringComparison.OrdinalIgnoreCase);
 
         return sameMob && Dist2(x, y, shrine.CampX, shrine.CampY) <= (long) DormantCampRadius * DormantCampRadius;
+    }
+
+    /// <summary>
+    /// True when a monster's name is the camp's monster under its elite dressing: leading affix words
+    /// (<see cref="ExpeditionElites.Affixes"/>, capitalised as the elites carry them; a hard expedition's elites may carry
+    /// two, "Swift Venomous goblin") and a hard expedition's "Dread " prefix are stripped, then the rest is compared without
+    /// case. <paramref name="affixes"/> is how many affix words were stripped (0 for a plain monster).
+    /// </summary>
+    public static bool MatchesCampMob(string name, string campMob, out int affixes)
+    {
+        affixes = 0;
+
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(campMob))
+        {
+            return false;
+        }
+
+        string rest = name.Trim();
+        string wanted = campMob.Trim();
+        bool dreadStripped = false;
+
+        while (true)
+        {
+            // A camp monster whose own name starts with an affix word or "Dread" matches before it is stripped.
+            if (string.Equals(rest, wanted, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            int space = rest.IndexOf(' ');
+
+            if (space <= 0)
+            {
+                return false;
+            }
+
+            string word = rest.Substring(0, space);
+
+            if (ExpeditionElites.Affixes.Contains(word, StringComparer.Ordinal))
+            {
+                affixes++;
+            }
+            else if (!dreadStripped && string.Equals(word, "Dread", StringComparison.Ordinal))
+            {
+                dreadStripped = true;
+            }
+            else
+            {
+                return false;
+            }
+
+            rest = rest.Substring(space + 1).TrimStart();
+        }
     }
 
     #region Generation
@@ -192,10 +262,19 @@ public static class ExpeditionShrines
         List<ShrineSpec> shrines = plan?.Shrines;
         bool changed = false;
         bool usedNow = false;
+        bool hard = ExpeditionHardMode.IsHard(run);
+
+        // A hard expedition: every act's shrines go beside its elite packs, dormant until each whole pack is slain.
+        if (hard && plan != null && PlaceHard(player, plan))
+        {
+            changed = true;
+            Despawn(player);
+            shrines = plan.Shrines;
+        }
 
         if (shrines != null && shrines.Count > 0)
         {
-            if (PlaceDormant(player, plan))
+            if (!hard && PlaceDormant(player, plan))
             {
                 changed = true;
 
@@ -443,6 +522,96 @@ public static class ExpeditionShrines
         return changed;
     }
 
+    /// <summary>
+    /// A hard expedition (owner 2026-10-29): replaces the act's shrines, once, by up to <see cref="HardShrinesPerAct"/>
+    /// shrines, one beside each of the act's first elite packs (<see cref="ChooseHardCamps"/>) just outside its monsters'
+    /// aggro range (ExpeditionArrival.FindShrineSpot), each dormant until its whole pack is slain: KillsNeeded is the
+    /// number of monsters the pack's wake-up makes elite (the camp's monster within the camp's radius,
+    /// ExpeditionElites.WakeCamp). Keeps the act's buff groups. True when the shrines changed.
+    /// </summary>
+    private static bool PlaceHard(GamePlayer player, ActPlan plan)
+    {
+        List<ShrineSpec> current = plan.Shrines ?? new List<ShrineSpec>();
+
+        if (current.Count <= HardShrinesPerAct && current.All(shrine => shrine != null && shrine.HardPack))
+        {
+            return false;
+        }
+
+        Region region = player.CurrentRegion;
+
+        if (region == null || region.ID != plan.RegionId)
+        {
+            return false;
+        }
+
+        // The act's own groups first (seeded at generation), then any others when it had too few shrines.
+        List<string> groups = current.Where(shrine => shrine != null && !string.IsNullOrEmpty(shrine.Group)).Select(shrine => shrine.Group).ToList();
+        groups.AddRange(ExpeditionBuffs.Groups.Where(group => !groups.Contains(group)));
+
+        var placed = new List<ShrineSpec>();
+
+        foreach (EliteCamp camp in ChooseHardCamps(plan.Elites, HardShrinesPerAct))
+        {
+            int radius = camp.Radius > 0 ? camp.Radius : ActGenerator.EliteCampRadius;
+            var found = new List<GameNPC>();
+            region.GetInRadius(new Point3D(camp.X, camp.Y, camp.Z), eGameObjectType.NPC, (ushort) Math.Clamp(radius, 1, ushort.MaxValue), found);
+
+            // The pack as the wake-up sees it (ExpeditionElites.CanBecomeElite): the camp's monster, not a bot, boss or pet.
+            int pack = found.Count(npc => npc is not GameBot && npc is not ExpeditionBoss && npc.Brain is not IControlledBrain
+                && MatchesCampMob(npc.Name, camp.MobName, out _));
+            (int X, int Y, int Z) centre = (camp.X, camp.Y, camp.Z);
+            (int X, int Y, int Z) spot = ExpeditionArrival.FindShrineSpot(region, plan.ZoneId, centre, player.Realm) ?? (camp.X + GuardOffset, camp.Y, camp.Z);
+
+            placed.Add(new ShrineSpec
+            {
+                Group = groups[placed.Count % groups.Count],
+                RegionId = plan.RegionId,
+                X = spot.X,
+                Y = spot.Y,
+                Z = spot.Z,
+                Guarded = true,
+                Direction = ActGenerator.DescribeFromCamp(plan.CampX, plan.CampY, spot.X, spot.Y),
+                Placed = true,
+                CampMob = camp.MobName,
+                CampX = camp.X,
+                CampY = camp.Y,
+                CampZ = camp.Z,
+
+                // A camp found empty (its monsters dead or not loaded) still asks for a small pack.
+                KillsNeeded = pack > 0 ? pack : DormantMinKills,
+                Kills = 0,
+                PlacementVersion = DormantPlacementVersion,
+                HardPack = true
+            });
+        }
+
+        plan.Shrines = placed;
+
+        return true;
+    }
+
+    /// <summary>
+    /// The elite packs a hard expedition's shrines stand beside: the first of the act's elite camps, then each next one
+    /// farthest from those already chosen, up to <paramref name="count"/>. Fewer when the act has fewer.
+    /// </summary>
+    public static List<EliteCamp> ChooseHardCamps(IReadOnlyList<EliteCamp> elites, int count)
+    {
+        List<EliteCamp> left = elites?.Where(camp => camp != null && !string.IsNullOrEmpty(camp.MobName)).ToList() ?? new List<EliteCamp>();
+        var chosen = new List<EliteCamp>();
+
+        while (chosen.Count < count && left.Count > 0)
+        {
+            EliteCamp next = chosen.Count == 0
+                ? left[0]
+                : left.OrderByDescending(camp => chosen.Min(other => Dist2(camp.X, camp.Y, other.X, other.Y))).First();
+            chosen.Add(next);
+            left.Remove(next);
+        }
+
+        return chosen;
+    }
+
     /// <summary>"at the camp around /loc x, y" for a dormant shrine's messages, or "at the camp beside it" without a zone.</summary>
     public static string CampWhere(ShrineSpec shrine)
     {
@@ -457,16 +626,21 @@ public static class ExpeditionShrines
     /// </summary>
     public static void OnKill(GamePlayer player, ExpeditionRun run, ActPlan plan, GameLiving target)
     {
-        if (player == null || run == null || plan?.Shrines == null || target == null || plan.Act != ActGenerator.ActCount)
+        // Act 5's dormant shrines, and every act's on a hard expedition.
+        if (player == null || run == null || plan?.Shrines == null || target == null || (plan.Act != ActGenerator.ActCount && !ExpeditionHardMode.IsHard(run)))
         {
             return;
         }
+
+        EliteCamp eliteCamp = target is GameNPC npc ? ExpeditionElites.CampOf(npc) : null;
 
         bool changed = false;
 
         foreach (ShrineSpec shrine in plan.Shrines)
         {
-            if (!CountsFor(shrine, target.Name, target.CurrentRegionID, target.X, target.Y))
+            bool ofCamp = eliteCamp != null && shrine != null && eliteCamp.X == shrine.CampX && eliteCamp.Y == shrine.CampY;
+
+            if (!CountsFor(shrine, target.Name, target.CurrentRegionID, target.X, target.Y, ofCamp))
             {
                 continue;
             }

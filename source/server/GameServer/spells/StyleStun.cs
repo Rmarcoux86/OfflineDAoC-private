@@ -26,6 +26,9 @@ namespace DOL.GS.Spells
 			// Override to ignore eProperty.StunDurationReduction.
 			double duration = Spell.Duration;
 
+			// Expedition Dirty Fighting (a hard expedition boon): a style stun landed from behind lasts longer.
+			duration = DOL.GS.Expedition.BoonEffects.DirtyFightingDuration(Caster, target, (int) duration);
+
 			if (EffectListService.GetEffectOnTarget(target, eEffect.NPCStunImmunity) is NpcStunImmunityEffect immunityEffect)
 				duration = immunityEffect.CalculateNewEffectDuration((long) duration);
 

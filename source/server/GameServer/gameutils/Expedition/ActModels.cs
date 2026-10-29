@@ -133,6 +133,12 @@ public sealed class ShrineSpec
 
     /// <summary>Which placement rule placed the shrine (ExpeditionShrines.DormantPlacementVersion); an older one is placed again.</summary>
     public int PlacementVersion;
+
+    /// <summary>
+    /// A hard expedition's shrine (owner 2026-10-29): beside an elite pack, dormant until the whole pack is slain; only
+    /// elite kills of that camp count (ExpeditionShrines.CountsFor). Placed once per act by ExpeditionShrines.PlaceHard.
+    /// </summary>
+    public bool HardPack;
 }
 
 /// <summary>

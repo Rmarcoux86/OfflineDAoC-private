@@ -73,6 +73,13 @@ public static class ExpeditionHardMode
 
             // gauntlet
             "- Win a hard expedition and your Gauntlet has a sixth round: two SmuG champions at once, both at realm rank 10.",
+
+            // boons
+            $"- Boon offers hold {ExpeditionBoons.HardOfferSize} choices instead of {ExpeditionBoons.OfferSize}, and Phoenix Feather is never offered.",
+            $"- Rejuvenation heals 1% every {BoonEffects.RejuvenationIntervalFor(true) / 1000} seconds (not {BoonEffects.RejuvenationIntervalFor(false) / 1000}), and Blessed Arms' buffs are weaker ({ExpeditionBuffs.HardBlessedArmsPercent}% of the cap, not {ExpeditionBuffs.BlessedArmsPercent}%).",
+            "- Five boons appear only on a hard expedition: Juggernaut, Ambush, Silent Death, Poisoner and Dirty Fighting.",
+            "- Three uniques drop only on a hard expedition, from level 40, alongside the late ones.",
+            $"- Each act has {ExpeditionShrines.HardShrinesPerAct} shrines, each beside an elite pack and dormant until that whole pack is slain.",
         };
     }
 

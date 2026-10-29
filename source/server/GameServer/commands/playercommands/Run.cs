@@ -16,7 +16,7 @@ namespace DOL.GS.Commands;
     "/run journal",
     "/run shrines",
     "/run boons",
-    "/run boon <1-3>",
+    "/run boon <1-3> (1-2 on a hard expedition)",
     "/run reroll",
     "/run seed",
     "/run new hard [seed] (a hard expedition, for an account that has beaten the Gauntlet)",

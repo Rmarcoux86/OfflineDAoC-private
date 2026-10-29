@@ -90,7 +90,7 @@ public static class ExpeditionRecovery
         if (owed)
         {
             ExpeditionBoons.OfferAtActBreak(run, run.Act - 1, out _, ExpeditionBoons.UsesPower(player), ExpeditionBoons.HasPet(player),
-                ExpeditionBoons.FightsInMelee(player), ExpeditionBoons.IsRanged(player));
+                ExpeditionBoons.FightsInMelee(player), ExpeditionBoons.IsRanged(player), ExpeditionHardMode.IsHard(run));
         }
 
         // The login resume then makes the camp safe (ExpeditionArrival) and takes the player there once settled.

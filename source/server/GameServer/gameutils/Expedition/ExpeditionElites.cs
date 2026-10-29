@@ -102,6 +102,12 @@ public static class ExpeditionElites
         return npc != null && Elites.TryGetValue(npc, out EliteState state) && state.Repeat;
     }
 
+    /// <summary>The elite camp an elite of a run belongs to; null for a monster that is not one (or a Gauntlet champion).</summary>
+    public static EliteCamp CampOf(GameNPC npc)
+    {
+        return npc != null && Elites.TryGetValue(npc, out EliteState state) ? state.Camp : null;
+    }
+
     /// <summary>A repeat elite kill's Unique weight is divided by this (the other rarities' weights are multiplied).</summary>
     public const int RepeatUniqueWeightDivisor = 2;
 
