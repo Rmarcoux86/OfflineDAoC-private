@@ -17,6 +17,30 @@
       "gauntletCleared": true,
       "player": "Khesahn20",
       "submittedUtc": "2026-10-27T21:54:54Z"
+    },
+    {
+      "id": "3d4c8803-0af5-47d9-9f00-e15948270ae7:2026-10-29T11:25:58.7213274Z",
+      "character": "Drunko",
+      "className": "Savage",
+      "race": "Troll",
+      "realm": "Midgard",
+      "level": 50,
+      "seed": 1961417549,
+      "playedSeconds": 40697,
+      "endedUtc": "2026-10-29T11:25:58.7213274Z",
+      "kills": 819,
+      "bossesKilled": 5,
+      "uniques": 9,
+      "realmPoints": 130307,
+      "gauntletCleared": true,
+      "boons": [
+        "Blessed Arms",
+        "Berserker",
+        "Rejuvenation",
+        "Ironhide"
+      ],
+      "player": "Khesahn20",
+      "submittedUtc": "2026-10-29T22:27:58Z"
     }
   ]
 }
