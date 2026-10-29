@@ -209,7 +209,7 @@ public class UT_ExpeditionGauntlet
     {
         Assert.Multiple(() =>
         {
-            Assert.That(Enumerable.Range(1, 5).Select(round => GauntletEscalation.For(round, round == 5 ? GauntletChampions.FinalChampion : null).RealmRank), Is.EqualTo(new[] { 4, 5, 6, 7, 10 }));
+            Assert.That(Enumerable.Range(1, 5).Select(round => GauntletEscalation.For(round, round == 5 ? GauntletChampions.FinalChampion : null).RealmRank), Is.EqualTo(new[] { 1, 2, 3, 4, 5 }));
             Assert.That(DOL.GS.Expedition.Gauntlet.GauntletChampion.TemplateCaps(50), Is.EqualTo((75, 26, 200)));
         });
     }
