@@ -943,6 +943,13 @@ public sealed class GauntletChampionBrain : BotBrain
     // Ios.
     private bool _rangedOpenerDone;
     private bool _openerSnareTried;
+
+    // The opener's last logged state (GAUNTLET_DRAIN, logged once per change) and when its current wait began.
+    private string _openerState;
+    private long _openerWaitSince;
+
+    /// <summary>How long the opener may wait on a cast (or a stop) that does not come before she fights in melee instead.</summary>
+    private const int OpenerStuckMs = 4000;
     private long _drainCastTick;
 
     // Ios's drain casts in a row that did not start (owner 2026-10-28: one refused cast ended her opener or kite).
@@ -1803,13 +1810,29 @@ public sealed class GauntletChampionBrain : BotBrain
     {
         Spell drain = champion.SignatureDrain;
 
-        if (drain == null || champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
+        if (drain == null)
         {
+            OpenerState(champion, null, "over: she has no drain spell");
+
+            return false;
+        }
+
+        if (champion.IsWithinRadius(challenger, champion.attackComponent.AttackRange + DotMeleeMargin))
+        {
+            OpenerState(champion, drain, "over: the challenger is in melee range");
+
             return false;
         }
 
         if (champion.IsCasting || champion.castingComponent?.HasPendingSkillRequests == true)
         {
+            string casting = champion.castingComponent?.SpellHandler?.Spell?.Name ?? "a pending request";
+
+            if (OpenerWaitedTooLong(champion, drain, $"waiting on {casting}", now))
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -1824,6 +1847,8 @@ public sealed class GauntletChampionBrain : BotBrain
         if (!champion.IsWithinRadius(challenger, drain.Range - OpenerRangeMargin))
         {
             // Out of her spell range (the challenger bows from about 1,700 away): she walks in until she can cast.
+            OpenerState(champion, drain, "walking into range");
+            _openerWaitSince = 0;
             ApplySpeed(champion, 1);
             champion.PathTo(new Point3D(challenger.X, challenger.Y, challenger.Z), champion.MaxSpeed);
 
@@ -1835,12 +1860,18 @@ public sealed class GauntletChampionBrain : BotBrain
         // Stopped before she casts: a cast asked for while still moving can fail to start.
         if (champion.IsMoving)
         {
+            if (OpenerWaitedTooLong(champion, drain, "stopping", now))
+            {
+                return false;
+            }
+
             champion.StopMoving();
             champion.TurnTo(challenger);
 
             return true;
         }
 
+        _openerWaitSince = 0;
         champion.TurnTo(challenger);
 
         if (!_openerSnareTried)
@@ -1851,11 +1882,52 @@ public sealed class GauntletChampionBrain : BotBrain
                 champion.IsWithinRadius(challenger, champion.SignatureSnare?.Range ?? 0) &&
                 TryCastOn(champion, champion.SignatureSnare, challenger))
             {
+                OpenerState(champion, drain, $"snare {champion.SignatureSnare.Name} cast");
+
                 return true;
             }
         }
 
+        OpenerState(champion, drain, "casting the drain");
+
         return CastDrain(champion, challenger, drain, now) != true;
+    }
+
+    /// <summary>Logs the opener's state when it changes (GAUNTLET_DRAIN).</summary>
+    private void OpenerState(GauntletChampion champion, Spell drain, string state)
+    {
+        if (state == _openerState)
+        {
+            return;
+        }
+
+        _openerState = state;
+        LogDrain(champion, drain, $"opener: {state}");
+    }
+
+    /// <summary>
+    /// True when the opener has waited on the same thing (a cast that does not end, a stop that does not happen) for
+    /// <see cref="OpenerStuckMs"/>: she gives it up and fights in melee rather than stand there.
+    /// </summary>
+    private bool OpenerWaitedTooLong(GauntletChampion champion, Spell drain, string state, long now)
+    {
+        OpenerState(champion, drain, state);
+
+        if (_openerWaitSince == 0)
+        {
+            _openerWaitSince = now;
+        }
+
+        if (now - _openerWaitSince < OpenerStuckMs)
+        {
+            return false;
+        }
+
+        LogDrain(champion, drain, $"opener: given up after {now - _openerWaitSince} ms {state} " +
+            $"(casting {champion.IsCasting}, pending {champion.castingComponent?.HasPendingSkillRequests}, moving {champion.IsMoving}, speed {champion.CurrentSpeed})");
+        _openerWaitSince = 0;
+
+        return true;
     }
 
     /// <summary>
