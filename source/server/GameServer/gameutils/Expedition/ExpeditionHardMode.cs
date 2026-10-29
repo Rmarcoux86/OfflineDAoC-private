@@ -85,6 +85,12 @@ public static class ExpeditionHardMode
             "- The act bosses are the Gauntlet's champions, in its order (Gwyraan, Toothmouth, Ios, Drunkstains, Preesh), at the act's top level + 2 with their realm ranks, realm abilities and signature moves. They attack on sight: no bow.",
             $"- Each act has a bounty timer ({ExpeditionBounty.EarlyActMinutes} minutes for acts 1-2, {ExpeditionBounty.MiddleActMinutes} for 3-4, {ExpeditionBounty.FinalActMinutes} for act 5; /run status shows it, and it stops while you are logged out). Miss it and the boss arrives with a pack of {ExpeditionBounty.HelperCount} monsters of the zone.",
             "- A dark storm hangs over the act's zone.",
+
+            // monsters
+            $"- Every monster of the act is Dread: {ExpeditionHardMonsters.DreadLevelBonus} level above its kind.",
+            "- Every camp of the act is an elite pack (save the objectives' and the boss's monsters), and every elite rolls two affixes (\"Swift Venomous Dread goblin\").",
+            $"- The act boss has {ExpeditionHardMonsters.BossAffixCount} affixes, and its leash is {ExpeditionHardMonsters.BossLeashMultiplier}x as long: it cannot be kited home to reset.",
+            $"- The hunt: every {ExpeditionHunt.SpawnIntervalMs / 60_000} minutes you spend in an act, a Swift stalker {ExpeditionHunt.LevelAboveAct} levels above the act is sent after you. You are warned {ExpeditionHunt.WarningLeadMs / 1000} seconds before, told where it is every {ExpeditionHunt.ReportIntervalMs / 1000} seconds, and it gives up after {ExpeditionHunt.GiveUpMs / 60_000} minutes if it never reaches you. It drops nothing.",
         };
     }
 

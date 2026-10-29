@@ -64,6 +64,12 @@ public sealed class EliteCamp
     /// (<see cref="ExpeditionElites.IsRepeat"/>).
     /// </summary>
     public List<string> Slain = new();
+
+    /// <summary>
+    /// Hard mode (owner 2026-10-29: "a hard-run elite rolls TWO different affixes"): the affixes after
+    /// <see cref="Affix"/>. Empty in a normal run, and in plans saved before it existed (the initialiser is kept).
+    /// </summary>
+    public List<string> ExtraAffixes = new();
 }
 
 /// <summary>
@@ -107,6 +113,12 @@ public sealed class ActPlan
 
     // Plans saved before shrines existed have none (the initialiser is kept).
     public List<ShrineSpec> Shrines = new();
+
+    /// <summary>
+    /// Hard mode: every camp of the act was made an elite pack with two affixes (<see cref="ExpeditionHardMonsters.HardenPlan"/>).
+    /// False in a normal run.
+    /// </summary>
+    public bool AllCampsElite;
 
     /// <summary>
     /// The unique weapon exchanger's spot (ExpeditionExchanger), found in the world the first time the act is played

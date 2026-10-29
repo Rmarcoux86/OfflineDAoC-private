@@ -1671,6 +1671,9 @@ namespace DOL.GS.ServerRules
 
         public virtual void DropLoot(GameNPC killedNpc, GameObject killer, SortedSet<ItemOwnerTotalDamagePair> itemOwners)
         {
+            // Expedition hard mode: a "Dread goblin" drops what a goblin drops (the loot tables are keyed by the monster's name).
+            DOL.GS.Expedition.ExpeditionHardMonsters.OnLootDrop(killedNpc);
+
             List<GamePlayer> playersInRadius = killedNpc.GetPlayersInRadius(WorldMgr.INFO_DISTANCE);
 
             foreach (DbItemTemplate itemTemplate in LootMgr.GetLoot(killedNpc, killer))

@@ -105,7 +105,8 @@ public static class ExpeditionShrines
 
     /// <summary>
     /// True when a monster of this name, killed at this point, counts for the shrine: its camp's monster (an elite's
-    /// name carries an affix in front, "Swift essence shredder") within <see cref="DormantCampRadius"/> of the camp.
+    /// name carries an affix in front, "Swift essence shredder"; a hard run's "Dread" too, "Swift Venomous Dread essence
+    /// shredder", <see cref="ExpeditionHardMonsters.BaseName"/>) within <see cref="DormantCampRadius"/> of the camp.
     /// </summary>
     /// <param name="ofCamp">The monster is an elite of the shrine's own pack (ExpeditionElites.CampOf): a hard shrine then counts it wherever it died.</param>
     public static bool CountsFor(ShrineSpec shrine, string name, int regionId, int x, int y, bool ofCamp = false)
@@ -124,6 +125,7 @@ public static class ExpeditionShrines
         }
 
         bool sameMob = string.Equals(name, shrine.CampMob, StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(ExpeditionHardMonsters.BaseName(name), shrine.CampMob, StringComparison.OrdinalIgnoreCase) ||
                        name.EndsWith(" " + shrine.CampMob, StringComparison.OrdinalIgnoreCase);
 
         return sameMob && Dist2(x, y, shrine.CampX, shrine.CampY) <= (long) DormantCampRadius * DormantCampRadius;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using DOL.AI.Brain;
 using DOL.Database;
@@ -25,6 +26,11 @@ namespace DOL.GS.Expedition;
 /// Swift (run speed x1.4, swings 20% faster), Venomous (melee hits may poison), Armoured (more armor absorption),
 /// Stalwart (triple health, shorter mez/stun/snare), Frenzied (+30% melee damage once below half health),
 /// Spectral (translucent, and stealthed until it fights).
+/// <para>
+/// Hard mode (<see cref="ExpeditionHardMonsters"/>): every camp of the act is a pack, each with two affixes
+/// (<see cref="EliteCamp.ExtraAffixes"/>), one more level and "Dread" in its name ("Swift Venomous Dread goblin"); the act
+/// boss gets two affixes too (<see cref="AddBossAffixes"/>).
+/// </para>
 /// </summary>
 public static class ExpeditionElites
 {
@@ -75,7 +81,12 @@ public static class ExpeditionElites
 
         // Its spawn was slain before this act: a repeat kill (lesser rewards).
         public bool Repeat;
-        public string Affix;
+
+        // Its affixes in name order; replaced, never changed in place, so a handler can read it without the lock.
+        public IReadOnlyList<string> Affixes = Array.Empty<string>();
+
+        // A hard-run act boss (AddBossAffixes): its affixes give no elite rewards.
+        public bool PlainRewards;
         public string OriginalName;
         public byte OriginalLevel;
         public byte OriginalSize;
@@ -121,12 +132,12 @@ public static class ExpeditionElites
     /// </summary>
     public static double RealmPointMultiplier(GameNPC npc)
     {
-        if (npc == null || !Elites.TryGetValue(npc, out EliteState state) || state.Repeat)
+        if (npc == null || !Elites.TryGetValue(npc, out EliteState state) || state.Repeat || state.PlainRewards)
         {
             return 1.0;
         }
 
-        return state.Affix == Stalwart ? StalwartRealmPointMultiplier : EliteRealmPointMultiplier;
+        return state.Affixes.Contains(Stalwart) ? StalwartRealmPointMultiplier : EliteRealmPointMultiplier;
     }
 
     /// <summary>Journal lines about the act's elite packs; empty when the act has none.</summary>
@@ -157,6 +168,39 @@ public static class ExpeditionElites
         return $"{affix} {mobName}";
     }
 
+    /// <summary>The elite name of a monster with several affixes: "{Affix} {Affix} {Name}".</summary>
+    public static string EliteName(IEnumerable<string> affixes, string mobName)
+    {
+        return EliteName(string.Join(" ", affixes), mobName);
+    }
+
+    /// <summary>A camp's affixes: <see cref="EliteCamp.Affix"/>, then its hard-mode <see cref="EliteCamp.ExtraAffixes"/>.</summary>
+    public static List<string> CampAffixes(EliteCamp camp)
+    {
+        List<string> affixes = new();
+
+        if (!string.IsNullOrEmpty(camp?.Affix))
+        {
+            affixes.Add(camp.Affix);
+        }
+
+        foreach (string extra in camp?.ExtraAffixes ?? [])
+        {
+            if (!string.IsNullOrEmpty(extra) && !affixes.Contains(extra))
+            {
+                affixes.Add(extra);
+            }
+        }
+
+        return affixes;
+    }
+
+    /// <summary>A camp's affixes as words: "Swift", or "Swift Venomous" in a hard run.</summary>
+    public static string CampAffixText(EliteCamp camp)
+    {
+        return string.Join(" ", CampAffixes(camp));
+    }
+
     /// <summary>What every elite gets on top of its affix, in one line for the status window.</summary>
     public const string CommonEffect = "All elites: +2 levels, double health, bigger, Rare+ loot.";
 
@@ -178,7 +222,7 @@ public static class ExpeditionElites
     /// <summary>The approach message, sent once per camp and attach.</summary>
     public static string ApproachMessage(EliteCamp camp)
     {
-        return $"You sense a {camp.Affix} pack of {camp.MobName} nearby.";
+        return $"You sense a {CampAffixText(camp)} pack of {camp.MobName} nearby.";
     }
 
     #region Waking packs (tracker tick)
@@ -221,11 +265,15 @@ public static class ExpeditionElites
 
             wokenCamps.Add(i);
             player.Out.SendMessage(ApproachMessage(camp), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-            string effect = AffixEffect(camp.Affix);
 
-            if (effect.Length > 0)
+            foreach (string affix in CampAffixes(camp))
             {
-                player.Out.SendMessage($"{camp.Affix}: {effect}", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                string effect = AffixEffect(affix);
+
+                if (effect.Length > 0)
+                {
+                    player.Out.SendMessage($"{affix}: {effect}", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                }
             }
 
             if (repeats > 0)
@@ -234,7 +282,7 @@ public static class ExpeditionElites
                 player.Out.SendMessage($"{them} you have slain before this act: lesser spoils (normal realm points, half the Unique chance).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
             }
 
-            ExpeditionDebug.Report(player, $"elite camp {i} ({camp.Affix} {camp.MobName}) woke {woken} monsters.");
+            ExpeditionDebug.Report(player, $"elite camp {i} ({CampAffixText(camp)} {camp.MobName}) woke {woken} monsters.");
         }
     }
 
@@ -248,6 +296,8 @@ public static class ExpeditionElites
             slain = new HashSet<string>(camp.Slain, StringComparer.Ordinal);
         }
 
+        List<string> affixes = CampAffixes(camp);
+        bool hard = ExpeditionHardMode.IsHard(run);
         List<GameNPC> found = new();
         int radius = Math.Clamp(camp.Radius > 0 ? camp.Radius : ActGenerator.EliteCampRadius, 1, ushort.MaxValue);
         player.CurrentRegion.GetInRadius(point, eGameObjectType.NPC, (ushort)radius, found);
@@ -265,7 +315,7 @@ public static class ExpeditionElites
 
             try
             {
-                if (Apply(npc, camp.Affix, player.ObjectId, run, camp, repeat))
+                if (Apply(npc, affixes, player.ObjectId, run, camp, repeat, hard))
                 {
                     woken++;
 
@@ -287,7 +337,7 @@ public static class ExpeditionElites
 
     private static bool CanBecomeElite(GameNPC npc, string mobName)
     {
-        if (npc == null || npc is GameBot || npc is ExpeditionBoss || npc.Brain is IControlledBrain)
+        if (npc == null || npc is GameBot || npc is ExpeditionBoss || npc is ExpeditionStalker || npc.Brain is IControlledBrain)
         {
             return false;
         }
@@ -297,18 +347,26 @@ public static class ExpeditionElites
             return false;
         }
 
-        return string.Equals(npc.Name, mobName, StringComparison.OrdinalIgnoreCase);
+        // A hard run's monster may already be Dread ("Dread goblin"): its own name is compared.
+        return string.Equals(ExpeditionHardMonsters.PlainName(npc), mobName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool Apply(GameNPC npc, string affix, string ownerKey, ExpeditionRun run = null, EliteCamp camp = null, bool repeat = false)
+    /// <param name="dread">A hard run (owner 2026-10-29): one more level and "Dread" in the name, "Swift Venomous Dread goblin".</param>
+    private static bool Apply(GameNPC npc, IReadOnlyList<string> affixes, string ownerKey, ExpeditionRun run = null, EliteCamp camp = null, bool repeat = false, bool dread = false)
     {
+        // A Dread monster is made plain first, so the elite keeps (and restores) the world's own values.
+        if (dread)
+        {
+            ExpeditionHardMonsters.Release(npc);
+        }
+
         EliteState state = new()
         {
             OwnerKey = ownerKey,
             Run = run,
             Camp = camp,
             Repeat = repeat,
-            Affix = affix,
+            Affixes = affixes.ToList(),
             OriginalName = npc.Name,
             OriginalLevel = npc.Level,
             OriginalSize = npc.Size,
@@ -323,18 +381,23 @@ public static class ExpeditionElites
         EnsureHandlers();
 
         // Level first: the Level setter re-derives the stats the health formula reads (GameNPC.Level, SetStats).
-        npc.Level = (byte)Math.Min(byte.MaxValue, npc.Level + LevelBonus);
+        int levelBonus = LevelBonus + (dread ? ExpeditionHardMonsters.DreadLevelBonus : 0);
+        npc.Level = (byte)Math.Min(byte.MaxValue, npc.Level + levelBonus);
 
         // GameNPC health is (constitution + level curve + BaseBuffBonusCategory[MaxHealth]) x MaxHealthScalingFactor
         // (MaxHealthCalculator); a flat buff bonus of (multiplier - 1) x the current maximum multiplies it.
-        int multiplier = affix == Stalwart ? StalwartHealthMultiplier : HealthMultiplier;
+        int multiplier = state.Affixes.Contains(Stalwart) ? StalwartHealthMultiplier : HealthMultiplier;
         double scaling = Math.Max(0.01, npc.MaxHealthScalingFactor);
         AddBonus(npc, state, eProperty.MaxHealth, (int)Math.Round(npc.MaxHealth * (multiplier - 1) / scaling));
-        ApplyAffix(npc, state, affix);
+
+        foreach (string affix in state.Affixes)
+        {
+            ApplyAffix(npc, state, affix);
+        }
 
         // Venomous and Frenzied act through the AttackedByEnemy handler.
         npc.Size = (byte)Math.Clamp(npc.Size * SizePercent / 100, 1, byte.MaxValue);
-        npc.Name = EliteName(affix, state.OriginalName);
+        npc.Name = EliteName(state.Affixes, dread ? ExpeditionHardMonsters.DreadName(state.OriginalName) : state.OriginalName);
         npc.Health = npc.MaxHealth;
 
         return true;
@@ -356,7 +419,7 @@ public static class ExpeditionElites
 
         EliteState state = new()
         {
-            Affix = affix,
+            Affixes = new[] { affix },
             OriginalName = npc.Name,
             OriginalLevel = npc.Level,
             OriginalSize = npc.Size,
@@ -373,6 +436,65 @@ public static class ExpeditionElites
         npc.Name = EliteName(affix, state.OriginalName);
 
         return true;
+    }
+
+    /// <summary>Hard mode: the affixes an act boss may get (Spectral would hide the boss the player was just told to find).</summary>
+    public static readonly IReadOnlyList<string> BossAffixPool = new[] { Swift, Venomous, Armoured, Stalwart, Frenzied };
+
+    /// <summary>
+    /// Hard mode (owner 2026-10-29: "Bosses get a second affix too"): gives the act boss, whatever NPC it is, affixes from
+    /// <see cref="BossAffixPool"/> until it has <paramref name="total"/> (a Gauntlet champion keeps its own and gets one
+    /// more; a plain boss gets two). Each is the affix's own effect, as a champion's, with its name in front of the boss's.
+    /// Its affixes give no elite loot or realm points; they are undone on its death, by <see cref="Forget"/>, or when the
+    /// owner's tracker detaches (<see cref="RestoreAll(GamePlayer)"/>). Returns the affixes added.
+    /// </summary>
+    public static List<string> AddBossAffixes(GameNPC npc, int total, string ownerKey, Random rng)
+    {
+        List<string> added = new();
+
+        if (npc == null || total <= 0 || rng == null)
+        {
+            return added;
+        }
+
+        if (!Elites.TryGetValue(npc, out EliteState state))
+        {
+            EliteState created = new()
+            {
+                OwnerKey = ownerKey,
+                PlainRewards = true,
+                OriginalName = npc.Name,
+                OriginalLevel = npc.Level,
+                OriginalSize = npc.Size,
+                OriginalMaxSpeed = npc.MaxSpeedBase
+            };
+
+            state = Elites.GetOrAdd(npc, created);
+        }
+
+        EnsureHandlers();
+
+        while (state.Affixes.Count < total)
+        {
+            List<string> pool = BossAffixPool.Where(a => !state.Affixes.Contains(a)).ToList();
+
+            if (pool.Count == 0)
+            {
+                break;
+            }
+
+            string affix = pool[rng.Next(pool.Count)];
+            state.Affixes = state.Affixes.Append(affix).ToList();
+            ApplyAffix(npc, state, affix);
+            added.Add(affix);
+        }
+
+        if (added.Count > 0)
+        {
+            npc.Name = EliteName(state.Affixes, state.OriginalName);
+        }
+
+        return added;
     }
 
     /// <summary>Takes the monster's elite state off and restores it (a champion removed from the arena).</summary>
@@ -612,12 +734,12 @@ public static class ExpeditionElites
 
         try
         {
-            if (ad.Attacker is GameNPC attacker && Elites.TryGetValue(attacker, out EliteState attackerState) && attackerState.Affix == Venomous)
+            if (ad.Attacker is GameNPC attacker && Elites.TryGetValue(attacker, out EliteState attackerState) && attackerState.Affixes.Contains(Venomous))
             {
                 TryVenom(attacker, attackerState, ad);
             }
 
-            if (sender is GameNPC defender && Elites.TryGetValue(defender, out EliteState defenderState) && defenderState.Affix == Frenzied)
+            if (sender is GameNPC defender && Elites.TryGetValue(defender, out EliteState defenderState) && defenderState.Affixes.Contains(Frenzied))
             {
                 TryFrenzy(defender, defenderState);
             }

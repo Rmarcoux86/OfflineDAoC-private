@@ -649,7 +649,7 @@ public static class ExpeditionArrival
         {
             if (elite != null)
             {
-                elite.Description = $"A {elite.Affix} pack of {elite.MobName} lairs {ActGenerator.DescribeFromCamp(x, y, elite.X, elite.Y)}";
+                elite.Description = $"A {ExpeditionElites.CampAffixText(elite)} pack of {elite.MobName} lairs {ActGenerator.DescribeFromCamp(x, y, elite.X, elite.Y)}";
             }
         }
 

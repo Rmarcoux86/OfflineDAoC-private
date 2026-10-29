@@ -30,6 +30,11 @@ namespace DOL.GS.Expedition;
 /// Elite packs: the tick wakes the act's elite camps the player comes near (<see cref="ExpeditionElites.CheckCamps"/>)
 /// and Detach restores them (<see cref="ExpeditionElites.RestoreAll(GamePlayer)"/>).
 /// </para>
+/// <para>
+/// Hard runs: the tick also makes every camp elite (<see cref="ExpeditionHardMonsters.HardenPlan"/>), claims nearby
+/// monsters as Dread, keeps the boss on its doubled leash and runs the hunt (<see cref="ExpeditionHunt"/>); Detach undoes
+/// them. A Dread monster's own name is what kill objectives compare (<see cref="ExpeditionHardMonsters.PlainName"/>).
+/// </para>
 /// Run counters: <see cref="ExpeditionManager"/> already counts <c>run.Kills</c> (its own EnemyKilled handler) and
 /// <c>run.BossesKilled</c> (in OnBossKilled), so this tracker does not touch them.
 /// </summary>
@@ -169,6 +174,8 @@ public static class ObjectiveTracker
 
         ExpeditionShrines.Despawn(player);
         ExpeditionExchanger.Despawn(player);
+        ExpeditionHunt.Despawn(player);
+        ExpeditionHardMonsters.RestoreAll(player);
 
         if (!States.TryRemove(player.ObjectId, out TrackerState state))
         {
@@ -516,7 +523,7 @@ public static class ObjectiveTracker
                 continue;
             }
 
-            if (!string.Equals(target.Name, objective.MobName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(ExpeditionHardMonsters.PlainName(target), objective.MobName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -559,7 +566,7 @@ public static class ObjectiveTracker
                 continue;
             }
 
-            if (string.IsNullOrEmpty(objective.MobName) || !string.Equals(target.Name, objective.MobName, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(objective.MobName) || !string.Equals(ExpeditionHardMonsters.PlainName(target), objective.MobName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -692,6 +699,10 @@ public static class ObjectiveTracker
 
         ExpeditionWeather.Tick(player, run, plan);
 
+        // Hard runs only (each checks): the hunt (it also sees the player's death) and the boss's doubled leash.
+        ExpeditionHunt.Tick(player, run, plan);
+        ExpeditionHardMonsters.TickBossLeash(player);
+
         if (player.IsAlive)
         {
             CheckReachPoints(state, run, plan, player);
@@ -699,7 +710,9 @@ public static class ObjectiveTracker
             // A reach point can finish the act; a detached state must not wake packs nobody would restore.
             if (!state.Detached)
             {
+                ExpeditionHardMonsters.HardenPlan(player, run, plan);
                 ExpeditionElites.CheckCamps(player, run, plan, state.WokenEliteCamps);
+                ExpeditionHardMonsters.ClaimNearby(player, run, plan);
                 ExpeditionShrines.Tick(player, run, plan);
                 ExpeditionExchanger.Tick(player, run, plan);
             }
@@ -971,6 +984,8 @@ public static class ObjectiveTracker
             return;
         }
 
+        // A hard run's boss gets its second affix and doubled leash before it is announced (with its new name).
+        ExpeditionHardMonsters.OnBossSpawned(player, boss);
         string bossLoc = ActGenerator.DescribeLoc(plan.RegionId, boss.X, boss.Y);
 
         Tell(player, bossLoc == null ? $"{boss.Name} has appeared at {plan.ZoneName}!" : $"{boss.Name} has appeared at {plan.ZoneName}, at {bossLoc}!", true);
