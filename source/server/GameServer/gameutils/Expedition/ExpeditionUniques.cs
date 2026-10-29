@@ -141,7 +141,7 @@ public static class ExpeditionUniques
         new("Wyrmbane, the Last Ember", eUniqueTier.Late, eUniqueSlot.Weapon,
             "Quenched in a dragon's heart. The ember in its core has burned for three ages.",
             eUniqueProc.Damage,
-            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Dexterity, 19), new(eProperty.Quickness, 17), new(eProperty.MaxHealth, 53), new(eProperty.Resist_Heat, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Dexterity, 18), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 53), new(eProperty.Resist_Heat, 8), new(eProperty.AllSkills, 3) }),
         new("Pendant of the Starless Deep", eUniqueTier.Late, eUniqueSlot.Necklace,
             "Brought up from a sea with no bottom and no stars. It is always cold to the touch.",
             eUniqueProc.None,
