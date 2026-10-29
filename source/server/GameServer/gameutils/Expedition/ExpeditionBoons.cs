@@ -56,6 +56,10 @@ public static class ExpeditionBoons
     public const string HuntersInstinct = "hunters_instinct";
     public const string Berserker = "berserker";
     public const string BeastBond = "beast_bond";
+    public const string Overreach = "overreach";
+    public const string Deadeye = "deadeye";
+    public const string Sharpshooter = "sharpshooter";
+    public const string Skirmisher = "skirmisher";
 
     /// <summary>Realm points added by Glory, in percent.</summary>
     public const int GloryRealmPointPercent = 50;
@@ -87,6 +91,10 @@ public static class ExpeditionBoons
         new(HuntersInstinct, "Hunter's Instinct", "Monsters below half health take 15% more damage from you.", false),
         new(Berserker, "Berserker", "+30% melee damage and 15% faster melee swings, but you cannot be healed above 70% health.", false),
         new(BeastBond, "Beast Bond", "Your pets have 20% more health and deal 15% more damage.", false),
+        new(Overreach, "Overreach", "+15% spell range and +10% casting speed, on top of your items' bonuses.", false),
+        new(Deadeye, "Deadeye", "+15% ranged critical hit chance (the 50% cap still applies).", false),
+        new(Sharpshooter, "Sharpshooter", "+25% bow damage and 10% faster draws, but 20% less melee damage.", false),
+        new(Skirmisher, "Skirmisher", "+25% melee damage and 10% faster swings, but 20% less bow damage.", false),
     };
 
     /// <summary>
@@ -131,7 +139,7 @@ public static class ExpeditionBoons
 
         if (!offerWaiting && run.Act > 1)
         {
-            OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player));
+            OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player));
         }
 
         run.AddLog($"Act {run.Act}: a removed boon was taken off the run{(hadTaken ? "; a new boon choice is offered" : "; the offer was drawn again")}.");
@@ -143,7 +151,28 @@ public static class ExpeditionBoons
     /// Boons that only help a class with power (spells): never offered to a pure melee class (one with no power stat,
     /// such as Hero, Blademaster, Armsman or Warrior), where they would do nothing.
     /// </summary>
-    public static readonly IReadOnlySet<string> CasterOnly = new HashSet<string>(StringComparer.Ordinal) { ArcaneFury, Siphon };
+    public static readonly IReadOnlySet<string> CasterOnly = new HashSet<string>(StringComparer.Ordinal) { ArcaneFury, Siphon, Overreach };
+
+    /// <summary>Boons that only help a class that fights in melee: never offered to a pure caster (owner 2026-10-29).</summary>
+    public static readonly IReadOnlySet<string> MeleeOnly = new HashSet<string>(StringComparer.Ordinal) { Bloodlust, Berserker };
+
+    /// <summary>Boons that only help an archer (<see cref="RangedClasses"/>): never offered to the others (owner 2026-10-29).</summary>
+    public static readonly IReadOnlySet<string> RangedOnly = new HashSet<string>(StringComparer.Ordinal) { Deadeye, Sharpshooter, Skirmisher };
+
+    /// <summary>The archer classes: Scout, Hunter and Ranger.</summary>
+    public static readonly IReadOnlySet<eCharacterClass> RangedClasses = new HashSet<eCharacterClass> { eCharacterClass.Scout, eCharacterClass.Hunter, eCharacterClass.Ranger };
+
+    /// <summary>True for an archer (<see cref="RangedClasses"/>).</summary>
+    public static bool IsRanged(GamePlayer player)
+    {
+        return player?.CharacterClass != null && RangedClasses.Contains((eCharacterClass) player.CharacterClass.ID);
+    }
+
+    /// <summary>True for a class that fights in melee: everyone but a pure caster (BoonEffects.IsPureCaster).</summary>
+    public static bool FightsInMelee(GamePlayer player)
+    {
+        return !BoonEffects.IsPureCaster(player);
+    }
 
     /// <summary>Boons that only help a class with a pet: never offered to the others (owner 2026-10-27).</summary>
     public static readonly IReadOnlySet<string> PetOnly = new HashSet<string>(StringComparer.Ordinal) { BeastBond };
@@ -185,13 +214,15 @@ public static class ExpeditionBoons
     /// rerolled) and only falls back to them when too few others are left.
     /// </summary>
     public static List<string> RollOffer(int seed, int act, IReadOnlyCollection<string> taken, bool usesPower = true,
-        IReadOnlyCollection<string> exclude = null, int reroll = 0, bool hasPet = false)
+        IReadOnlyCollection<string> exclude = null, int reroll = 0, bool hasPet = false, bool melee = true, bool ranged = false)
     {
         var rng = new Random(unchecked(seed * 131 + act + reroll * 7919));
         List<BoonDefinition> available = Catalog
             .Where(boon => taken == null || !taken.Contains(boon.Id))
             .Where(boon => usesPower || !CasterOnly.Contains(boon.Id))
             .Where(boon => hasPet || !PetOnly.Contains(boon.Id))
+            .Where(boon => melee || !MeleeOnly.Contains(boon.Id))
+            .Where(boon => ranged || !RangedOnly.Contains(boon.Id))
             .ToList();
         List<BoonDefinition> fresh = available.Where(boon => exclude == null || !exclude.Contains(boon.Id)).ToList();
         var offer = new List<BoonDefinition>();
@@ -220,7 +251,8 @@ public static class ExpeditionBoons
     /// still waiting from an earlier act is replaced (<paramref name="replacedUnclaimed"/>). The caller saves the run.
     /// Returns false when every boon is taken.
     /// </summary>
-    public static bool OfferAtActBreak(ExpeditionRun run, int finishedAct, out bool replacedUnclaimed, bool usesPower = true, bool hasPet = false)
+    public static bool OfferAtActBreak(ExpeditionRun run, int finishedAct, out bool replacedUnclaimed, bool usesPower = true, bool hasPet = false,
+        bool melee = true, bool ranged = false)
     {
         replacedUnclaimed = false;
 
@@ -234,7 +266,7 @@ public static class ExpeditionBoons
         lock (run.Boons)
         {
             replacedUnclaimed = run.PendingBoonOffer.Count > 0;
-            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), usesPower, hasPet: hasPet);
+            offer = RollOffer(run.Seed, finishedAct, run.Boons.ToList(), usesPower, hasPet: hasPet, melee: melee, ranged: ranged);
             run.PendingBoonOffer = offer;
         }
 
@@ -414,7 +446,7 @@ public static class ExpeditionBoons
 
         // One boon per act won: a run still owed one (a retired boon was taken off while this offer was waiting) gets
         // its next choice straight away.
-        bool owed = OwesBoon(run) && OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player));
+        bool owed = OwesBoon(run) && OfferAtActBreak(run, run.Act - 1, out _, UsesPower(player), HasPet(player), FightsInMelee(player), IsRanged(player));
         ExpeditionManager.Save(run);
 
         message = $"You take the boon {name}: {boon?.Effect ?? "unknown boon"}";
@@ -508,7 +540,7 @@ public static class ExpeditionBoons
 
             rerollNumber = run.RerollsUsed + 1;
             List<string> offer = RollOffer(run.Seed, Math.Max(1, run.Act - 1), run.Boons.ToList(), UsesPower(player),
-                run.PendingBoonOffer.ToList(), rerollNumber, HasPet(player));
+                run.PendingBoonOffer.ToList(), rerollNumber, HasPet(player), FightsInMelee(player), IsRanged(player));
 
             if (offer.Count == 0)
             {

@@ -35,7 +35,11 @@ public sealed class BoonIconEffect : ECSGameAbilityEffect
         [ExpeditionBoons.SecondSkin] = 11552,
         [ExpeditionBoons.HuntersInstinct] = 3590,
         [ExpeditionBoons.Berserker] = 861,
-        [ExpeditionBoons.BeastBond] = 10041
+        [ExpeditionBoons.BeastBond] = 10041,
+        [ExpeditionBoons.Overreach] = 4276,
+        [ExpeditionBoons.Deadeye] = 413,
+        [ExpeditionBoons.Sharpshooter] = 484,
+        [ExpeditionBoons.Skirmisher] = 1566
     };
 
     private const ushort DefaultIcon = 2882;

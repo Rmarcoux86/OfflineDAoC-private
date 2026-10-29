@@ -47,7 +47,10 @@ namespace DOL.GS.PropertyCalc
 			}
 			int buff = CalcValueFromBuffs(living, property);
 		    int item = CalcValueFromItems(living, property);
-		    return Math.Max(0, 100 + (buff + item) - debuff);
+
+		    // Fork (owner 2026-10-29): ability bonuses (the Overreach boon) count, outside the item cap.
+		    int ability = living.AbilityBonus[property];
+		    return Math.Max(0, 100 + (buff + item + ability) - debuff);
 		}
 
         public override int CalcValueFromBuffs(GameLiving living, eProperty property)

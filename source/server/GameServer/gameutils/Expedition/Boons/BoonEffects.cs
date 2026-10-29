@@ -53,6 +53,13 @@ public static partial class BoonEffects
         [ExpeditionBoons.ArcaneFury] = new[] { (eProperty.CriticalSpellHitChance, 15) },
         [ExpeditionBoons.GlassCannon] = new[] { (eProperty.MeleeDamage, 25), (eProperty.SpellDamage, 25), (eProperty.Of_Toughness, -15) },
         [ExpeditionBoons.Berserker] = new[] { (eProperty.MeleeDamage, 30), (eProperty.MeleeSpeed, 15) },
+
+        // SpellRange and CastingSpeed are percents outside the item caps (SpellRangePercentCalculator, TOABonusCalculator);
+        // RangedDamage and ArcherySpeed likewise, CriticalArcheryHitChance capped at 50 (owner 2026-10-29).
+        [ExpeditionBoons.Overreach] = new[] { (eProperty.SpellRange, 15), (eProperty.CastingSpeed, 10) },
+        [ExpeditionBoons.Deadeye] = new[] { (eProperty.CriticalArcheryHitChance, 15) },
+        [ExpeditionBoons.Sharpshooter] = new[] { (eProperty.RangedDamage, 25), (eProperty.ArcherySpeed, 10), (eProperty.MeleeDamage, -20) },
+        [ExpeditionBoons.Skirmisher] = new[] { (eProperty.MeleeDamage, 25), (eProperty.MeleeSpeed, 10), (eProperty.RangedDamage, -20) },
         [ExpeditionBoons.SecondSkin] = new[]
         {
             (eProperty.Resist_Crush, SecondSkinResistPercent), (eProperty.Resist_Slash, SecondSkinResistPercent), (eProperty.Resist_Thrust, SecondSkinResistPercent),

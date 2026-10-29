@@ -84,7 +84,7 @@ public class UT_ExpeditionBoons
         {
             for (int act = 1; act <= 4; act++)
             {
-                foreach (string id in ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>(), hasPet: true))
+                foreach (string id in ExpeditionBoons.RollOffer(seed, act, Array.Empty<string>(), hasPet: true, ranged: true))
                 {
                     seen[id]++;
                 }
@@ -289,6 +289,28 @@ public class UT_ExpeditionBoons
         }
 
         Assert.That(ExpeditionBoons.PetOnly, Does.Contain(ExpeditionBoons.BeastBond));
+    }
+
+    [Test]
+    public void RollOffer_PureCaster_NeverOffersMeleeOnly_AndOnlyArchersGetRangedOnly()
+    {
+        for (int seed = 1; seed <= 300; seed++)
+        {
+            for (int act = 1; act <= 4; act++)
+            {
+                List<string> caster = ExpeditionBoons.RollOffer(seed, act, new List<string>(), melee: false);
+                List<string> melee = ExpeditionBoons.RollOffer(seed, act, new List<string>(), usesPower: false);
+                List<string> archer = ExpeditionBoons.RollOffer(seed, act, new List<string>(), ranged: true);
+
+                Assert.That(caster.Any(ExpeditionBoons.MeleeOnly.Contains), Is.False, $"caster, seed {seed}, act {act}");
+                Assert.That(melee.Any(ExpeditionBoons.RangedOnly.Contains), Is.False, $"melee, seed {seed}, act {act}");
+                Assert.That(archer.Count, Is.EqualTo(ExpeditionBoons.OfferSize), $"archer, seed {seed}, act {act}");
+            }
+        }
+
+        Assert.That(ExpeditionBoons.MeleeOnly, Does.Contain(ExpeditionBoons.Bloodlust).And.Contain(ExpeditionBoons.Berserker));
+        Assert.That(ExpeditionBoons.RangedOnly, Does.Contain(ExpeditionBoons.Deadeye).And.Contain(ExpeditionBoons.Sharpshooter).And.Contain(ExpeditionBoons.Skirmisher));
+        Assert.That(ExpeditionBoons.RangedClasses, Does.Contain(eCharacterClass.Scout).And.Contain(eCharacterClass.Hunter).And.Contain(eCharacterClass.Ranger));
         Assert.That(ExpeditionBoons.PetClasses, Does.Contain(eCharacterClass.Hunter).And.Contain(eCharacterClass.Druid).And.Not.Contain(eCharacterClass.Armsman));
     }
 
