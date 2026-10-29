@@ -1114,6 +1114,14 @@ public static class ExpeditionManager
         lines.Add("-- ELITE PACKS (optional) --");
         lines.Add(ExpeditionElites.CommonEffect);
 
+        // Hard run: every camp is a pack, too many to list; each tells its affixes as the player comes near.
+        if (plan.HardElites)
+        {
+            lines.Add($"Hard: every camp of the act is a pack with two affixes and is Dread (+{ExpeditionHardMonsters.DreadLevelBonus} level). You sense each pack's affixes as you come near.");
+
+            return;
+        }
+
         foreach (EliteCamp camp in plan.Elites)
         {
             if (camp == null)
@@ -1121,12 +1129,16 @@ public static class ExpeditionManager
                 continue;
             }
 
-            lines.Add(ExpeditionElites.EliteName(camp.Affix, camp.MobName));
-            string effect = ExpeditionElites.AffixEffect(camp.Affix);
+            lines.Add(ExpeditionElites.EliteName(ExpeditionElites.CampAffixes(camp), camp.MobName));
 
-            if (effect.Length > 0)
+            foreach (string affix in ExpeditionElites.CampAffixes(camp))
             {
-                lines.Add($"{Indent}{effect}");
+                string effect = ExpeditionElites.AffixEffect(affix);
+
+                if (effect.Length > 0)
+                {
+                    lines.Add($"{Indent}{effect}");
+                }
             }
 
             lines.Add($"{Indent}{ActGenerator.DescribeFromCamp(plan.CampX, plan.CampY, camp.X, camp.Y)}");

@@ -64,6 +64,12 @@ public static class ExpeditionHardMode
             "A hard expedition. Everything that follows is stronger than you remember:",
             string.Empty,
             "- Opens to an account that has beaten the Gauntlet.",
+
+            // monsters
+            $"- Every monster of the act is Dread: {ExpeditionHardMonsters.DreadLevelBonus} level above its kind.",
+            "- Every camp of the act is an elite pack (save the objectives' and the boss's monsters), and every elite rolls two affixes (\"Swift Venomous Dread goblin\").",
+            $"- The act boss has {ExpeditionHardMonsters.BossAffixCount} affixes, and its leash is {ExpeditionHardMonsters.BossLeashMultiplier}x as long: it cannot be kited home to reset.",
+            $"- The hunt: every {ExpeditionHunt.SpawnIntervalMs / 60_000} minutes you spend in an act, a Swift stalker {ExpeditionHunt.LevelAboveAct} levels above the act is sent after you. You are warned {ExpeditionHunt.WarningLeadMs / 1000} seconds before, told where it is every {ExpeditionHunt.ReportIntervalMs / 1000} seconds, and it gives up after {ExpeditionHunt.GiveUpMs / 60_000} minutes if it never reaches you. It drops nothing.",
         };
     }
 }
