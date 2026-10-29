@@ -924,6 +924,15 @@ public static class ExpeditionUniques
     }
 
     /// <summary>
+    /// A unique weapon's DPS (x10) at an item level: the generator's 1.2 + 0.3 x level, and 16.5 at level 50 (owner
+    /// 2026-10-28: the end-game tier is 16.5 DPS, a level 51 weapon's; a realm rank 4 player's DPS cap, GamePlayer.GetWeaponDpsCap).
+    /// </summary>
+    public static int WeaponDpsAf(int level)
+    {
+        return level >= 50 ? 165 : (int) Math.Round((level * 0.3 + 1.2) * 10);
+    }
+
+    /// <summary>
     /// Uniques level with their owner (owner 2026-10-25): each unique the player carries rises to the player's level,
     /// up to its tier's cap (early 20, mid 40, late 50): item level, weapon DPS or armor AF (the generator's formulas,
     /// GeneratedUniqueItem), proc strength and required level. Called on level-up and at login.
@@ -947,8 +956,11 @@ public static class ExpeditionUniques
             int cap = TierCapLevel(definition.Tier);
             int wanted = Math.Clamp((int) player.Level, TierMinLevel(definition.Tier), cap);
             bool describe = item.Description != DescriptionFor(definition);
+            eObjectType objectType = (eObjectType) item.Template.Object_Type;
+            bool weapon = (objectType >= eObjectType._FirstWeapon && objectType <= eObjectType._LastWeapon) || objectType == eObjectType.Shield;
+            bool dpsLow = weapon && item.Level >= wanted && item.Template.DPS_AF < WeaponDpsAf(wanted);
 
-            if (item.Level >= wanted && !describe)
+            if (item.Level >= wanted && !describe && !dpsLow)
             {
                 continue;
             }
@@ -976,7 +988,7 @@ public static class ExpeditionUniques
                 }
                 else if ((type >= eObjectType._FirstWeapon && type <= eObjectType._LastWeapon) || type == eObjectType.Shield)
                 {
-                    template.DPS_AF = (int) ((wanted * 0.3 + 1.2) * 10);
+                    template.DPS_AF = WeaponDpsAf(wanted);
                 }
 
                 if (template.ProcSpellID != 0 && definition.Proc != eUniqueProc.None)
@@ -985,6 +997,11 @@ public static class ExpeditionUniques
                 }
 
                 template.LevelRequirement = Math.Max(1, Math.Min(wanted, (int) player.Level));
+            }
+
+            if (dpsLow)
+            {
+                template.DPS_AF = WeaponDpsAf(wanted);
             }
 
             if (grows && worn)
@@ -1158,6 +1175,11 @@ public static class ExpeditionUniques
         }
 
         ClearMagic(item);
+
+        if (definition.Slot == eUniqueSlot.Weapon)
+        {
+            item.DPS_AF = WeaponDpsAf(item.Level);
+        }
 
         for (int i = 0; i < definition.Lines.Length && i < 10; i++)
         {

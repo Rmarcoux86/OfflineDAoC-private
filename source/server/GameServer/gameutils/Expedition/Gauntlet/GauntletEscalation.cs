@@ -14,8 +14,8 @@ public static class GauntletEscalation
     /// <summary>The highest realm rank (the last of a realm's fourteen titles, GlobalConstants.REALM_RANK_NAMES).</summary>
     public const int MaxRealmRank = 14;
 
-    /// <summary>The final champion's realm rank, whatever the round (owner 2026-10-28: "Preesh is always rr10").</summary>
-    public const int FinalChampionRealmRank = 10;
+    /// <summary>The final champion's realm rank, whatever the round (owner 2026-10-28: "all the way up to preesh being rr5").</summary>
+    public const int FinalChampionRealmRank = 5;
 
     /// <summary>The round from which the stat bonus grows every round.</summary>
     private const int OpenEndedRound = 20;
@@ -25,19 +25,34 @@ public static class GauntletEscalation
 
     /// <summary>
     /// The tier of a round (1-based; below 1 counts as 1). Every champion wears a full template without ToA bonuses
-    /// (GauntletChampion). Its realm rank is the round plus 3 (owner 2026-10-28), up to
+    /// (GauntletChampion). Its realm rank is the round (owner 2026-10-28), up to
     /// <see cref="MaxRealmRank"/>; the final champion's is always <see cref="FinalChampionRealmRank"/>. From round 5 it uses realm abilities; from 10 potions and an Elite
     /// affix; 15-19 one helper; from 20 two helpers and +5% stats for each round over 20.
     /// </summary>
+    /// <summary>
+    /// How much weaker than full strength a round's champion is, in percent of its health and its melee and spell damage
+    /// (owner 2026-10-28: round 1 Ios was too strong): 20 in round 1, 13 in round 2, 7 in round 3, none from round 4.
+    /// </summary>
+    public static int WeakenedPercent(int round)
+    {
+        return Math.Max(1, round) switch
+        {
+            1 => 20,
+            2 => 13,
+            3 => 7,
+            _ => 0
+        };
+    }
+
     public static RoundTier For(int round, string championName = null)
     {
         round = Math.Max(1, round);
 
-        // One rank a round from RR4 (owner 2026-10-28, an even climb for an RR3-4 challenger): RR4, 5, 6, 7 for the
-        // first four fights; the final champion is always RR10.
+        // One rank a round from RR1 (owner 2026-10-28: "Round 1 should be rr1, then round 2 rr2"): RR1 to RR4 for the
+        // first four fights; the final champion is always RR5.
         int rank = string.Equals(championName, GauntletChampions.FinalChampion, StringComparison.Ordinal)
             ? FinalChampionRealmRank
-            : Math.Min(round + 3, MaxRealmRank);
+            : Math.Min(round, MaxRealmRank);
 
         // Realm abilities from the first round (owner 2026-10-27).
         if (round < 5)

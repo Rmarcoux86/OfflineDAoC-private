@@ -362,7 +362,7 @@ public static class ExpeditionElites
         }
 
         EnsureHandlers();
-        ApplyAffix(npc, state, affix);
+        ApplyAffix(npc, state, affix, true);
         npc.Name = EliteName(affix, state.OriginalName);
 
         return true;
@@ -375,7 +375,8 @@ public static class ExpeditionElites
     }
 
     /// <summary>An affix's own effect (Venomous and Frenzied act through the AttackedByEnemy handler).</summary>
-    private static void ApplyAffix(GameNPC npc, EliteState state, string affix)
+    /// <param name="champion">A Gauntlet champion: Swift gives it the run speed only (owner 2026-10-28: Ios hit too hard).</param>
+    private static void ApplyAffix(GameNPC npc, EliteState state, string affix, bool champion = false)
     {
         switch (affix)
         {
@@ -388,7 +389,11 @@ public static class ExpeditionElites
                 }
 
                 // NPC swing time is base x MeleeSpeed% (MeleeSpeedPercentCalculator: 100 - buff for NPCs).
-                AddBonus(npc, state, eProperty.MeleeSpeed, SwiftMeleeSpeedBonus);
+                if (!champion)
+                {
+                    AddBonus(npc, state, eProperty.MeleeSpeed, SwiftMeleeSpeedBonus);
+                }
+
                 break;
             }
             case Armoured:

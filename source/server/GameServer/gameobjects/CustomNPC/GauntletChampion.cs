@@ -217,6 +217,12 @@ public sealed class GauntletChampion : GameBot
         RealmLevel = Math.Max(0, (tier.RealmRank - 1) * 10);
         AutonomousBotRealmAbilities.GrantChampion(this, AutonomousBotRealmAbilities.Points(Level, RealmLevel));
 
+        // An early round's champion hits for less (GauntletEscalation.WeakenedPercent): melee (AttackComponent's damage type
+        // modifier) and spells (SpellHandler's effectiveness); its health is cut in MaxHealth.
+        int weakened = GauntletEscalation.WeakenedPercent(round);
+        AbilityBonus[eProperty.MeleeDamage] -= weakened;
+        AbilityBonus[eProperty.SpellDamage] -= weakened;
+
         if (tier.StatBonusPercent > 0)
         {
             for (eStat stat = eStat._First; stat <= eStat._Last; stat++)
@@ -353,7 +359,16 @@ public sealed class GauntletChampion : GameBot
     /// A Stalwart champion (Toothmouth, owner 2026-10-28; it replaced his double health) has triple health: every reading
     /// of MaxHealth (regeneration, heals, HealthPercent) sees the larger pool.
     /// </summary>
-    public override int MaxHealth => Definition?.Affix == ExpeditionElites.Stalwart ? base.MaxHealth * ExpeditionElites.StalwartHealthMultiplier : base.MaxHealth;
+    /// <para>An early round's champion has less of it (<see cref="GauntletEscalation.WeakenedPercent"/>).</para>
+    public override int MaxHealth
+    {
+        get
+        {
+            int health = Definition?.Affix == ExpeditionElites.Stalwart ? base.MaxHealth * ExpeditionElites.StalwartHealthMultiplier : base.MaxHealth;
+
+            return health * (100 - GauntletEscalation.WeakenedPercent(Round)) / 100;
+        }
+    }
 
     /// <summary>A melee switch while the brain holds a slot goes to the held slot (see <see cref="HeldSlot"/>).</summary>
     public override void SwitchWeapon(eActiveWeaponSlot slot)
