@@ -107,7 +107,7 @@ public sealed class ActPlan
     /// Hard mode: every camp of the act was made an elite pack with two affixes (<see cref="ExpeditionHardMonsters.HardenPlan"/>).
     /// False in a normal run.
     /// </summary>
-    public bool HardElites;
+    public bool AllCampsElite;
 
     /// <summary>
     /// The unique weapon exchanger's spot (ExpeditionExchanger), found in the world the first time the act is played

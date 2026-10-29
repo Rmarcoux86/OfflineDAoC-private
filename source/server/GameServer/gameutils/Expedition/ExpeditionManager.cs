@@ -1115,7 +1115,7 @@ public static class ExpeditionManager
         lines.Add(ExpeditionElites.CommonEffect);
 
         // Hard run: every camp is a pack, too many to list; each tells its affixes as the player comes near.
-        if (plan.HardElites)
+        if (plan.AllCampsElite)
         {
             lines.Add($"Hard: every camp of the act is a pack with two affixes and is Dread (+{ExpeditionHardMonsters.DreadLevelBonus} level). You sense each pack's affixes as you come near.");
 

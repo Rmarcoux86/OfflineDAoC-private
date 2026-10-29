@@ -324,7 +324,7 @@ public static class ExpeditionHardMonsters
     /// </summary>
     internal static void HardenPlan(GamePlayer player, ExpeditionRun run, ActPlan plan)
     {
-        if (!ExpeditionHardMode.IsHard(run) || plan == null || plan.HardElites)
+        if (!ExpeditionHardMode.IsHard(run) || plan == null || plan.AllCampsElite)
         {
             return;
         }
@@ -340,7 +340,7 @@ public static class ExpeditionHardMonsters
         catch (Exception ex)
         {
             log.Error($"[EXPEDITION] Could not make the act {plan.Act} camps elite for {player?.Name}.", ex);
-            plan.HardElites = true;
+            plan.AllCampsElite = true;
         }
     }
 
@@ -348,12 +348,12 @@ public static class ExpeditionHardMonsters
     /// Makes every camp of the act an elite pack with two different affixes: the plan's own packs get a second affix,
     /// and every other camp of the act's band (the elite rule: up to <see cref="ActGenerator.EliteLevelSlack"/> levels
     /// above it) whose monster is not an objective's or the boss's (their kills are counted by name) becomes one. Wake-ups
-    /// stay per camp, within <see cref="ExpeditionElites.ApproachRadius"/>. Sets <see cref="ActPlan.HardElites"/> and
+    /// stay per camp, within <see cref="ExpeditionElites.ApproachRadius"/>. Sets <see cref="ActPlan.AllCampsElite"/> and
     /// returns the number of packs added.
     /// </summary>
     public static int HardenElites(ActPlan plan, IReadOnlyList<CampEntry> camps, int ox, int oy, Random rng)
     {
-        if (plan == null || plan.HardElites || rng == null)
+        if (plan == null || plan.AllCampsElite || rng == null)
         {
             return 0;
         }
@@ -428,7 +428,7 @@ public static class ExpeditionHardMonsters
             added++;
         }
 
-        plan.HardElites = true;
+        plan.AllCampsElite = true;
 
         return added;
     }

@@ -142,7 +142,7 @@ public class UT_ExpeditionHardMonsters
 
         Assert.Multiple(() =>
         {
-            Assert.That(plan.HardElites, Is.True);
+            Assert.That(plan.AllCampsElite, Is.True);
             Assert.That(added, Is.EqualTo(4));
             Assert.That(names, Is.EquivalentTo(new[] { "ghoul", "boar", "bear", "bear", "wight" }));
             Assert.That(names, Does.Not.Contain("wolf"), "an objective's monster");
@@ -180,9 +180,9 @@ public class UT_ExpeditionHardMonsters
 
         Assert.Multiple(() =>
         {
-            Assert.That(copy.HardElites, Is.True);
+            Assert.That(copy.AllCampsElite, Is.True);
             Assert.That(copy.Elites.Select(e => ExpeditionElites.CampAffixText(e)), Is.EqualTo(plan.Elites.Select(e => ExpeditionElites.CampAffixText(e))));
-            Assert.That(old.HardElites, Is.False);
+            Assert.That(old.AllCampsElite, Is.False);
             Assert.That(old.Elites[0].ExtraAffixes, Is.Empty);
             Assert.That(ExpeditionElites.CampAffixes(old.Elites[0]), Is.EqualTo(new[] { "Swift" }));
         });
