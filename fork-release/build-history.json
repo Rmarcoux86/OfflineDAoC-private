@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v100",
+    "date": "2026-10-28",
+    "items": [
+      "Act 5 dormant shrines no longer pick camps deeper than the essence shredders in Darkness Falls. Shrines already placed by a deeper camp move to the nearest suitable one."
+    ]
+  },
+  {
     "tag": "fork-v99",
     "date": "2026-10-28",
     "items": [
