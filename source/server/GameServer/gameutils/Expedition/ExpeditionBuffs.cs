@@ -285,8 +285,30 @@ public static class ExpeditionBuffs
         return ours;
     }
 
-    /// <summary>The spell value of a group's lesser buff at the player's level and this strength.</summary>
-    private static int ValueFor(GamePlayer player, string group, int percent)
+    /// <summary>
+    /// Blessed Arms on a Gauntlet champion (owner 2026-10-29: Preesh): every lesser buff but endurance regeneration and
+    /// acuity, at <see cref="BlessedArmsPercent"/>, for as long as a player's.
+    /// </summary>
+    public static void ApplyBlessedArms(GameLiving living)
+    {
+        if (living == null || !living.IsAlive)
+        {
+            return;
+        }
+
+        foreach (string group in AllGroups)
+        {
+            if (group is Endurance or Acuity)
+            {
+                continue;
+            }
+
+            Cast(living, group, ValueFor(living, group, BlessedArmsPercent));
+        }
+    }
+
+    /// <summary>The spell value of a group's lesser buff at the living's level and this strength.</summary>
+    private static int ValueFor(GameLiving player, string group, int percent)
     {
         return group switch
         {
@@ -297,7 +319,7 @@ public static class ExpeditionBuffs
         };
     }
 
-    private static void Cast(GamePlayer player, string group, int value)
+    private static void Cast(GameLiving player, string group, int value)
     {
         int index = AllGroups.ToList().IndexOf(group);
 

@@ -433,6 +433,12 @@ public static class GauntletManager
                 return false;
             }
 
+            // Preesh fights with Blessed Arms (owner 2026-10-29).
+            if (definition.Name == GauntletChampions.FinalChampion)
+            {
+                ExpeditionBuffs.ApplyBlessedArms(champion);
+            }
+
             // AddToWorld made the gate its spawn point: it waits there, returns there when leashed, and the leash is
             // measured from there (owner 2026-10-25: the champion stays where it appears).
             state.Champion = champion;
