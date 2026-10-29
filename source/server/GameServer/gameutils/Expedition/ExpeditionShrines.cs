@@ -46,10 +46,11 @@ public static class ExpeditionShrines
     /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
     /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>); 5 also leaves out camps deeper than the essence shredders
     /// (<see cref="DormantMaxCampLevel"/>); 6 judges a monster by its strongest anywhere in the zone; 7 puts Darkness Falls'
-    /// three shrines at its three realm entrances, awake (<see cref="PlaceAtEntrances"/>). A shrine placed by an older rule is moved again, keeping its camp and kills when
+    /// three shrines at its three realm entrances, awake (<see cref="PlaceAtEntrances"/>); 8 by each entrance's exit portal,
+    /// at the foot of the steps. A shrine placed by an older rule is moved again, keeping its camp and kills when
     /// that camp is still worthy.
     /// </summary>
-    public const int DormantPlacementVersion = 7;
+    public const int DormantPlacementVersion = 8;
 
     /// <summary>The level a player is assumed to reach act 5 at (owner 2026-10-28) for <see cref="IsWorthyCamp"/>.</summary>
     public const int DormantArrivalLevel = 42;
@@ -316,8 +317,8 @@ public static class ExpeditionShrines
 
     /// <summary>
     /// Darkness Falls (owner 2026-10-28: "put one shrine at each entrance of df. Mid, alb, and hib. Make sure it's reachable
-    /// without having to go up the steps"): the act's shrines go to the Albion, Midgard and Hibernia entrances in turn
-    /// (ExpeditionArrival.FindEntranceShrineSpot), awake: no camp, no kills.
+    /// without having to go up the steps"; "put outside the portal that is down the steps"): the act's shrines go to the
+    /// Albion, Midgard and Hibernia exit portals in turn (ExpeditionArrival.FindPortalShrineSpot), awake: no camp, no kills.
     /// </summary>
     private static bool PlaceAtEntrances(Region region, ActPlan plan)
     {
@@ -332,8 +333,8 @@ public static class ExpeditionShrines
                 continue;
             }
 
-            (string realm, int x, int y, int z, ushort heading) = ExpeditionArrival.DarknessFallsEntrances[i % ExpeditionArrival.DarknessFallsEntrances.Length];
-            (shrine.X, shrine.Y, shrine.Z) = ExpeditionArrival.FindEntranceShrineSpot(region, (x, y, z), heading);
+            (string realm, (int X, int Y, int Z) portal, (int X, int Y) landing) = ExpeditionArrival.DarknessFallsEntrances[i % ExpeditionArrival.DarknessFallsEntrances.Length];
+            (shrine.X, shrine.Y, shrine.Z) = ExpeditionArrival.FindPortalShrineSpot(region, portal, landing);
             shrine.Direction = $"at the {realm} entrance";
             shrine.CampMob = string.Empty;
             shrine.CampX = shrine.X;

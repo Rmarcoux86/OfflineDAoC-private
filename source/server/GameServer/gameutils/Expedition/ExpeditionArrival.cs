@@ -281,54 +281,55 @@ public static class ExpeditionArrival
     public const int ShrineRingStep = 100;
 
     /// <summary>
-    /// Darkness Falls: where each realm's entrance puts the player (ZonePoint targets, global) and the way they face
-    /// (owner 2026-10-28: one shrine at each entrance).
+    /// Darkness Falls, per realm (owner 2026-10-28: a shrine "outside the portal that is down the steps"): the exit portal
+    /// at the foot of the entrance steps (ZonePoint "DF EXIT ..." sources, global) and where the entrance puts the player at
+    /// the top of them (ZonePoint targets), which is the way the player comes down to the portal.
     /// </summary>
-    public static readonly (string Realm, int X, int Y, int Z, ushort Heading)[] DarknessFallsEntrances =
+    public static readonly (string Realm, (int X, int Y, int Z) Portal, (int X, int Y) Landing)[] DarknessFallsEntrances =
     {
-        ("Albion", 31211, 27924, 22893, 3072),
-        ("Midgard", 18798, 18667, 22892, 1022),
-        ("Hibernia", 46325, 40969, 21357, 2045)
+        ("Albion", (36118, 30504, 22381), (31211, 27924)),
+        ("Midgard", (11944, 18725, 22380), (18798, 18667)),
+        ("Hibernia", (41722, 36569, 20333), (46325, 40969))
     };
 
-    /// <summary>How far from the entrance's landing spot its shrine stands: past the shrine's use radius, so it is a walk.</summary>
-    public const int EntranceShrineDistance = 450;
+    /// <summary>How far from the exit portal its shrine stands: walking up to the shrine does not take the player out.</summary>
+    public const int PortalShrineDistance = 400;
 
-    /// <summary>The most the shrine's floor may differ in height from the landing spot (owner 2026-10-28: no steps up).</summary>
-    public const int EntranceShrineMaxStep = 40;
+    /// <summary>The most the shrine's floor may differ in height from the portal's (owner 2026-10-28: no steps).</summary>
+    public const int PortalShrineMaxStep = 40;
 
     /// <summary>
-    /// The shrine spot by a Darkness Falls entrance: <see cref="EntranceShrineDistance"/> from the landing spot, the way the
-    /// player arrives facing first, then turning further each way, at the first walk along the navmesh that is not cut
-    /// short by a wall and stays on the landing's floor. Without a navmesh (or a clear way), straight ahead at the landing's height.
+    /// The shrine spot by a Darkness Falls exit portal: <see cref="PortalShrineDistance"/> from the portal, toward the steps
+    /// the player comes down first, then turning further each way, at the first walk along the navmesh that a wall does not
+    /// cut short and that stays on the portal's floor. Without a navmesh (or a clear way), straight toward the steps at the
+    /// portal's height.
     /// </summary>
-    public static (int X, int Y, int Z) FindEntranceShrineSpot(Region region, (int X, int Y, int Z) landing, ushort heading)
+    public static (int X, int Y, int Z) FindPortalShrineSpot(Region region, (int X, int Y, int Z) portal, (int X, int Y) toward)
     {
+        double baseAngle = Math.Atan2(toward.Y - portal.Y, toward.X - portal.X);
         IPathfindingMgr nav = PathfindingProvider.Instance;
-        Zone zone = region?.GetZone(landing.X, landing.Y);
+        Zone zone = region?.GetZone(portal.X, portal.Y);
 
         if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
         {
-            Vector3 start = nav.GetClosestPoint(zone, new Vector3(landing.X, landing.Y, landing.Z), 128, 128, 256, nav.DefaultFilters) ??
-                new Vector3(landing.X, landing.Y, landing.Z);
+            Vector3 start = nav.GetClosestPoint(zone, new Vector3(portal.X, portal.Y, portal.Z), 128, 128, 256, nav.DefaultFilters) ??
+                new Vector3(portal.X, portal.Y, portal.Z);
 
-            foreach (int turn in new[] { 0, 512, -512, 1024, -1024, 1536, -1536, 2048 })
+            foreach (int turnDegrees in new[] { 0, 45, -45, 90, -90, 135, -135, 180 })
             {
-                double angle = (heading + turn) * Point2D.HEADING_TO_RADIAN;
-                Vector3 end = new(start.X - (float) (Math.Sin(angle) * EntranceShrineDistance), start.Y + (float) (Math.Cos(angle) * EntranceShrineDistance), start.Z);
+                double angle = baseAngle + turnDegrees * Math.PI / 180;
+                Vector3 end = new(start.X + (float) (Math.Cos(angle) * PortalShrineDistance), start.Y + (float) (Math.Sin(angle) * PortalShrineDistance), start.Z);
                 Vector3? reached = nav.GetMoveAlongSurface(zone, start, end, nav.DefaultFilters);
 
-                if (reached.HasValue && Vector2.Distance(new Vector2(reached.Value.X, reached.Value.Y), new Vector2(start.X, start.Y)) >= EntranceShrineDistance * 0.8f &&
-                    Math.Abs(reached.Value.Z - start.Z) <= EntranceShrineMaxStep)
+                if (reached.HasValue && Vector2.Distance(new Vector2(reached.Value.X, reached.Value.Y), new Vector2(start.X, start.Y)) >= PortalShrineDistance * 0.8f &&
+                    Math.Abs(reached.Value.Z - start.Z) <= PortalShrineMaxStep)
                 {
                     return ((int) reached.Value.X, (int) reached.Value.Y, (int) reached.Value.Z);
                 }
             }
         }
 
-        double ahead = heading * Point2D.HEADING_TO_RADIAN;
-
-        return ((int) (landing.X - Math.Sin(ahead) * EntranceShrineDistance), (int) (landing.Y + Math.Cos(ahead) * EntranceShrineDistance), landing.Z);
+        return ((int) (portal.X + Math.Cos(baseAngle) * PortalShrineDistance), (int) (portal.Y + Math.Sin(baseAngle) * PortalShrineDistance), portal.Z);
     }
 
     /// <summary>Act 5 shrines: the spot stays on the camp's floor (height difference at most this).</summary>
