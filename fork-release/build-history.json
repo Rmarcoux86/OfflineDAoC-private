@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v106",
+    "date": "2026-10-29",
+    "items": [
+      "New boons: Overreach (casters: +15% spell range and +10% casting speed, on top of your items), Deadeye (archers: +15% ranged critical chance), Sharpshooter (archers: +25% bow damage and 10% faster draws, but 20% less melee damage) and Skirmisher (archers: the reverse).",
+      "Bloodlust and Berserker are no longer offered to pure casters; the archer boons are only offered to Scouts, Hunters and Rangers."
+    ]
+  },
+  {
     "tag": "fork-v105",
     "date": "2026-10-29",
     "items": [
