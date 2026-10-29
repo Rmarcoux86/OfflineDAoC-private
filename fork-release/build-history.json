@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v102",
+    "date": "2026-10-28",
+    "items": [
+      "Darkness Falls shrines now stand by the Albion, Midgard and Hibernia exit portals at the foot of the entrance steps, one at each, and are ready to use: no camp to clear first.",
+      "Shrines in a run already in Darkness Falls move there the next time you are in the act."
+    ]
+  },
+  {
     "tag": "fork-v101",
     "date": "2026-10-28",
     "items": [
