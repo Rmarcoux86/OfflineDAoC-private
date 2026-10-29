@@ -14,8 +14,8 @@ public static class GauntletEscalation
     /// <summary>The highest realm rank (the last of a realm's fourteen titles, GlobalConstants.REALM_RANK_NAMES).</summary>
     public const int MaxRealmRank = 14;
 
-    /// <summary>The final champion's realm rank, whatever the round (owner 2026-10-28: "all the way up to preesh being rr5").</summary>
-    public const int FinalChampionRealmRank = 5;
+    /// <summary>The final champion's realm rank, whatever the round (owner 2026-10-28: "make preesh rr10 again").</summary>
+    public const int FinalChampionRealmRank = 10;
 
     /// <summary>The round from which the stat bonus grows every round.</summary>
     private const int OpenEndedRound = 20;
@@ -49,7 +49,7 @@ public static class GauntletEscalation
         round = Math.Max(1, round);
 
         // One rank a round from RR1 (owner 2026-10-28: "Round 1 should be rr1, then round 2 rr2"): RR1 to RR4 for the
-        // first four fights; the final champion is always RR5.
+        // first four fights; the final champion is always RR10.
         int rank = string.Equals(championName, GauntletChampions.FinalChampion, StringComparison.Ordinal)
             ? FinalChampionRealmRank
             : Math.Min(round, MaxRealmRank);
