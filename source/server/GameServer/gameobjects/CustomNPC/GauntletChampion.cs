@@ -76,9 +76,6 @@ public sealed class GauntletChampion : GameBot
     /// <summary>Gwyraan's instant root (Bursting Undergrowth), cast only by his brain.</summary>
     internal Spell SignatureRoot { get; private set; }
 
-    /// <summary>Gwyraan's instant heal (Bith's Benison), kept out of the bot's own heals.</summary>
-    internal Spell SignatureInstantHeal { get; private set; }
-
     /// <summary>The heal a champion casts on itself after a retreat (Gwyraan: Major Restoration; Toothmouth: his best).</summary>
     internal Spell SignatureHeal { get; private set; }
 
@@ -182,8 +179,9 @@ public sealed class GauntletChampion : GameBot
             SignaturePet = ChampionSpells.Named(Spells, "Call Greater Nature Spirit") ?? ChampionSpells.Best(Spells, eSpellType.SummonDruidPet, Level);
             SignatureRoot = ChampionSpells.Named(Spells, "Bursting Undergrowth") ?? ChampionSpells.BestInstantRoot(Spells, Level);
             SignatureHeal = ChampionSpells.Named(Spells, "Major Restoration") ?? ChampionSpells.BestSelfHeal(Spells, Level);
-            SignatureInstantHeal = ChampionSpells.Named(Spells, "Bith's Benison") ?? ChampionSpells.BestInstantHeal(Spells, Level);
-            Spells = ChampionSpells.WithoutPetsAndAttacks(Spells).Where(spell => spell != SignatureInstantHeal).ToList();
+
+            // No instant heals at all (owner 2026-10-28), his brain's or the bot's.
+            Spells = ChampionSpells.WithoutPetsAndAttacks(Spells).Where(spell => !(spell.SpellType == eSpellType.Heal && spell.CastTime <= 0)).ToList();
         }
 
         if (Signature.MezRetreat)
@@ -2166,13 +2164,7 @@ public sealed class GauntletChampionBrain : BotBrain
         Spell root = champion.SignatureRoot;
         bool rootReady = root != null && Castable(champion, root) && champion.IsWithinRadius(challenger, root.Range);
         bool rootImmune = challenger.effectListComponent.ContainsEffectForEffectType(eEffect.SnareImmunity);
-        bool instantHealReady = champion.SignatureInstantHeal != null && Castable(champion, champion.SignatureInstantHeal);
-        LowHealthAction action = ChampionTactics.GwyraanLowHealth(champion.HealthPercent, rootReady, rootImmune, instantHealReady);
-
-        if (action == LowHealthAction.InstantHeal)
-        {
-            return TryCastOn(champion, champion.SignatureInstantHeal, champion);
-        }
+        LowHealthAction action = ChampionTactics.GwyraanLowHealth(champion.HealthPercent, rootReady, rootImmune);
 
         if (action != LowHealthAction.RootEscape)
         {
@@ -2705,7 +2697,6 @@ public enum LowHealthAction
     Kite,
     IgnorePain,
     RootEscape,
-    InstantHeal,
     MezRetreat,
     SpeedOfSoundRetreat
 }
@@ -2812,20 +2803,10 @@ public static class ChampionTactics
         return canKite ? LowHealthAction.Kite : LowHealthAction.IgnorePain;
     }
 
-    /// <summary>Gwyraan below half health: the root escape whenever it is possible, else his instant heal when ready.</summary>
-    public static LowHealthAction GwyraanLowHealth(int healthPercent, bool rootReady, bool challengerRootImmune, bool instantHealReady)
+    /// <summary>Gwyraan below half health: the root escape whenever it is possible (no instant heal, owner 2026-10-28).</summary>
+    public static LowHealthAction GwyraanLowHealth(int healthPercent, bool rootReady, bool challengerRootImmune)
     {
-        if (healthPercent >= LowHealthPercent)
-        {
-            return LowHealthAction.None;
-        }
-
-        if (rootReady && !challengerRootImmune)
-        {
-            return LowHealthAction.RootEscape;
-        }
-
-        return instantHealReady ? LowHealthAction.InstantHeal : LowHealthAction.None;
+        return healthPercent < LowHealthPercent && rootReady && !challengerRootImmune ? LowHealthAction.RootEscape : LowHealthAction.None;
     }
 
     /// <summary>Toothmouth below half health: a mez and a retreat whenever a mez is ready, else Speed of Sound and a retreat.</summary>
@@ -3231,16 +3212,6 @@ public static class ChampionSpells
                 spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP)
             .OrderByDescending(spell => spell.Value)
             .ThenByDescending(spell => spell.Level)
-            .FirstOrDefault();
-    }
-
-    /// <summary>The highest-level instant heal that can land on oneself; null for none.</summary>
-    public static Spell BestInstantHeal(IEnumerable<Spell> spells, int level)
-    {
-        return spells?
-            .Where(spell => spell != null && spell.SpellType == eSpellType.Heal && spell.Level <= level && spell.CastTime <= 0 &&
-                spell.Target is eSpellTarget.SELF or eSpellTarget.REALM or eSpellTarget.GROUP)
-            .OrderByDescending(spell => spell.Level)
             .FirstOrDefault();
     }
 
