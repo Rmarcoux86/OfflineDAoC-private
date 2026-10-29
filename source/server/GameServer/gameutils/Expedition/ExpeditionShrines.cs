@@ -383,7 +383,7 @@ public static class ExpeditionShrines
         // Only camps that con at least yellow on arrival, of a monster no stronger anywhere in the zone than the shredders
         // (owner 2026-10-28: a camp of level 54-60 mahr passed on its own levels, but mahr go up to 67 and live deeper);
         // all of them if the zone has none.
-        Dictionary<string, int> strongestByName = allCamps.Where(c => c.Levels != null && c.Levels.Count > 0)
+        Dictionary<string, int> strongestByName = allCamps.Where(c => c.Levels is { Length: > 0 })
             .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Max(c => c.Levels.Max()), StringComparer.OrdinalIgnoreCase);
         List<AutonomousCapnBryGoalCatalog.Entry> camps = allCamps
