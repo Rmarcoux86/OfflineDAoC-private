@@ -23,11 +23,12 @@ public static class GauntletRules
     /// The least time the champion spends buffing where it stands before it can be challenged; it is ready only once
     /// every pre-fight buff it can cast is up (owner 2026-10-27, GauntletChampionBrain).
     /// </summary>
-    public const int ChampionBuffSeconds = 10;
+    /// <remarks>Its buffs land at once (owner 2026-10-28: "speed up gwyraan's buff phase"), so this is short.</remarks>
+    public const int ChampionBuffSeconds = 3;
 
     /// <summary>
     /// A safety net: after this long the champion is ready whatever buff is still missing (a buff that can never land
-    /// would otherwise hold the round forever). Gwyraan needs about 50 s (his pet's 6 s summon, then 3 s buffs on both).
+    /// would otherwise hold the round forever). Gwyraan needs about 10 s (his pet's summon, then every buff at once).
     /// </summary>
     public const int ChampionBuffMaxSeconds = 90;
 

@@ -1170,6 +1170,24 @@ public sealed class GauntletChampionBrain : BotBrain
             return false;
         }
 
+        if (spell != champion.SignaturePet)
+        {
+            // Every buff missing on the champion and its pet lands at once, without casting (owner 2026-10-28: "need to
+            // speed up gwyraan's buff phase"). An effect shows from the next tick, so this pass skips what it applied.
+            HashSet<(int, GameLiving)> applied = new();
+
+            while (spell != null && spell != champion.SignaturePet)
+            {
+                (int, GameLiving) buffKey = (spell.ID, target);
+                applied.Add(buffKey);
+                _prefightAttempts[buffKey] = Attempts(spell, target) + 1;
+                ScriptMgr.CreateSpellHandler(champion, spell, m_mobSpellLine)?.StartSpell(target);
+                (spell, target) = NextPrefightCast(champion, applied);
+            }
+
+            return false;
+        }
+
         (int, GameLiving) key = (spell.ID, target);
         _prefightAttempts[key] = Attempts(spell, target) + 1;
         GameObject previousTarget = champion.TargetObject;
@@ -1194,7 +1212,8 @@ public sealed class GauntletChampionBrain : BotBrain
     }
 
     /// <summary>The next pre-fight cast and its target, or (null, null) when every castable one is up.</summary>
-    private (Spell Spell, GameLiving Target) NextPrefightCast(GauntletChampion champion)
+    /// <param name="skip">Casts already made this think (their effects show from the next tick).</param>
+    private (Spell Spell, GameLiving Target) NextPrefightCast(GauntletChampion champion, HashSet<(int, GameLiving)> skip = null)
     {
         GameNPC pet = champion.ControlledBrain?.Body;
         bool petUp = pet != null && pet.IsAlive && pet.ObjectState == GameObject.eObjectState.Active;
@@ -1212,13 +1231,13 @@ public sealed class GauntletChampionBrain : BotBrain
                 continue;
             }
 
-            if (!LivingHasEffect(champion, spell) && Attempts(spell, champion) < PrefightMaxAttempts)
+            if (!LivingHasEffect(champion, spell) && Attempts(spell, champion) < PrefightMaxAttempts && skip?.Contains((spell.ID, champion)) != true)
             {
                 return (spell, champion);
             }
 
             if (petUp && spell.Target is eSpellTarget.REALM or eSpellTarget.GROUP or eSpellTarget.PET && champion.IsWithinRadius(pet, Math.Max(spell.Range, 500)) &&
-                !LivingHasEffect(pet, spell) && Attempts(spell, pet) < PrefightMaxAttempts)
+                !LivingHasEffect(pet, spell) && Attempts(spell, pet) < PrefightMaxAttempts && skip?.Contains((spell.ID, pet)) != true)
             {
                 return (spell, pet);
             }
