@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -356,7 +357,7 @@ public static class GauntletSpectators
 
                 try
                 {
-                    spectator = Create(picked[i], spots[i]);
+                    spectator = Create(picked[i], OnFloor(spots[i]));
 
                     if (spectator.AddToWorld())
                     {
@@ -383,6 +384,48 @@ public static class GauntletSpectators
                 Log.Info($"[GAUNTLET] {Spawned.Count} spectator(s) watch {challenger?.Name}'s Gauntlet (seed {seed}).");
             }
         }
+    }
+
+    /// <summary>Without a navmesh, how far from the centre a spectator stands (inside the walkway).</summary>
+    public const int FallbackRadius = 400;
+
+    /// <summary>How far inside the floor's edge (or a wall) a spectator stands.</summary>
+    public const int EdgeMargin = 100;
+
+    /// <summary>
+    /// A ring spot moved onto the arena's floor (owner 2026-10-28: the spectator was not seen; Celestius' arena is a walkway
+    /// with walls, narrower than the ring): a walk along the navmesh from the centre towards the spot stops at the floor's
+    /// edge or a wall, and the spectator stands <see cref="EdgeMargin"/> short of it. Without a navmesh, the same direction
+    /// at <see cref="FallbackRadius"/>.
+    /// </summary>
+    private static SpectatorSpot OnFloor(SpectatorSpot spot)
+    {
+        Region region = WorldMgr.GetRegion(GauntletArena.RegionId);
+        Zone zone = region?.GetZone(GauntletArena.CentreX, GauntletArena.CentreY);
+        IPathfindingMgr nav = PathfindingProvider.Instance;
+        Vector2 centre = new(GauntletArena.CentreX, GauntletArena.CentreY);
+        Vector2 direction = Vector2.Normalize(new Vector2(spot.X, spot.Y) - centre);
+
+        if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
+        {
+            Vector3 start = nav.GetClosestPoint(zone, new Vector3(centre, GauntletArena.CentreZ), 128, 128, 256, nav.DefaultFilters) ??
+                new Vector3(centre, GauntletArena.CentreZ);
+            Vector3? reached = nav.GetMoveAlongSurface(zone, start, new Vector3(spot.X, spot.Y, start.Z), nav.DefaultFilters);
+
+            if (reached.HasValue)
+            {
+                float distance = Vector2.Distance(new Vector2(reached.Value.X, reached.Value.Y), new Vector2(start.X, start.Y));
+                Vector2 stand = new Vector2(start.X, start.Y) + direction * Math.Max(0, distance - EdgeMargin);
+                Vector3 floor = nav.GetClosestPoint(zone, new Vector3(stand, reached.Value.Z), 64, 64, 256, nav.DefaultFilters) ??
+                    new Vector3(stand, reached.Value.Z);
+
+                return spot with { X = (int) floor.X, Y = (int) floor.Y, Z = (int) floor.Z };
+            }
+        }
+
+        Vector2 fallback = centre + direction * FallbackRadius;
+
+        return spot with { X = (int) fallback.X, Y = (int) fallback.Y };
     }
 
     /// <summary>Removes the spectators (GauntletManager.Stop, server stop).</summary>
