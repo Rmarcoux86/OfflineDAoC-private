@@ -66,4 +66,28 @@ public static class GauntletChampions
     {
         return All[(Math.Max(1, round) - 1) % All.Count];
     }
+
+    /// <summary>
+    /// The two champions of a hard winner's sixth round (owner 2026-10-29: two at once): two different champions of
+    /// <see cref="All"/> other than <see cref="FinalChampion"/>, picked by the session's seed, so a retry meets the same
+    /// pair. Every pair (and either order) can come up.
+    /// </summary>
+    public static List<ChampionDefinition> PairFor(int seed)
+    {
+        List<ChampionDefinition> pool = new();
+
+        foreach (ChampionDefinition champion in All)
+        {
+            if (champion.Name != FinalChampion)
+            {
+                pool.Add(champion);
+            }
+        }
+
+        uint value = unchecked((uint) seed);
+        int first = (int) (value % (uint) pool.Count);
+        int second = (first + 1 + (int) (value / (uint) pool.Count % (uint) (pool.Count - 1))) % pool.Count;
+
+        return new List<ChampionDefinition> { pool[first], pool[second] };
+    }
 }

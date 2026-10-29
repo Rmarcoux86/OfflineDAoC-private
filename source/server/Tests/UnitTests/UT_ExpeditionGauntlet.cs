@@ -193,6 +193,84 @@ public class UT_ExpeditionGauntlet
     }
 
     [Test]
+    public void PairFor_IsDeterministic_TwoDifferentChampions_NeverPreesh()
+    {
+        foreach (int seed in Seeds)
+        {
+            List<string> pair = GauntletChampions.PairFor(seed).Select(champion => champion.Name).ToList();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pair, Has.Count.EqualTo(2), $"seed {seed}");
+                Assert.That(pair, Is.Unique, $"seed {seed}");
+                Assert.That(pair, Does.Not.Contain(GauntletChampions.FinalChampion), $"seed {seed}");
+                Assert.That(GauntletChampions.PairFor(seed).Select(champion => champion.Name), Is.EqualTo(pair), $"seed {seed}: the same pair on a retry");
+            });
+        }
+    }
+
+    [Test]
+    public void PairFor_EveryPairCanComeUp()
+    {
+        HashSet<string> pairs = new();
+
+        for (int seed = 0; seed < 200; seed++)
+        {
+            pairs.Add(string.Join("+", GauntletChampions.PairFor(seed).Select(champion => champion.Name).OrderBy(name => name)));
+        }
+
+        Assert.That(pairs, Has.Count.EqualTo(6), "four champions make six pairs");
+    }
+
+    [Test]
+    public void RoundsFor_HardWinnerHasSix_OthersFive()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GauntletRules.Rounds, Is.EqualTo(5));
+            Assert.That(GauntletRules.HardRounds, Is.EqualTo(6));
+            Assert.That(GauntletRules.RoundsFor(false), Is.EqualTo(5));
+            Assert.That(GauntletRules.RoundsFor(true), Is.EqualTo(6));
+            Assert.That(GauntletRules.RoundsFor(new GauntletState()), Is.EqualTo(5));
+            Assert.That(GauntletRules.RoundsFor(new GauntletState { Hard = true }), Is.EqualTo(6));
+            Assert.That(GauntletRules.RoundsFor((GauntletState) null), Is.EqualTo(5));
+            Assert.That(GauntletRules.IsPairRound(new GauntletState { Hard = true }, 6), Is.True);
+            Assert.That(GauntletRules.IsPairRound(new GauntletState { Hard = true }, 5), Is.False);
+            Assert.That(GauntletRules.IsPairRound(new GauntletState(), 6), Is.False);
+        });
+    }
+
+    [Test]
+    public void Escalation_PairRound_IsRealmRankTen()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GauntletEscalation.ForPair(6), Is.EqualTo(new RoundTier(GauntletEscalation.FinalChampionRealmRank, true, false, false, 0, 0)));
+            Assert.That(GauntletEscalation.ForPair(6).RealmRank, Is.EqualTo(10));
+            Assert.That(GauntletEscalation.WeakenedPercent(6), Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void PairSpawn_IsEitherSideOfTheGate_AcrossTheLineToThePlayer()
+    {
+        (int lx, int ly) = GauntletArena.PairSpawn(-1);
+        (int rx, int ry) = GauntletArena.PairSpawn(1);
+        double towardX = GauntletArena.PlayerX - GauntletArena.GateX;
+        double towardY = GauntletArena.PlayerY - GauntletArena.GateY;
+        double length = System.Math.Sqrt(towardX * towardX + towardY * towardY);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(System.Math.Sqrt(System.Math.Pow(lx - GauntletArena.GateX, 2) + System.Math.Pow(ly - GauntletArena.GateY, 2)), Is.EqualTo(GauntletArena.PairOffset).Within(1));
+            Assert.That(System.Math.Sqrt(System.Math.Pow(rx - GauntletArena.GateX, 2) + System.Math.Pow(ry - GauntletArena.GateY, 2)), Is.EqualTo(GauntletArena.PairOffset).Within(1));
+            Assert.That(lx + rx, Is.EqualTo(2 * GauntletArena.GateX).Within(1), "mirrored about the gate");
+            Assert.That(ly + ry, Is.EqualTo(2 * GauntletArena.GateY).Within(1), "mirrored about the gate");
+            Assert.That(((rx - lx) * towardX + (ry - ly) * towardY) / length, Is.EqualTo(0).Within(2), "perpendicular to the gate-to-player line");
+        });
+    }
+
+    [Test]
     public void Champions_RealmRanks_AndAFullTemplate()
     {
         Assert.Multiple(() =>

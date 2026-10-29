@@ -47,6 +47,7 @@ public static class ExpeditionHardMode
         {
             return GameServer.Database.SelectObjects<OfflineExpeditionRecord>(DB.Column("AccountName").IsEqualTo(account))
                 .Any(record => record.Status == ExpeditionManager.StatusWon && !string.IsNullOrEmpty(record.EndedUtc) &&
+                    // Five rounds beaten unlocks it for everyone; a hard winner's sixth round is their extra.
                     GauntletSave.Parse(record.GauntletJson).Depth >= GauntletRules.Rounds);
         }
         catch (Exception ex)
@@ -69,6 +70,9 @@ public static class ExpeditionHardMode
             "- Inherit one unique from your Gauntlet winner (/run inherit), once: it starts at level 1 and grows with you.",
             "- No recovery: /recover cannot bring back a character that died on a hard expedition.",
             "- Realm points are doubled for the whole run.",
+
+            // gauntlet
+            "- Win a hard expedition and your Gauntlet has a sixth round: two SmuG champions at once, both at realm rank 10.",
         };
     }
 

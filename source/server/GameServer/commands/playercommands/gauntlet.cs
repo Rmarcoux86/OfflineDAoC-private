@@ -11,9 +11,9 @@ namespace DOL.GS.Commands;
     "/gauntlet start",
     "/gauntlet leave",
     "/gauntlet status",
-    "/gauntlet reset [round] (back to round 1; GMs and test winners may choose 1 to 5)",
+    "/gauntlet reset [round] (back to round 1; GMs and test winners may choose 1 to 5, or 6 after a hard run)",
     "/gauntlet kit (GM: test gear for a fully templated level 50)",
-    "/gauntlet testwinner (GM: mark your target, or yourself, as an expedition winner for testing)")]
+    "/gauntlet testwinner [hard] (GM: mark your target, or yourself, as an expedition winner for testing; hard: as a hard run's winner, with the sixth round)")]
 public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
 {
     public void OnCommand(GameClient client, string[] args)
@@ -69,7 +69,8 @@ public class GauntletCommandHandler : AbstractCommandHandler, ICommandHandler
                 }
 
                 GamePlayer target = player.TargetObject as GamePlayer ?? player;
-                client.Out.SendMessage(GauntletTestKit.MarkWinner(target), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                bool hard = args.Length >= 3 && args[2].ToLowerInvariant() == "hard";
+                client.Out.SendMessage(GauntletTestKit.MarkWinner(target, hard), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
                 break;
             }
