@@ -280,6 +280,57 @@ public static class ExpeditionArrival
     public const int ShrineSearchRadius = 2500;
     public const int ShrineRingStep = 100;
 
+    /// <summary>
+    /// Darkness Falls: where each realm's entrance puts the player (ZonePoint targets, global) and the way they face
+    /// (owner 2026-10-28: one shrine at each entrance).
+    /// </summary>
+    public static readonly (string Realm, int X, int Y, int Z, ushort Heading)[] DarknessFallsEntrances =
+    {
+        ("Albion", 31211, 27924, 22893, 3072),
+        ("Midgard", 18798, 18667, 22892, 1022),
+        ("Hibernia", 46325, 40969, 21357, 2045)
+    };
+
+    /// <summary>How far from the entrance's landing spot its shrine stands: past the shrine's use radius, so it is a walk.</summary>
+    public const int EntranceShrineDistance = 450;
+
+    /// <summary>The most the shrine's floor may differ in height from the landing spot (owner 2026-10-28: no steps up).</summary>
+    public const int EntranceShrineMaxStep = 40;
+
+    /// <summary>
+    /// The shrine spot by a Darkness Falls entrance: <see cref="EntranceShrineDistance"/> from the landing spot, the way the
+    /// player arrives facing first, then turning further each way, at the first walk along the navmesh that is not cut
+    /// short by a wall and stays on the landing's floor. Without a navmesh (or a clear way), straight ahead at the landing's height.
+    /// </summary>
+    public static (int X, int Y, int Z) FindEntranceShrineSpot(Region region, (int X, int Y, int Z) landing, ushort heading)
+    {
+        IPathfindingMgr nav = PathfindingProvider.Instance;
+        Zone zone = region?.GetZone(landing.X, landing.Y);
+
+        if (zone != null && nav != null && nav.IsAvailable && nav.HasNavmesh(zone))
+        {
+            Vector3 start = nav.GetClosestPoint(zone, new Vector3(landing.X, landing.Y, landing.Z), 128, 128, 256, nav.DefaultFilters) ??
+                new Vector3(landing.X, landing.Y, landing.Z);
+
+            foreach (int turn in new[] { 0, 512, -512, 1024, -1024, 1536, -1536, 2048 })
+            {
+                double angle = (heading + turn) * Point2D.HEADING_TO_RADIAN;
+                Vector3 end = new(start.X - (float) (Math.Sin(angle) * EntranceShrineDistance), start.Y + (float) (Math.Cos(angle) * EntranceShrineDistance), start.Z);
+                Vector3? reached = nav.GetMoveAlongSurface(zone, start, end, nav.DefaultFilters);
+
+                if (reached.HasValue && Vector2.Distance(new Vector2(reached.Value.X, reached.Value.Y), new Vector2(start.X, start.Y)) >= EntranceShrineDistance * 0.8f &&
+                    Math.Abs(reached.Value.Z - start.Z) <= EntranceShrineMaxStep)
+                {
+                    return ((int) reached.Value.X, (int) reached.Value.Y, (int) reached.Value.Z);
+                }
+            }
+        }
+
+        double ahead = heading * Point2D.HEADING_TO_RADIAN;
+
+        return ((int) (landing.X - Math.Sin(ahead) * EntranceShrineDistance), (int) (landing.Y + Math.Cos(ahead) * EntranceShrineDistance), landing.Z);
+    }
+
     /// <summary>Act 5 shrines: the spot stays on the camp's floor (height difference at most this).</summary>
     public const int ShrineMaxHeight = 200;
 

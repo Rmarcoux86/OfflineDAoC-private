@@ -45,10 +45,11 @@ public static class ExpeditionShrines
     /// camp; 2 puts it beside the camp just outside its monsters' aggro range (ExpeditionArrival.FindShrineSpot); 3 does
     /// so from the floor beneath the camp (a flying camp put 2's shrine up in the walls); 4 only uses camps that con at least
     /// yellow to a level 42 arrival (<see cref="IsWorthyCamp"/>); 5 also leaves out camps deeper than the essence shredders
-    /// (<see cref="DormantMaxCampLevel"/>); 6 judges a monster by its strongest anywhere in the zone. A shrine placed by an older rule is moved again, keeping its camp and kills when
+    /// (<see cref="DormantMaxCampLevel"/>); 6 judges a monster by its strongest anywhere in the zone; 7 puts Darkness Falls'
+    /// three shrines at its three realm entrances, awake (<see cref="PlaceAtEntrances"/>). A shrine placed by an older rule is moved again, keeping its camp and kills when
     /// that camp is still worthy.
     /// </summary>
-    public const int DormantPlacementVersion = 6;
+    public const int DormantPlacementVersion = 7;
 
     /// <summary>The level a player is assumed to reach act 5 at (owner 2026-10-28) for <see cref="IsWorthyCamp"/>.</summary>
     public const int DormantArrivalLevel = 42;
@@ -314,6 +315,41 @@ public static class ExpeditionShrines
     }
 
     /// <summary>
+    /// Darkness Falls (owner 2026-10-28: "put one shrine at each entrance of df. Mid, alb, and hib. Make sure it's reachable
+    /// without having to go up the steps"): the act's shrines go to the Albion, Midgard and Hibernia entrances in turn
+    /// (ExpeditionArrival.FindEntranceShrineSpot), awake: no camp, no kills.
+    /// </summary>
+    private static bool PlaceAtEntrances(Region region, ActPlan plan)
+    {
+        bool changed = false;
+
+        for (int i = 0; i < plan.Shrines.Count; i++)
+        {
+            ShrineSpec shrine = plan.Shrines[i];
+
+            if (shrine == null || shrine.Used || shrine.PlacementVersion >= DormantPlacementVersion)
+            {
+                continue;
+            }
+
+            (string realm, int x, int y, int z, ushort heading) = ExpeditionArrival.DarknessFallsEntrances[i % ExpeditionArrival.DarknessFallsEntrances.Length];
+            (shrine.X, shrine.Y, shrine.Z) = ExpeditionArrival.FindEntranceShrineSpot(region, (x, y, z), heading);
+            shrine.Direction = $"at the {realm} entrance";
+            shrine.CampMob = string.Empty;
+            shrine.CampX = shrine.X;
+            shrine.CampY = shrine.Y;
+            shrine.CampZ = shrine.Z;
+            shrine.KillsNeeded = 0;
+            shrine.Kills = 0;
+            shrine.Placed = true;
+            shrine.PlacementVersion = DormantPlacementVersion;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
     /// Act 5: gives each unused shrine not yet placed by the current rule (<see cref="DormantPlacementVersion"/>) its world
     /// camp (the one nearest its site, or the camp it already had) and moves it beside that camp, just outside its
     /// monsters' aggro range (ExpeditionArrival.FindShrineSpot). True when a shrine changed.
@@ -330,6 +366,11 @@ public static class ExpeditionShrines
         if (region == null || region.ID != plan.RegionId)
         {
             return false;
+        }
+
+        if (plan.ZoneId == ActGenerator.DarknessFallsZoneId)
+        {
+            return PlaceAtEntrances(region, plan);
         }
 
         IReadOnlyList<AutonomousCapnBryGoalCatalog.Entry> allCamps = WorldCampSource.Instance.GetZoneCamps(plan.RegionId, plan.ZoneId);
