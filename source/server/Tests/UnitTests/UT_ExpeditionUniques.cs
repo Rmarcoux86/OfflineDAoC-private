@@ -59,6 +59,31 @@ public class UT_ExpeditionUniques
     }
 
     [Test]
+    public void Catalog_EachTier_IsAnEvenStepUp()
+    {
+        foreach (UniqueDefinition definition in ExpeditionUniques.Catalog)
+        {
+            double utility = 0;
+
+            foreach (UniqueLine line in definition.Lines)
+            {
+                bool stat = line.Property >= eProperty.Stat_First && line.Property <= eProperty.Stat_Last;
+                bool resist = line.Property >= eProperty.Resist_First && line.Property <= eProperty.Resist_Last;
+                utility += stat ? line.Value : line.Property == eProperty.MaxHealth ? line.Value / 4.0 : resist ? line.Value * 2 : line.Value * 5;
+            }
+
+            int expected = definition.Tier switch
+            {
+                eUniqueTier.Early => 60,
+                eUniqueTier.Mid => 80,
+                _ => 100
+            };
+
+            Assert.That(utility, Is.EqualTo(expected).Within(1), definition.Name);
+        }
+    }
+
+    [Test]
     public void Catalog_ValuesAreStrong_ButWithinTheTierTopLevelCaps()
     {
         foreach (UniqueDefinition definition in ExpeditionUniques.Catalog)
@@ -71,8 +96,7 @@ public class UT_ExpeditionUniques
 
                 Assert.That(cap, Is.GreaterThan(0), $"{definition.Name}: {line.Property} has no cap");
                 Assert.That(line.Value, Is.LessThanOrEqualTo(cap), $"{definition.Name}: {line.Property} {line.Value} over the level {capLevel} cap {cap}");
-                // Mid lines were halved (owner 2026-10-25) and late lines cut to about a third (owner 2026-10-28).
-                int floor = definition.Tier == eUniqueTier.Early ? cap / 2 : cap / 4;
+                int floor = cap / 4;
 
                 Assert.That(line.Value, Is.GreaterThanOrEqualTo(floor), $"{definition.Name}: {line.Property} {line.Value} is weak for its tier (cap {cap})");
             }

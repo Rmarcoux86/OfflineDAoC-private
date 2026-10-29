@@ -55,7 +55,7 @@ public sealed record UniqueDefinition(string Name, eUniqueTier Tier, eUniqueSlot
 /// drop picks from the tier that matches the finder's level and skips the uniques already found on the run until the
 /// whole tier was found.
 /// <para>
-/// The bonuses are sized a bit under the item caps of the tier's top level (stats level * 1.5, StatCalculator.cs:157;
+/// The bonuses are worth 60, 80 and 100 utility by tier and stay under the item caps of the tier's top level (stats level * 1.5, StatCalculator.cs:157;
 /// hit points level * 4, MaxHealthCalculator.cs:153; resists level / 2 + 1, ResistCalculator.cs:99; skills level / 5 + 1,
 /// SkillLevelCalculator.cs:35). Below that level the server simply clamps the total item bonus to the player's own cap,
 /// so a unique found early grows with its owner.
@@ -79,85 +79,85 @@ public static class ExpeditionUniques
 
     public static readonly IReadOnlyList<UniqueDefinition> Catalog = new UniqueDefinition[]
     {
-        // Early: usable from level 1, sized for level 20 (caps: stats 30, hit points 80, resists 11, skills 5).
+        // Even steps (owner 2026-10-28): every early unique is worth 60 utility, mid 80, late 100 (a stat point 1, a hit point
+        // 0.25, a resist percent 2, a skill level 5).
+        // Early: usable from level 1, level 20 caps: stats 30, hit points 80, resists 11, skills 5.
         new("Torc of the Barrow Kings", eUniqueTier.Early, eUniqueSlot.Necklace,
             "Pried from a cairn in the drowned hills. On still nights the dead kings can be heard arguing over it.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 24), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Body, 9), new(eProperty.Resist_Spirit, 9), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Constitution, 16), new(eProperty.MaxHealth, 40), new(eProperty.Resist_Body, 6), new(eProperty.Resist_Spirit, 6), new(eProperty.AllSkills, 2) }),
         new("Mantle of the Grey Lough", eUniqueTier.Early, eUniqueSlot.Cloak,
             "Woven from lake mist by a fisher-witch who never once got wet.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Dexterity, 22), new(eProperty.Quickness, 22), new(eProperty.Resist_Cold, 10), new(eProperty.Resist_Heat, 9) }),
+            new UniqueLine[] { new(eProperty.Dexterity, 16), new(eProperty.Quickness, 16), new(eProperty.Resist_Cold, 7), new(eProperty.Resist_Heat, 7) }),
         new("Hearthstone Band", eUniqueTier.Early, eUniqueSlot.Ring,
             "Its stone stays warm, as if a fire still burned in the house it came from.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 22), new(eProperty.Constitution, 20), new(eProperty.MaxHealth, 50), new(eProperty.Resist_Crush, 9) }),
+            new UniqueLine[] { new(eProperty.Strength, 19), new(eProperty.Constitution, 17), new(eProperty.MaxHealth, 41), new(eProperty.Resist_Crush, 7) }),
         new("Wolfsinew Cuff", eUniqueTier.Early, eUniqueSlot.Bracer,
             "Bound with the sinew of the pack leader that hunted the border roads for nine winters.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 24), new(eProperty.Dexterity, 20), new(eProperty.Resist_Slash, 9), new(eProperty.Resist_Thrust, 9) }),
+            new UniqueLine[] { new(eProperty.Strength, 17), new(eProperty.Dexterity, 15), new(eProperty.Resist_Slash, 7), new(eProperty.Resist_Thrust, 7) }),
         new("Girdle of the Lantern-Bearer", eUniqueTier.Early, eUniqueSlot.Belt,
             "Worn by the guide who led travellers through the bog and always came back alone.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 22), new(eProperty.Quickness, 15), new(eProperty.MaxHealth, 70), new(eProperty.Resist_Energy, 9), new(eProperty.Resist_Matter, 9) }),
+            new UniqueLine[] { new(eProperty.Constitution, 15), new(eProperty.Quickness, 10), new(eProperty.MaxHealth, 46), new(eProperty.Resist_Energy, 6), new(eProperty.Resist_Matter, 6) }),
         new("Fenwatch Fang", eUniqueTier.Early, eUniqueSlot.Weapon,
             "The marsh wardens' last weapon. It drinks a little of whatever it cuts.",
             eUniqueProc.Lifetap,
-            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Dexterity, 20), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 50), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 14), new(eProperty.Dexterity, 14), new(eProperty.Quickness, 13), new(eProperty.MaxHealth, 35), new(eProperty.AllSkills, 2) }),
 
-        // Mid: usable from level 20, level 40 caps: stats 60, hit points 160, resists 21, skills 9. Halved (owner 2026-10-25:
-        // "the values seem kind of high"): each line about half of what the caps allow.
+        // Mid: usable from level 20, level 40 caps: stats 60, hit points 160, resists 21, skills 9.
         new("Eye of the Sleeping Giant", eUniqueTier.Mid, eUniqueSlot.Jewel,
             "Chipped from the brow of a stone giant who has not woken in a thousand years. Yet.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 23), new(eProperty.MaxHealth, 65), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Constitution, 22), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Crush, 7), new(eProperty.Resist_Slash, 7), new(eProperty.AllSkills, 3) }),
         new("Oathbinder's Signet", eUniqueTier.Mid, eUniqueSlot.Ring,
             "Every oath sworn on this ring was kept. The ones who broke them were not.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 21), new(eProperty.Dexterity, 20), new(eProperty.Resist_Thrust, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 25), new(eProperty.Dexterity, 22), new(eProperty.Resist_Thrust, 9), new(eProperty.AllSkills, 3) }),
         new("Stormcaller's Wristguard", eUniqueTier.Mid, eUniqueSlot.Bracer,
             "The air crackles around the wearer's hand, and gulls flee before them.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Quickness, 22), new(eProperty.Dexterity, 19), new(eProperty.Resist_Energy, 9), new(eProperty.Resist_Cold, 8) }),
+            new UniqueLine[] { new(eProperty.Quickness, 22), new(eProperty.Dexterity, 20), new(eProperty.Resist_Energy, 10), new(eProperty.Resist_Cold, 9) }),
         new("Shroud of the Pale Tide", eUniqueTier.Mid, eUniqueSlot.Cloak,
             "Drawn up from the sea on the night the tide came in white and took the coast villages.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 20), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Spirit, 9), new(eProperty.Resist_Body, 8), new(eProperty.Resist_Heat, 8) }),
+            new UniqueLine[] { new(eProperty.Constitution, 18), new(eProperty.MaxHealth, 56), new(eProperty.Resist_Spirit, 8), new(eProperty.Resist_Body, 8), new(eProperty.Resist_Heat, 8) }),
         new("Choker of the Wild Hunt", eUniqueTier.Mid, eUniqueSlot.Necklace,
             "Hear the horns once and you join the hunt. Hear them twice and you lead it.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 23), new(eProperty.Quickness, 20), new(eProperty.MaxHealth, 50), new(eProperty.Resist_Matter, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 21), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 46), new(eProperty.Resist_Matter, 7), new(eProperty.AllSkills, 3) }),
         new("Crown of the Cairnwatcher", eUniqueTier.Mid, eUniqueSlot.Helm,
             "The watcher on the cairn never slept. Its helm still keeps one eye open.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 22), new(eProperty.Dexterity, 18), new(eProperty.MaxHealth, 55), new(eProperty.Resist_Body, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Constitution, 19), new(eProperty.Dexterity, 17), new(eProperty.MaxHealth, 52), new(eProperty.Resist_Body, 8), new(eProperty.AllSkills, 3) }),
 
-        // Late: usable from level 40, level 50 caps: stats 75, hit points 200, resists 26, skills 11. Cut to about a third
-        // (owner 2026-10-28: "If someone farms 4-5 uniques, this is just a crazy amount of stats"), a step above the mid tier.
+        // Late: usable from level 40, level 50 caps: stats 75, hit points 200, resists 26, skills 11.
         new("Heartwood of the First Grove", eUniqueTier.Late, eUniqueSlot.Chest,
             "Grown, not forged, from the oldest tree in the world. It mends what strikes it.",
             eUniqueProc.Heal,
-            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Constitution, 22), new(eProperty.MaxHealth, 63), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 17), new(eProperty.Constitution, 21), new(eProperty.MaxHealth, 60), new(eProperty.Resist_Crush, 8), new(eProperty.Resist_Slash, 8), new(eProperty.AllSkills, 3) }),
         new("Wyrmbane, the Last Ember", eUniqueTier.Late, eUniqueSlot.Weapon,
             "Quenched in a dragon's heart. The ember in its core has burned for three ages.",
             eUniqueProc.Damage,
-            new UniqueLine[] { new(eProperty.Strength, 22), new(eProperty.Dexterity, 20), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 56), new(eProperty.Resist_Heat, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 20), new(eProperty.Dexterity, 19), new(eProperty.Quickness, 17), new(eProperty.MaxHealth, 53), new(eProperty.Resist_Heat, 8), new(eProperty.AllSkills, 3) }),
         new("Pendant of the Starless Deep", eUniqueTier.Late, eUniqueSlot.Necklace,
             "Brought up from a sea with no bottom and no stars. It is always cold to the touch.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Constitution, 23), new(eProperty.MaxHealth, 67), new(eProperty.Resist_Cold, 9), new(eProperty.Resist_Spirit, 9), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Constitution, 27), new(eProperty.MaxHealth, 74), new(eProperty.Resist_Cold, 10), new(eProperty.Resist_Spirit, 10), new(eProperty.AllSkills, 3) }),
         new("Ring of the Hollow Crown", eUniqueTier.Late, eUniqueSlot.Ring,
             "All that remains of a king who traded his kingdom for a longer life.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 21), new(eProperty.Quickness, 20), new(eProperty.Resist_Energy, 8), new(eProperty.Resist_Matter, 8), new(eProperty.AllSkills, 3) }),
+            new UniqueLine[] { new(eProperty.Strength, 26), new(eProperty.Quickness, 23), new(eProperty.Resist_Energy, 9), new(eProperty.Resist_Matter, 9), new(eProperty.AllSkills, 3) }),
         new("Ashen Dawn Gem", eUniqueTier.Late, eUniqueSlot.Jewel,
             "It caught the first light of the morning the old world burned, and never let it go.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Dexterity, 22), new(eProperty.Constitution, 19), new(eProperty.MaxHealth, 59), new(eProperty.Resist_Thrust, 9), new(eProperty.Resist_Body, 8) }),
+            new UniqueLine[] { new(eProperty.Dexterity, 25), new(eProperty.Constitution, 21), new(eProperty.MaxHealth, 66), new(eProperty.Resist_Thrust, 10), new(eProperty.Resist_Body, 9) }),
         new("Belt of the Restless Dead", eUniqueTier.Late, eUniqueSlot.Belt,
             "Every buckle is a finger bone. They tap, softly, when danger is near.",
             eUniqueProc.None,
-            new UniqueLine[] { new(eProperty.Strength, 19), new(eProperty.Constitution, 19), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 59), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
+            new UniqueLine[] { new(eProperty.Strength, 17), new(eProperty.Constitution, 19), new(eProperty.Quickness, 18), new(eProperty.MaxHealth, 58), new(eProperty.Resist_Spirit, 8), new(eProperty.AllSkills, 3) })
     };
 
     #region Tiers and caps
@@ -537,7 +537,7 @@ public static class ExpeditionUniques
         return tier switch
         {
             eUniqueTier.Early => 3,
-            eUniqueTier.Mid => 5,
+            eUniqueTier.Mid => 4,
             _ => 5
         };
     }
