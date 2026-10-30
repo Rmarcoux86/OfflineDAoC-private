@@ -585,7 +585,13 @@ namespace DOL.GS.PacketHandler
 		{
 			using (var pak = PooledObjectFactory.GetForTick<GSTCPPacketOut>().Init(GetPacketCode(eServerPackets.Time)))
 			{
-				if (m_gameClient != null && m_gameClient.Player != null)
+				// Fork (owner 2026-10-29): a hard expedition's evening sky over its act (ExpeditionWeather.DarkSky), this client only.
+				if (m_gameClient != null && DOL.GS.Expedition.ExpeditionWeather.DarkSky(m_gameClient.Player))
+				{
+					pak.WriteInt(DOL.GS.Expedition.ExpeditionWeather.NightGameTime);
+					pak.WriteInt(1);
+				}
+				else if (m_gameClient != null && m_gameClient.Player != null)
 				{
 					pak.WriteInt(WorldMgr.GetCurrentGameTime(m_gameClient.Player));
 					pak.WriteInt(WorldMgr.GetDayIncrement(m_gameClient.Player));

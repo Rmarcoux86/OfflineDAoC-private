@@ -160,20 +160,22 @@ public class UT_ExpeditionHardBosses
     }
 
     [Test]
-    public void Storm_CoversTheRegionFromXZero_AndIsLaidAgainNearTheActZone()
+    public void Storm_IsLaidAroundThePlayer_InsideTheServersOwnWeatherRanges_AndAgainNearAnEdge()
     {
-        // Region 1's zones end at offset 81 x 8192 (Zones table): front there, back edge at 0.
-        (uint position, uint width) = ExpeditionWeather.FrontFor(81 * 8192);
+        (uint position, uint width) = ExpeditionWeather.FrontFor(300000);
 
-        Assert.That(position, Is.EqualTo(663552u));
-        Assert.That(width, Is.EqualTo(663552u));
-        Assert.That(position - width, Is.EqualTo(0u), "every zone (offsets from 8192) is behind the front");
+        Assert.That(width, Is.EqualTo(90000u), "the widest random weather (RegionWeather.CreateWeather)");
+        Assert.That(position, Is.EqualTo(345000u), "the player in the middle");
+        Assert.That(ExpeditionWeather.StormSpeed, Is.InRange(100, 700));
+        Assert.That(ExpeditionWeather.StormIntensity, Is.InRange(30, 110));
+        Assert.That(ExpeditionWeather.StormFogDiffusion, Is.InRange(16000, 32000));
 
-        // At 1 unit a second the back edge reaches a zone at offset 35 x 8192 after about 80 hours.
-        int zoneMinX = 35 * 8192;
-        Assert.That(ExpeditionWeather.BackEdgeNear(position, width, zoneMinX), Is.False, "just laid");
-        Assert.That(ExpeditionWeather.BackEdgeNear(position + 3600, width, zoneMinX), Is.False, "an hour later");
-        Assert.That(ExpeditionWeather.BackEdgeNear(position + (uint) zoneMinX - ExpeditionWeather.RestartMarginUnits, width, zoneMinX), Is.True);
+        Assert.That(ExpeditionWeather.NearAnEdge(position, width, 300000), Is.False, "just laid");
+        Assert.That(ExpeditionWeather.NearAnEdge(position + 30000, width, 300000), Is.True, "the back edge drifted near");
+        Assert.That(ExpeditionWeather.NearAnEdge(position, width, 330000), Is.True, "walked near the front");
+        Assert.That(ExpeditionWeather.NearAnEdge(position, width, 400000), Is.True, "outside it");
+        Assert.That(ExpeditionWeather.NightGameTime, Is.EqualTo(21u * 3600 * 1000));
         Assert.That(ExpeditionWeather.IsOurs(null), Is.False);
+        Assert.That(ExpeditionWeather.DarkSky(null), Is.False);
     }
 }
