@@ -41,6 +41,30 @@
       ],
       "player": "Khesahn20",
       "submittedUtc": "2026-10-29T22:27:58Z"
+    },
+    {
+      "id": "6c4e0274-dba3-4830-95da-a962ca6e7f68:2026-10-30T21:28:50.6949902Z",
+      "character": "Ios",
+      "className": "Valewalker",
+      "race": "Celt",
+      "realm": "Hibernia",
+      "level": 50,
+      "seed": 1161565412,
+      "playedSeconds": 44325,
+      "endedUtc": "2026-10-30T21:28:50.6949902Z",
+      "kills": 892,
+      "bossesKilled": 5,
+      "uniques": 8,
+      "realmPoints": 116235,
+      "gauntletCleared": false,
+      "boons": [
+        "Ironhide",
+        "Marked Prey",
+        "Second Skin",
+        "Vampiric"
+      ],
+      "player": "sfkilleen2",
+      "submittedUtc": "2026-10-30T21:43:09Z"
     }
   ]
 }

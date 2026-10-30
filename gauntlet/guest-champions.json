@@ -176,6 +176,77 @@
       ],
       "player": "Khesahn20",
       "submittedUtc": "2026-10-29T22:27:58Z"
+    },
+    {
+      "id": "6c4e0274-dba3-4830-95da-a962ca6e7f68",
+      "name": "Ios",
+      "classId": 56,
+      "race": 9,
+      "gender": 1,
+      "realm": 3,
+      "model": 35130,
+      "hoodUp": true,
+      "activeWeapon": 1,
+      "items": [
+        {
+          "slot": 12,
+          "model": 2111,
+          "color": 16,
+          "effect": 53,
+          "extension": 0
+        },
+        {
+          "slot": 21,
+          "model": 1279,
+          "color": 32,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 22,
+          "model": 381,
+          "color": 17,
+          "effect": 0,
+          "extension": 7
+        },
+        {
+          "slot": 23,
+          "model": 382,
+          "color": 16,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 25,
+          "model": 2517,
+          "color": 18,
+          "effect": 0,
+          "extension": 3
+        },
+        {
+          "slot": 26,
+          "model": 57,
+          "color": 19,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 27,
+          "model": 379,
+          "color": 18,
+          "effect": 0,
+          "extension": 0
+        },
+        {
+          "slot": 28,
+          "model": 380,
+          "color": 18,
+          "effect": 0,
+          "extension": 0
+        }
+      ],
+      "player": "sfkilleen2",
+      "submittedUtc": "2026-10-30T21:43:09Z"
     }
   ]
 }
