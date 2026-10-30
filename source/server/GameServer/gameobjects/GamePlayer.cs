@@ -1845,6 +1845,11 @@ namespace DOL.GS
             {
                 applyRezSick = false;
             }
+            else if (DOL.GS.Expedition.Gauntlet.GauntletManager.IsGauntletDeath(player))
+            {
+                // Fork (owner 2026-10-30): a Gauntlet death gives no resurrection sickness; the round simply starts again.
+                applyRezSick = false;
+            }
 
             if (player.IsUnderwater && player.CanBreathUnderWater == false)
                 player.UpdateWaterBreathState(eWaterBreath.Holding);

@@ -427,8 +427,10 @@ public static class GauntletManager
                 return false;
             }
 
-            // Every round starts fresh (owner 2026-10-28): all the player's cooldowns are reset.
+            // Every round starts fresh (owner 2026-10-28): all the player's cooldowns are reset. The player is taken back to
+            // where they entered and stands frozen there until the fight begins (owner 2026-10-30; AwaitingBow).
             ResetCooldowns(player);
+            player.MoveTo(GauntletArena.RegionId, GauntletArena.PlayerX, GauntletArena.PlayerY, GauntletArena.PlayerZ, GauntletArena.PlayerHeading);
 
             // A hard winner's sixth round is two champions at once (owner 2026-10-29), each at the final champion's realm
             // rank, one each side of the gate; every other round is one champion at the gate.
@@ -518,7 +520,7 @@ public static class GauntletManager
                     $"- When you are ready, target {first.Name} and type /bow (or /duel challenge) to begin the fight.",
                     "- Attacking it also starts the fight.",
                     "- Win, and the next challenger steps forward after a short rest.",
-                    "- If you fall, you return here with no death penalty; type /gauntlet start to face the same challenger again.",
+                    $"- If you fall, there is no death penalty and no resurrection sickness: you are back here {GauntletRules.AutoReleaseSeconds} seconds later and the same challenger steps forward again.",
                     "- /gauntlet status shows where you are; /gauntlet leave takes you to your bind point."
                 }
                 : pair
@@ -804,8 +806,10 @@ public static class GauntletManager
     }
 
     /// <summary>
-    /// A Gauntlet death: the champion is removed, the run and the character are untouched, the round stays the same,
-    /// and the player is released at the arena entrance after <see cref="GauntletRules.AutoReleaseSeconds"/>.
+    /// A Gauntlet death: the champion is removed, the run and the character are untouched, the round stays the same; after
+    /// <see cref="GauntletRules.AutoReleaseSeconds"/> the player is released at the arena entrance at full health with no
+    /// resurrection sickness (GamePlayer.OnRevive) and the same round begins again (owner 2026-10-30: "if a player dies,
+    /// just auto reset the fight again in 10 seconds").
     /// </summary>
     public static void OnPlayerDied(GamePlayer player)
     {
@@ -834,13 +838,19 @@ public static class GauntletManager
             SaveState(state);
         }
 
-        player.Out.SendMessage($"You have fallen in round {state.Round}. Your character and your run are safe; type /gauntlet start to try the round again.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+        player.Out.SendMessage($"You have fallen in round {state.Round}. Your character and your run are safe; the round starts again in {GauntletRules.AutoReleaseSeconds} seconds.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
         new ECSGameTimer(player, _ =>
         {
             if (!player.IsAlive && player.ObjectState == GameObject.eObjectState.Active && player.Client?.IsPlaying == true)
             {
                 player.Release(eReleaseType.Normal, true);
+            }
+
+            // The same round again, if the player is still in this Gauntlet and back on their feet.
+            if (GetState(player) == state && player.IsAlive)
+            {
+                BeginRound(player);
             }
 
             return 0;
