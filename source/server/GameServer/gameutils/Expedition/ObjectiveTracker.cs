@@ -472,6 +472,7 @@ public static class ObjectiveTracker
         ExpeditionRealm.OnKill(player, target);
         BoonEffects.OnKill(player, target);
         ExpeditionShrines.OnKill(player, run, plan, target);
+        ExpeditionHunt.OnKill(player, run, plan);
         Gauntlet.GauntletTaunts.OnKill(player, plan, target);
 
         if (objective == null)

@@ -53,6 +53,10 @@ public static class ExpeditionHunt
     {
         // "seed:act:zone": time in the act starts again when this changes.
         public string ActKey;
+
+        // The hunt's clock starts at the act's first monster kill (owner 2026-10-30: "Make the timer for the stalker start
+        // after the first mob kill"), so time spent at the camp, buffing or reading does not count.
+        public bool Started;
         public long TimeInActMs;
         public long LastTickAt;
         public bool SpawnPending;
@@ -111,6 +115,20 @@ public static class ExpeditionHunt
 
     #region Tick
 
+    /// <summary>
+    /// A monster the player killed in the act (ObjectiveTracker's kill credit): the act's first one starts the hunt's clock.
+    /// </summary>
+    internal static void OnKill(GamePlayer player, ExpeditionRun run, ActPlan plan)
+    {
+        if (string.IsNullOrEmpty(player?.ObjectId) || !ExpeditionHardMode.IsHard(run) || plan == null ||
+            !States.TryGetValue(player.ObjectId, out HuntState state) || state.ActKey != $"{run.Seed}:{plan.Act}:{plan.ZoneId}")
+        {
+            return;
+        }
+
+        state.Started = true;
+    }
+
     /// <summary>Called on every tracker tick of the attached player (game loop), alive or dead.</summary>
     internal static void Tick(GamePlayer player, ExpeditionRun run, ActPlan plan)
     {
@@ -142,6 +160,7 @@ public static class ExpeditionHunt
         {
             RemoveStalker(player, state, null);
             state.ActKey = actKey;
+            state.Started = false;
             state.TimeInActMs = 0;
             state.LastTickAt = now;
             state.SpawnPending = false;
@@ -166,6 +185,11 @@ public static class ExpeditionHunt
         }
 
         if (player.ObjectState != GameObject.eObjectState.Active || player.CurrentRegion == null || player.CurrentRegionID != plan.RegionId)
+        {
+            return;
+        }
+
+        if (!state.Started)
         {
             return;
         }
