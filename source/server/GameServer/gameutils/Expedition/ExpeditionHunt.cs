@@ -114,6 +114,12 @@ public static class ExpeditionHunt
     /// <summary>Called on every tracker tick of the attached player (game loop), alive or dead.</summary>
     internal static void Tick(GamePlayer player, ExpeditionRun run, ActPlan plan)
     {
+        // The power meter runs from the first hard tick (ExpeditionPower); it reads only hard-run players' hits.
+        if (ExpeditionHardMode.IsHard(run))
+        {
+            ExpeditionPower.EnsureHandlers();
+        }
+
         string key = player?.ObjectId;
 
         if (string.IsNullOrEmpty(key))
@@ -329,6 +335,7 @@ public static class ExpeditionHunt
             return;
         }
 
+        ExpeditionPower.Forget(stalker);
         stalker.Delete();
 
         if (message != null && player?.Client != null)
@@ -401,6 +408,11 @@ public static class ExpeditionHunt
         stalker.Charisma = 0;
         // Tied to the player (owner 2026-10-30): orange for most of the game, where the act's top + 3 was purple for most of an act.
         stalker.Level = (byte) Math.Clamp(player.Level + LevelAbovePlayer, 1, 255);
+
+        // Power-matched (owner 2026-10-30, ExpeditionPower): its health from the player's measured damage, its hits from the
+        // player's health, at 90% of an even match; level-based until the meter has seen enough fighting.
+        stalker.MatchedHealth = ExpeditionPower.StalkerHealth(ExpeditionPower.DpsOf(player));
+        stalker.PowerMatched = stalker.MatchedHealth > 0;
         stalker.Health = stalker.MaxHealth;
 
         // Swift, as an elite's (ExpeditionElites.ApplyAffix): faster runs and swings. It is never restored: it is deleted.
@@ -548,6 +560,14 @@ public sealed class ExpeditionStalker : GameNPC
     }
 
     public override bool CanDropLoot => false;
+
+    /// <summary>Its health from the player's measured power (ExpeditionPower); 0 for the level-based health.</summary>
+    public int MatchedHealth { get; set; }
+
+    /// <summary>True when its health and hits are matched to the player's power (ExpeditionPower).</summary>
+    public bool PowerMatched { get; set; }
+
+    public override int MaxHealth => MatchedHealth > 0 ? MatchedHealth : base.MaxHealth;
 
     public override Point3D SpawnPoint
     {
