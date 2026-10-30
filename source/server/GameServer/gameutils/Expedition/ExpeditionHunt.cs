@@ -13,8 +13,8 @@ namespace DOL.GS.Expedition;
 
 /// <summary>
 /// The hunt (hard mode, owner 2026-10-29): every <see cref="SpawnIntervalMs"/> the player spends in the act's region, a
-/// named stalker (<see cref="ExpeditionStalker"/>, one name per zone) is sent after them: the act's top level
-/// + <see cref="LevelAboveAct"/>, Swift, aggressive, spawned <see cref="SpawnMinDistance"/>-<see cref="SpawnMaxDistance"/>
+/// named stalker (<see cref="ExpeditionStalker"/>, one name per zone) is sent after them:
+/// (the player's level + <see cref="LevelAbovePlayer"/>, owner 2026-10-30: "Tie it to player"), Swift, aggressive, spawned <see cref="SpawnMinDistance"/>-<see cref="SpawnMaxDistance"/>
 /// units away and walking to the player until it dies or the act ends. It drops nothing and gives normal realm points.
 /// The player always sees it coming: a warning <see cref="WarningLeadMs"/> before it comes, where it is when it comes,
 /// its direction and distance every <see cref="ReportIntervalMs"/>, and "You hear it breathing." when it is close.
@@ -31,7 +31,7 @@ public static class ExpeditionHunt
     public const int SpawnMinDistance = 4000;
     public const int SpawnMaxDistance = 6000;
     public const int BreathingRadius = 1500;
-    public const int LevelAboveAct = 3;
+    public const int LevelAbovePlayer = 2;
 
     /// <summary>The stalker has reached the player once it is this close (or fighting them): it no longer gives up.</summary>
     public const int ReachRadius = 500;
@@ -399,7 +399,8 @@ public static class ExpeditionHunt
         stalker.Empathy = 0;
         stalker.Piety = 0;
         stalker.Charisma = 0;
-        stalker.Level = (byte) Math.Clamp(plan.MaxLevel + LevelAboveAct, 1, 255);
+        // Tied to the player (owner 2026-10-30): orange for most of the game, where the act's top + 3 was purple for most of an act.
+        stalker.Level = (byte) Math.Clamp(player.Level + LevelAbovePlayer, 1, 255);
         stalker.Health = stalker.MaxHealth;
 
         // Swift, as an elite's (ExpeditionElites.ApplyAffix): faster runs and swings. It is never restored: it is deleted.
