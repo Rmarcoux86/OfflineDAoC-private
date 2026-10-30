@@ -83,6 +83,7 @@ public static class ExpeditionHardMode
 
             // bosses
             "- The act bosses are the Gauntlet's champions, in its order (Gwyraan, Toothmouth, Ios, Drunkstains, Preesh), at the act's top level + 2 with their realm ranks, realm abilities and signature moves. They attack on sight: no bow.",
+            "- A champion boss has the act boss's health (3 + the act, times its own) and is never weakened; Stalwart adds nothing more to it.",
             $"- Each act has a bounty timer ({ExpeditionBounty.EarlyActMinutes} minutes for acts 1-2, {ExpeditionBounty.MiddleActMinutes} for 3-4, {ExpeditionBounty.FinalActMinutes} for act 5; /run status shows it, and it stops while you are logged out). Miss it and the boss arrives with a pack of {ExpeditionBounty.HelperCount} monsters of the zone.",
             "- A dark storm hangs over the act's zone.",
 

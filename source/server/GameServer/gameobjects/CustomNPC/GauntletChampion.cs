@@ -269,9 +269,10 @@ public sealed class GauntletChampion : GameBot
 
         if (actBoss)
         {
-            // An act boss fights at once, as a boss does: no bow. Its leash is the act boss's (an ExpeditionBoss sets none,
-            // so TetherRange stays as GameNPC leaves it; whoever spawns it may set one, and the brain honours it).
+            // An act boss fights at once, as a boss does: no bow. Its leash is the Gauntlet's, from where it appears;
+            // ExpeditionHardMonsters.OnBossSpawned doubles it (the hard run's rule).
             Engaged = true;
+            TetherRange = GauntletRules.LeashRadius;
         }
         else
         {
@@ -387,10 +388,11 @@ public sealed class GauntletChampion : GameBot
         {
             int health = Definition?.Affix == ExpeditionElites.Stalwart ? base.MaxHealth * ExpeditionElites.StalwartHealthMultiplier : base.MaxHealth;
 
-            // A hard run's act boss (owner 2026-10-29): the act boss's health pool (ExpeditionHardBosses.HealthMultiplierFor), never weakened.
+            // A hard run's act boss (owner 2026-10-29): the act boss's health pool (ExpeditionHardBosses.HealthMultiplierFor) in
+            // place of Stalwart's triple, never weakened.
             if (ActBoss)
             {
-                return health * ExpeditionHardBosses.HealthMultiplierFor(Round);
+                return base.MaxHealth * ExpeditionHardBosses.HealthMultiplierFor(Round);
             }
 
             return health * (100 - GauntletEscalation.WeakenedPercent(Round)) / 100;

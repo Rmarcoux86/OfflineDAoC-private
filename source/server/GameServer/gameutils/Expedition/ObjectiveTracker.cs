@@ -888,6 +888,9 @@ public static class ObjectiveTracker
 
         DateTime now = DateTime.UtcNow;
 
+        // Mirrored for a resume after a crash (ExpeditionBounty.Resume); saved with the run whenever it next saves.
+        plan.BountySecondsLeft = ExpeditionBounty.SecondsLeft(plan.BountyDeadlineUtc, now);
+
         if (ExpeditionBounty.HasRunOut(plan.BountyDeadlineUtc, now))
         {
             if (!plan.BountyMissed)

@@ -116,12 +116,13 @@ public static class ExpeditionShrines
             return false;
         }
 
-        // A hard shrine counts only the pack's elites: the camp's monster with at least one affix in front.
+        // A hard shrine counts the pack's monsters, elite or not (a respawned member comes back plain, and the pack
+        // must still be killable to the last): the camp's monster, by the camp or of the camp.
         if (shrine.HardPack)
         {
             bool nearCamp = Dist2(x, y, shrine.CampX, shrine.CampY) <= (long) DormantCampRadius * DormantCampRadius;
 
-            return MatchesCampMob(name, shrine.CampMob, out int affixes) && affixes > 0 && (ofCamp || nearCamp);
+            return MatchesCampMob(name, shrine.CampMob, out _) && (ofCamp || nearCamp);
         }
 
         bool sameMob = string.Equals(name, shrine.CampMob, StringComparison.OrdinalIgnoreCase) ||

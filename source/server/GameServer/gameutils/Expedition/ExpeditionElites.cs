@@ -354,11 +354,8 @@ public static class ExpeditionElites
     /// <param name="dread">A hard run (owner 2026-10-29): one more level and "Dread" in the name, "Swift Venomous Dread goblin".</param>
     private static bool Apply(GameNPC npc, IReadOnlyList<string> affixes, string ownerKey, ExpeditionRun run = null, EliteCamp camp = null, bool repeat = false, bool dread = false)
     {
-        // A Dread monster is made plain first, so the elite keeps (and restores) the world's own values.
-        if (dread)
-        {
-            ExpeditionHardMonsters.Release(npc);
-        }
+        // A Dread monster is made plain first, whoever wakes it, so the elite keeps (and restores) the world's own values.
+        ExpeditionHardMonsters.Release(npc);
 
         EliteState state = new()
         {
@@ -474,9 +471,13 @@ public static class ExpeditionElites
 
         EnsureHandlers();
 
+        // A Gauntlet champion boss: its health is the act boss's (GauntletChampion.MaxHealth), so Stalwart would add
+        // nothing but a wrong "triple health" line; and Swift's faster swings stay Preesh's alone.
+        bool champion = npc is DOL.GS.Expedition.Gauntlet.GauntletChampion;
+
         while (state.Affixes.Count < total)
         {
-            List<string> pool = BossAffixPool.Where(a => !state.Affixes.Contains(a)).ToList();
+            List<string> pool = BossAffixPool.Where(a => !state.Affixes.Contains(a) && !(champion && a == Stalwart)).ToList();
 
             if (pool.Count == 0)
             {
@@ -485,7 +486,7 @@ public static class ExpeditionElites
 
             string affix = pool[rng.Next(pool.Count)];
             state.Affixes = state.Affixes.Append(affix).ToList();
-            ApplyAffix(npc, state, affix);
+            ApplyAffix(npc, state, affix, !champion);
             added.Add(affix);
         }
 

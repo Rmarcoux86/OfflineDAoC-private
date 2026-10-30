@@ -72,7 +72,14 @@ public static class ExpeditionBounty
     /// </summary>
     public static bool Resume(ActPlan plan, DateTime nowUtc)
     {
-        if (plan == null || plan.BossSpawned || plan.BossKilled || plan.BountyDeadlineUtc.HasValue)
+        if (plan == null || plan.BossSpawned || plan.BossKilled)
+        {
+            return false;
+        }
+
+        // A deadline still set at attach survived a crash or a kill of the server: the time away must not count, so the
+        // timer resumes from what the last save mirrored (CheckBounty keeps BountySecondsLeft current while it runs).
+        if (plan.BountyDeadlineUtc.HasValue && !plan.BountySecondsLeft.HasValue)
         {
             return false;
         }
