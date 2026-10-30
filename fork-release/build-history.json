@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v111",
+    "date": "2026-10-30",
+    "items": [
+      "Monsters that con grey to you no longer drop loot: no Expedition drops and no ordinary items or coin.",
+      "Hard expeditions: the hunt's clock now starts at your first kill in each act, not when you arrive."
+    ]
+  },
+  {
     "tag": "fork-v110",
     "date": "2026-10-30",
     "items": [
