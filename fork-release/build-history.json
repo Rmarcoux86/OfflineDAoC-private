@@ -1,5 +1,22 @@
 [
   {
+    "tag": "fork-v108",
+    "date": "2026-10-29",
+    "items": [
+      "Hard expeditions. An account that has beaten the Gauntlet can start one on a new level 1 character with /run new hard (a seed is optional). Type /run rules at any time to see every hard rule.",
+      "Hard rules in short: every monster of the act is Dread (+1 level); every camp is an elite pack with two affixes; the act bosses are the Gauntlet champions at the act level, attacking on sight; a bounty timer per act, and a pack arrives with the boss if it runs out; a stalker hunts you every 20 minutes you spend in an act (you are warned a minute before and told where it is); two shrines per act, each beside an elite pack and dormant until the whole pack is dead; boon offers hold two choices and Phoenix Feather is never offered; Rejuvenation and Blessed Arms are weaker; no recovery.",
+      "Hard rewards: realm points are doubled; inherit one unique from your Gauntlet winner (/run inherit), which starts at level 1 and grows with you; five boons and three late uniques that only appear on a hard expedition.",
+      "A dark storm hangs over a hard expedition's act zone."
+    ]
+  },
+  {
+    "tag": "fork-v107",
+    "date": "2026-10-29",
+    "items": [
+      "Maintenance build."
+    ]
+  },
+  {
     "tag": "fork-v106",
     "date": "2026-10-29",
     "items": [
