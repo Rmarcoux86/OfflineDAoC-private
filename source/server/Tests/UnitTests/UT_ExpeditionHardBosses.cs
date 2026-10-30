@@ -57,6 +57,17 @@ public class UT_ExpeditionHardBosses
     }
 
     [Test]
+    public void Resume_AfterACrash_ResumesFromTheTicksMirror()
+    {
+        // The deadline was saved running (no clean pause) with the tick's mirror of what was left: the time away does not count.
+        ActPlan plan = new() { Act = 3, BountyDeadlineUtc = Now.AddMinutes(35), BountySecondsLeft = 20 * 60 };
+
+        Assert.That(ExpeditionBounty.Resume(plan, Now.AddHours(3)), Is.True);
+        Assert.That(plan.BountyDeadlineUtc, Is.EqualTo(Now.AddHours(3).AddMinutes(20)));
+        Assert.That(plan.BountySecondsLeft, Is.Null);
+    }
+
+    [Test]
     public void Resume_StartsTheActsBounty_ThenPauseAndResumeKeepWhatWasLeft()
     {
         ActPlan plan = new() { Act = 3 };
@@ -64,12 +75,6 @@ public class UT_ExpeditionHardBosses
         Assert.That(ExpeditionBounty.Resume(plan, Now), Is.True);
         Assert.That(plan.BountyDeadlineUtc, Is.EqualTo(Now.AddMinutes(35)));
         Assert.That(ExpeditionBounty.Resume(plan, Now.AddMinutes(1)), Is.False, "a running deadline is kept");
-
-        // A crash: the deadline was saved running with the tick's mirror of what was left; the time away does not count.
-        plan.BountySecondsLeft = 20 * 60;
-        Assert.That(ExpeditionBounty.Resume(plan, Now.AddHours(3)), Is.True, "resumes from the mirror after a crash");
-        Assert.That(plan.BountyDeadlineUtc, Is.EqualTo(Now.AddHours(3).AddMinutes(20)));
-        Assert.That(plan.BountySecondsLeft, Is.Null);
 
         // Ten minutes played, then away for two hours: 25 minutes are left when the player comes back.
         Assert.That(ExpeditionBounty.Pause(plan, Now.AddMinutes(10)), Is.True);

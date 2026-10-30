@@ -195,7 +195,7 @@ public class UT_ExpeditionHardBoons
     }
 
     [Test]
-    public void AHardShrine_CountsOnlyItsPacksElites()
+    public void AHardShrine_CountsItsPacksKills()
     {
         ShrineSpec shrine = new()
         {
@@ -213,8 +213,8 @@ public class UT_ExpeditionHardBoons
             Assert.That(ExpeditionShrines.IsDormant(shrine), Is.True);
             Assert.That(ExpeditionShrines.CountsFor(shrine, "Swift goblin", 100, 30500, 30000), Is.True, "an elite near the camp");
             Assert.That(ExpeditionShrines.CountsFor(shrine, "Swift Venomous Dread goblin", 100, 30000, 30000), Is.True, "two affixes and the dread prefix");
-            Assert.That(ExpeditionShrines.CountsFor(shrine, "goblin", 100, 30000, 30000), Is.False, "not an elite");
-            Assert.That(ExpeditionShrines.CountsFor(shrine, "Dread goblin", 100, 30000, 30000), Is.False, "not an elite");
+            Assert.That(ExpeditionShrines.CountsFor(shrine, "goblin", 100, 30000, 30000), Is.True, "a plain respawn of the pack counts too");
+            Assert.That(ExpeditionShrines.CountsFor(shrine, "Dread goblin", 100, 30000, 30000), Is.True, "a Dread respawn too");
             Assert.That(ExpeditionShrines.CountsFor(shrine, "Swift goblin", 100, 35000, 30000), Is.False, "far away and not of this pack");
             Assert.That(ExpeditionShrines.CountsFor(shrine, "Swift goblin", 100, 35000, 30000, true), Is.True, "of this pack, pulled far away");
             Assert.That(ExpeditionShrines.CountsFor(shrine, "Swift goblin", 101, 30000, 30000, true), Is.False, "another region");
