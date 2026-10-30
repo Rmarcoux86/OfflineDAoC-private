@@ -1674,6 +1674,14 @@ namespace DOL.GS.ServerRules
             // Expedition hard mode: a "Dread goblin" drops what a goblin drops (the loot tables are keyed by the monster's name).
             DOL.GS.Expedition.ExpeditionHardMonsters.OnLootDrop(killedNpc);
 
+            // Fork (owner 2026-10-30: "make it so loot can't drop from gray cons"): a monster that cons grey to the player who
+            // killed it (or whose pet did) drops no items and no coin. Bots and guards keep their loot rules.
+            if (DOL.GS.Expedition.ExpeditionLoot.LootJudge(killer) is GamePlayer judge &&
+                DOL.GS.Expedition.ExpeditionLoot.IsGreyCon(judge.Level, killedNpc.Level))
+            {
+                return;
+            }
+
             List<GamePlayer> playersInRadius = killedNpc.GetPlayersInRadius(WorldMgr.INFO_DISTANCE);
 
             foreach (DbItemTemplate itemTemplate in LootMgr.GetLoot(killedNpc, killer))

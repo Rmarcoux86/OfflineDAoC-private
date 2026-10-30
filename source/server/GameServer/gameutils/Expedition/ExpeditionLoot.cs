@@ -208,6 +208,14 @@ public static class ExpeditionLoot
             return false;
         }
 
+        // A grey con drops nothing, whatever the floor (an elite, an objective's first kill).
+        if (IsGreyCon(player.Level, target.Level))
+        {
+            ExpeditionDebug.Report(player, $"no loot roll for {target.Name}: it cons grey (level {target.Level}, you {player.Level}).");
+
+            return false;
+        }
+
         LootLuck luck = Luck.GetOrAdd(player.ObjectId, _ => new LootLuck());
         ExpeditionRun run = ExpeditionManager.GetRun(player);
         ActPlan plan = run?.CurrentAct;
@@ -278,6 +286,30 @@ public static class ExpeditionLoot
     /// A monster: not a pet or companion (controlled brain), not a bot, not a player, not the act boss, and not a
     /// mob made never to drop loot (GameNPC.CanDropLoot, e.g. summoned boss adds).
     /// </summary>
+    /// <summary>
+    /// True when the monster cons grey to a player of this level (the game's con table, ConLevels): nothing drops from it,
+    /// neither an Expedition drop nor the stock loot (owner 2026-10-30: "make it so loot can't drop from gray cons").
+    /// </summary>
+    public static bool IsGreyCon(int playerLevel, int mobLevel)
+    {
+        return ConLevels.GetConLevel(playerLevel, mobLevel) <= (int) ConColor.GREY;
+    }
+
+    /// <summary>
+    /// The player a kill's loot is judged for (AbstractServerRules.DropLoot): the killer, or the owner of the killing pet;
+    /// null for a kill by anything else (a bot, a guard), whose loot is left alone.
+    /// </summary>
+    public static GamePlayer LootJudge(GameObject killer)
+    {
+        return killer switch
+        {
+            GameBot => null,
+            GamePlayer player => player,
+            GameNPC { Brain: IControlledBrain brain } => brain.GetPlayerOwner(),
+            _ => null
+        };
+    }
+
     public static bool IsLootableKill(GameLiving target)
     {
         return target is GameNPC npc && npc.CanDropLoot && npc.Brain is not IControlledBrain && npc is not GameBot && npc is not ExpeditionBoss;
