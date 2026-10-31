@@ -25,7 +25,7 @@ namespace DOL.GS.Expedition;
 /// Affixes (all on top of level +2, size +15% and double health):
 /// Swift (run speed x1.4, swings 20% faster), Venomous (melee hits may poison), Armoured (more armor absorption),
 /// Stalwart (triple health, shorter mez/stun/snare), Frenzied (+30% melee damage once below half health),
-/// Spectral (translucent, and stealthed until it fights).
+/// (Spectral, translucent and stealthed until it fought, was retired on 2026-10-30.)
 /// <para>
 /// Hard mode (<see cref="ExpeditionHardMonsters"/>): every camp of the act is a pack, each with two affixes
 /// (<see cref="EliteCamp.ExtraAffixes"/>), one more level and "Dread" in its name ("Swift Venomous Dread goblin"); the act
@@ -42,18 +42,50 @@ public static class ExpeditionElites
     public const string Spectral = "Spectral";
 
     /// <summary>The affix pool, in the order the generator's seeded RNG indexes it. Append only: reordering changes seeded runs.</summary>
-    public static readonly IReadOnlyList<string> Affixes = new[] { Swift, Venomous, Armoured, Stalwart, Frenzied, Spectral };
+    /// <summary>The affixes an elite pack rolls. Spectral was retired (owner 2026-10-30: "just rid of spectral as an affix").</summary>
+    public static readonly IReadOnlyList<string> Affixes = new[] { Swift, Venomous, Armoured, Stalwart, Frenzied };
 
     /// <summary>
-    /// How close a player must be to see a Spectral elite that is still stealthed (GamePlayer.CanDetect; owner 2026-10-30:
-    /// "spectral is not working. Can totally see the mobs"). Once it fights, its stealth is lifted and anyone sees it.
+    /// A saved act planned while Spectral was still rolled: each Spectral pack (its affix, its second affix on a hard run,
+    /// and its journal line) takes another affix, picked from the pack's monster name so it is the same every load.
+    /// True when the plan changed.
     /// </summary>
-    public const int SpectralRevealRadius = 500;
-
-    /// <summary>True for an elite with the Spectral affix (whether or not it is still stealthed).</summary>
-    public static bool IsSpectral(GameNPC npc)
+    public static bool ReplaceRetiredAffixes(ActPlan plan)
     {
-        return npc != null && Elites.TryGetValue(npc, out EliteState state) && state.Affixes.Contains(Spectral);
+        bool changed = false;
+
+        foreach (EliteCamp camp in plan?.Elites ?? [])
+        {
+            if (camp == null)
+            {
+                continue;
+            }
+
+            int pick = 0;
+
+            foreach (char c in camp.MobName ?? string.Empty)
+            {
+                pick = unchecked(pick * 31 + c);
+            }
+
+            List<string> others = Affixes.Where(affix => affix != camp.Affix && (camp.ExtraAffixes == null || !camp.ExtraAffixes.Contains(affix))).ToList();
+            string replacement = others.Count > 0 ? others[(pick & int.MaxValue) % others.Count] : Swift;
+
+            if (camp.Affix == Spectral)
+            {
+                camp.Affix = replacement;
+                camp.Description = (camp.Description ?? string.Empty).Replace(Spectral, replacement);
+                changed = true;
+            }
+            else if (camp.ExtraAffixes != null && camp.ExtraAffixes.Remove(Spectral))
+            {
+                camp.ExtraAffixes.Add(replacement);
+                camp.Description = (camp.Description ?? string.Empty).Replace(Spectral, replacement);
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     /// <summary>The player must be this close (2D) to an elite camp for its pack to wake.</summary>
@@ -226,7 +258,6 @@ public static class ExpeditionElites
             Armoured => $"+{ArmouredArmorAbsorption}% armor and +{ArmouredPhysicalAbsorption}% physical absorption.",
             Stalwart => $"Triple health; mez, stun and snare last {StalwartCrowdControlReduction}% as long.",
             Frenzied => $"+{FrenzyMeleeDamageBonus}% melee damage below {FrenzyHealthPercent}% health.",
-            Spectral => "Translucent and stealthed until it fights.",
             _ => string.Empty
         };
     }
@@ -549,14 +580,6 @@ public static class ExpeditionElites
                 AddBonus(npc, state, eProperty.MesmerizeDurationReduction, StalwartCrowdControlReduction);
                 AddBonus(npc, state, eProperty.StunDurationReduction, StalwartCrowdControlReduction);
                 AddBonus(npc, state, eProperty.SpeedDecreaseDurationReduction, StalwartCrowdControlReduction);
-                break;
-            }
-            case Spectral:
-            {
-                // STEALTH is lifted by the mob brain when it aggroes (StandardMobState_AGGRO.Enter) and when attacked.
-                GameNPC.eFlags spectral = GameNPC.eFlags.GHOST | GameNPC.eFlags.STEALTH;
-                state.AddedFlags = spectral & ~npc.Flags;
-                npc.Flags |= spectral;
                 break;
             }
         }

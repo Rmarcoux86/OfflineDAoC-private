@@ -112,11 +112,12 @@ public static class ExpeditionHardMode
     /// </summary>
     public static readonly string[] ArrivalTaunts =
     [
-        $"Gwyraan of {GauntletRules.GuildName} sends his regards. These woods are not yours yet.",
-        $"Toothmouth of {GauntletRules.GuildName} is already humming your dirge. Keep walking.",
-        $"Ios of {GauntletRules.GuildName} says you won't see her coming. You never do.",
-        $"Drunkstains of {GauntletRules.GuildName} bet you would not get this far. He hates losing bets.",
-        $"Preesh of {GauntletRules.GuildName} waits beyond the dark. Bow when you get there."
+        // Each names the act's boss, and none sounds like the hunt's stalker (owner 2026-10-30).
+        $"Gwyraan of {GauntletRules.GuildName} is this act's boss. His grove does not welcome guests.",
+        $"Toothmouth of {GauntletRules.GuildName} is this act's boss. He is tuning up for your dirge.",
+        $"Ios of {GauntletRules.GuildName} is this act's boss. She is faster than you think.",
+        $"Drunkstains of {GauntletRules.GuildName} is this act's boss. He bet you would not get this far.",
+        $"Preesh of {GauntletRules.GuildName} is the final boss. Bow when you reach him."
     ];
 
     /// <summary>The taunt for an act (1-5); the act is clamped into range.</summary>

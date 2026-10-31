@@ -79,7 +79,7 @@ public class UT_ExpeditionElites
     {
         Assert.Multiple(() =>
         {
-            Assert.That(ExpeditionElites.Affixes, Is.EqualTo(new[] { "Swift", "Venomous", "Armoured", "Stalwart", "Frenzied", "Spectral" }));
+            Assert.That(ExpeditionElites.Affixes, Is.EqualTo(new[] { "Swift", "Venomous", "Armoured", "Stalwart", "Frenzied" }), "Spectral retired");
             Assert.That(ExpeditionElites.Affixes, Is.Unique);
         });
     }
@@ -306,6 +306,35 @@ public class UT_ExpeditionElites
             Assert.That(old.Elites, Is.Not.Null.And.Empty);
             Assert.That(old.Objectives, Is.Not.Empty);
             Assert.That(ExpeditionElites.DescribeElites(old), Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ReplaceRetiredAffixes_GivesASpectralPackAnotherAffix_TheSameEveryTime()
+    {
+        ActPlan Plan() => new()
+        {
+            Elites =
+            [
+                new EliteCamp { MobName = "wight", Affix = "Spectral", Description = "A Spectral pack of wight lairs right by the camp" },
+                new EliteCamp { MobName = "goblin", Affix = "Swift", ExtraAffixes = ["Spectral"], Description = "A Swift Spectral pack of goblin lairs" },
+                new EliteCamp { MobName = "rat", Affix = "Armoured", Description = "An Armoured pack of rat lairs" }
+            ]
+        };
+
+        ActPlan first = Plan();
+        ActPlan second = Plan();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ExpeditionElites.ReplaceRetiredAffixes(first), Is.True);
+            ExpeditionElites.ReplaceRetiredAffixes(second);
+            Assert.That(first.Elites[0].Affix, Is.Not.EqualTo("Spectral").And.EqualTo(second.Elites[0].Affix));
+            Assert.That(ExpeditionElites.Affixes, Does.Contain(first.Elites[0].Affix));
+            Assert.That(first.Elites[0].Description, Does.Not.Contain("Spectral").And.Contain(first.Elites[0].Affix));
+            Assert.That(first.Elites[1].ExtraAffixes, Does.Not.Contain("Spectral").And.Not.Contain("Swift"));
+            Assert.That(first.Elites[2].Affix, Is.EqualTo("Armoured"));
+            Assert.That(ExpeditionElites.ReplaceRetiredAffixes(first), Is.False, "nothing left to replace");
         });
     }
 

@@ -1332,6 +1332,9 @@ public static class ExpeditionManager
             if (!string.IsNullOrEmpty(record.ActJson))
             {
                 run.CurrentAct = JsonSerializer.Deserialize<ActPlan>(record.ActJson, ExpeditionJson.Options);
+
+                // Spectral is retired (owner 2026-10-30): a pack planned with it takes another affix.
+                ExpeditionElites.ReplaceRetiredAffixes(run.CurrentAct);
             }
         }
         catch (Exception ex)

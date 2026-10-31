@@ -11331,9 +11331,6 @@ namespace DOL.GS
                     // for players, so they get the player rules. Other stealthed NPCs are unchanged.
                     if (enemy is GameBot stealthedBot)
                         return CanDetectStealthedBot(stealthedBot);
-                    // Fork (owner 2026-10-30): a Spectral elite still in stealth is unseen beyond its reveal radius.
-                    if (enemy is GameNPC spectral && DOL.GS.Expedition.ExpeditionElites.IsSpectral(spectral))
-                        return IsWithinRadius(enemy, DOL.GS.Expedition.ExpeditionElites.SpectralRevealRadius);
                     // Custom feature to make stealthed NPCs actually invisible.
                     // Currently disabled.
                     return true;
