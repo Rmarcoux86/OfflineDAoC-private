@@ -44,6 +44,18 @@ public static class ExpeditionElites
     /// <summary>The affix pool, in the order the generator's seeded RNG indexes it. Append only: reordering changes seeded runs.</summary>
     public static readonly IReadOnlyList<string> Affixes = new[] { Swift, Venomous, Armoured, Stalwart, Frenzied, Spectral };
 
+    /// <summary>
+    /// How close a player must be to see a Spectral elite that is still stealthed (GamePlayer.CanDetect; owner 2026-10-30:
+    /// "spectral is not working. Can totally see the mobs"). Once it fights, its stealth is lifted and anyone sees it.
+    /// </summary>
+    public const int SpectralRevealRadius = 500;
+
+    /// <summary>True for an elite with the Spectral affix (whether or not it is still stealthed).</summary>
+    public static bool IsSpectral(GameNPC npc)
+    {
+        return npc != null && Elites.TryGetValue(npc, out EliteState state) && state.Affixes.Contains(Spectral);
+    }
+
     /// <summary>The player must be this close (2D) to an elite camp for its pack to wake.</summary>
     public const int ApproachRadius = 3000;
 
