@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v112",
+    "date": "2026-10-30",
+    "items": [
+      "Spectral elites are now actually hidden: one still in stealth can't be seen from more than 500 units away, and it shows itself once it fights.",
+      "Hard expeditions: world monsters no longer attack the act boss champion (they could kill it before you arrived)."
+    ]
+  },
+  {
     "tag": "fork-v111",
     "date": "2026-10-30",
     "items": [
