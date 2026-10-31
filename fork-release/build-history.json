@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v113",
+    "date": "2026-10-30",
+    "items": [
+      "The Spectral elite affix is retired. A Spectral pack in a run you already started takes another affix instead.",
+      "Hard expeditions: each act's arrival line now says plainly which champion is the act's boss."
+    ]
+  },
+  {
     "tag": "fork-v112",
     "date": "2026-10-30",
     "items": [
