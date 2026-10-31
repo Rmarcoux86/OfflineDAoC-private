@@ -44,7 +44,8 @@ internal static class HallOfFame
         bool GauntletCleared,
         string? Player,
         string? SubmittedUtc,
-        IReadOnlyList<string>? Boons = null);
+        IReadOnlyList<string>? Boons = null,
+        bool Hard = false);
 
     /// <summary>
     /// The boons' display names by id (the server's ExpeditionBoons.Catalog and its retired boons). An id not listed here
@@ -61,6 +62,9 @@ internal static class HallOfFame
         ["treasure_sense"] = "Treasure Sense", ["swiftfoot"] = "Swiftfoot", ["scavenger"] = "Scavenger", ["glory"] = "Glory",
         ["blessed_arms"] = "Blessed Arms", ["second_wind"] = "Second Wind", ["warded_hide"] = "Warded Hide", ["second_skin"] = "Second Skin",
         ["hunters_instinct"] = "Hunter's Instinct", ["berserker"] = "Berserker", ["beast_bond"] = "Beast Bond",
+        ["overreach"] = "Overreach", ["deadeye"] = "Deadeye", ["sharpshooter"] = "Sharpshooter", ["skirmisher"] = "Skirmisher",
+        ["juggernaut"] = "Juggernaut", ["ambush"] = "Ambush", ["silent_death"] = "Silent Death", ["poisoner"] = "Poisoner",
+        ["dirty_fighting"] = "Dirty Fighting",
     };
 
     /// <summary>
@@ -195,7 +199,8 @@ internal static class HallOfFame
             element.TryGetProperty("gauntletCleared", out JsonElement cleared) && cleared.ValueKind == JsonValueKind.True,
             NullIfEmpty(Text(element, "player")),
             NullIfEmpty(Text(element, "submittedUtc")),
-            Strings(element, "boons"));
+            Strings(element, "boons"),
+            element.TryGetProperty("hard", out JsonElement hard) && hard.ValueKind == JsonValueKind.True);
     }
 
     // A JSON array of strings (blank ones dropped), or null when the field is missing or not an array.
@@ -271,8 +276,9 @@ internal static class HallOfFame
     };
 
     /// <summary>
-    /// Shared entries and the local wins the shared list doesn't have (shared wins on the same id), newest first.
-    /// A local win whose id is in <paramref name="sentIds"/> is marked as sent.
+    /// Shared entries and the local wins the shared list doesn't have (shared wins on the same id): hard expedition wins
+    /// first (owner 2026-10-31: the Hall of Fame for hard mode), each group newest first. A local win whose id is in
+    /// <paramref name="sentIds"/> is marked as sent.
     /// </summary>
     internal static IReadOnlyList<Row> Merge(IReadOnlyList<Entry> shared, IReadOnlyList<Entry> local, ISet<string> sentIds)
     {
@@ -288,7 +294,8 @@ internal static class HallOfFame
         }
 
         return rows
-            .OrderByDescending(row => EndedAt(row.Entry.EndedUtc))
+            .OrderByDescending(row => row.Entry.Hard)
+            .ThenByDescending(row => EndedAt(row.Entry.EndedUtc))
             .ThenBy(row => row.Entry.Character, StringComparer.OrdinalIgnoreCase)
             .ThenBy(row => row.Entry.Id, StringComparer.Ordinal)
             .ToList();
@@ -384,6 +391,12 @@ internal static class HallOfFame
             writer.WriteNumber("uniques", entry.Uniques);
             writer.WriteNumber("realmPoints", entry.RealmPoints);
             writer.WriteBoolean("gauntletCleared", entry.GauntletCleared);
+
+            // Only a hard win says so, so a normal win's issue reads as before.
+            if (entry.Hard)
+            {
+                writer.WriteBoolean("hard", true);
+            }
 
             if (entry.Boons is { Count: > 0 })
             {

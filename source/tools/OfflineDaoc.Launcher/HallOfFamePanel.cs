@@ -193,7 +193,8 @@ internal sealed class HallOfFamePanel : Panel
         foreach (HallOfFame.Entry entry in unshared)
         {
             var row = new HallOfFame.Row(entry, HallOfFame.RowState.Local);
-            _picker.Items.Add($"{entry.Character}, {HallOfFame.Summary(entry)} ({HallOfFame.Details(row)})", null, (_, _) => _ = ShareAsync(entry));
+            string hard = entry.Hard ? " [Hard]" : string.Empty;
+            _picker.Items.Add($"{entry.Character}{hard}, {HallOfFame.Summary(entry)} ({HallOfFame.Details(row)})", null, (_, _) => _ = ShareAsync(entry));
         }
 
         _picker.Show(_shareButton, new Point(0, _shareButton.Height));
@@ -260,7 +261,7 @@ internal sealed class HallOfFamePanel : Panel
 
 /// <summary>
 /// The Hall of Fame list, formatted like the build notes (ForkNotesView): each win its character name in gold (and a
-/// Gauntlet star), "level N Race Class, Realm", then who, played time, seed and date.
+/// red Hard mark for a hard expedition, and a Gauntlet star), "level N Race Class, Realm", then who, played time, seed and date.
 /// </summary>
 internal sealed class HallOfFameView : RichTextBox
 {
@@ -319,6 +320,11 @@ internal sealed class HallOfFameView : RichTextBox
             }
 
             Append(row.Entry.Character, _nameFont, DaocTheme.GoldLight);
+
+            if (row.Entry.Hard)
+            {
+                Append("  ☠ Hard", _nameFont, DaocTheme.Danger);
+            }
 
             if (row.Entry.GauntletCleared)
             {

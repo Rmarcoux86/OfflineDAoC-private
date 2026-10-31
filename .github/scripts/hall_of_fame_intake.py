@@ -55,7 +55,7 @@ HALL_INTS = {
 }
 HALL_ORDER = [
     "id", "character", "className", "race", "realm", "level", "seed", "playedSeconds", "endedUtc",
-    "kills", "bossesKilled", "uniques", "realmPoints", "gauntletCleared", "boons",
+    "kills", "bossesKilled", "uniques", "realmPoints", "gauntletCleared", "hard", "boons",
 ]
 # The run's boons by name (since 2026-10-27; optional for older launchers).
 BOON_NAME = re.compile(r"^[A-Za-z][A-Za-z' -]{0,31}$")
@@ -132,7 +132,7 @@ def validate_hall(entry):
     errors = []
 
     for name in entry:
-        if name not in HALL_STRINGS and name not in HALL_INTS and name not in ("gauntletCleared", "spectator", "boons") and name not in ADDED_BY_WORKFLOW:
+        if name not in HALL_STRINGS and name not in HALL_INTS and name not in ("gauntletCleared", "hard", "spectator", "boons") and name not in ADDED_BY_WORKFLOW:
             errors.append(f"Unknown field {field_label(name)}.")
 
     for name, required in HALL_STRINGS.items():
@@ -157,6 +157,10 @@ def validate_hall(entry):
         errors.append('Missing "gauntletCleared".')
     elif not isinstance(entry["gauntletCleared"], bool):
         errors.append('"gauntletCleared" must be true or false.')
+
+    # A hard expedition win (since 2026-10-31; optional, older launchers leave it out).
+    if "hard" in entry and not isinstance(entry["hard"], bool):
+        errors.append('"hard" must be true or false.')
 
     if "boons" in entry:
         boons = entry["boons"]

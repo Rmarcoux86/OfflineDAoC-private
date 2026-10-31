@@ -244,4 +244,32 @@ public sealed class HallOfFameTests
         Assert.That(body, Does.Contain("\"spectator\":{\"id\":\"a\",\"name\":\"Alpha\""));
         Assert.That(alone, Does.Not.Contain("spectator\""));
     }
+
+    [Test]
+    public void HardWinsAreReadSharedAndListedFirst()
+    {
+        object hard = Items(Entries(Win("h:2026-10-20T10:00:00Z", "Hardy", "2026-10-20T10:00:00Z", ", \"hard\": true")))[0];
+        object normal = Items(Entries(Win("n:2026-10-28T10:00:00Z", "Newer", "2026-10-28T10:00:00Z")))[0];
+
+        Assert.That(Value(hard, "Hard"), Is.True);
+        Assert.That(Value(normal, "Hard"), Is.False);
+
+        string json = (string)Call("SubmissionJson", hard);
+        Assert.That(json, Does.Contain("\"hard\": true"));
+        Assert.That(Value(Items(Parse("{ \"entries\": [" + json + "] }"))[0], "Hard"), Is.True);
+        Assert.That((string)Call("SubmissionJson", normal), Does.Not.Contain("hard"));
+
+        // The older hard win comes before the newer normal one.
+        object shared = Entries(Win("n:2026-10-28T10:00:00Z", "Newer", "2026-10-28T10:00:00Z"), Win("h:2026-10-20T10:00:00Z", "Hardy", "2026-10-20T10:00:00Z", ", \"hard\": true"));
+        List<object> rows = Items(Call("Merge", shared, Entries(), new HashSet<string>()));
+        Assert.That(rows.Select(row => Value(Value(row, "Entry"), "Character")), Is.EqualTo(new[] { "Hardy", "Newer" }));
+    }
+
+    [Test]
+    public void NewerBoonIdsHaveTheirNames()
+    {
+        var names = (IEnumerable<string>)Call("BoonNamesFromJson", """["juggernaut","overreach","deadeye","sharpshooter","skirmisher"]""");
+
+        Assert.That(names, Is.EqualTo(new[] { "Juggernaut", "Overreach", "Deadeye", "Sharpshooter", "Skirmisher" }));
+    }
 }
