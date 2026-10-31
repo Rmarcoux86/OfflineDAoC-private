@@ -339,6 +339,15 @@ namespace DOL.GS.ServerRules
             if (!defender.IsAlive || !attacker.IsAlive)
                 return false;
 
+            // Fork (owner 2026-10-30: "the act boss in hard mode just died to mobs?"): a hard run's champion act boss is a bot,
+            // which world monsters attack as they would a player. It fights only its challenger's side, and only that side
+            // fights it.
+            if (defender is DOL.GS.Expedition.Gauntlet.GauntletChampion { ActBoss: true } bossDefender && !bossDefender.IsChallengerSide(attacker))
+                return false;
+
+            if (attacker is DOL.GS.Expedition.Gauntlet.GauntletChampion { ActBoss: true } bossAttacker && !bossAttacker.IsChallengerSide(defender))
+                return false;
+
             GamePlayer playerAttacker = attacker as GamePlayer;
             GamePlayer playerDefender = defender as GamePlayer;
 
