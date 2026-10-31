@@ -114,17 +114,13 @@ public static class ExpeditionBoons
 
         // Hard expedition only (HardOnly): appended, so a normal run's offers are drawn as before.
         new(Juggernaut, "Juggernaut", "+25% maximum health, and mesmerize, stun and snare on you last half as long.", false),
-        new(Ambush, "Ambush", "Your first hit on a monster that is not yet fighting does 50% more damage.", false),
-        new(SilentDeath, "Silent Death", "Killing a monster before it fights back restores 20% of your health and 10% of your endurance.", false),
-        new(Poisoner, "Poisoner", "Your weapon poisons' damage over time lasts 50% longer and ticks 25% harder.", false),
-        new(DirtyFighting, "Dirty Fighting", "Stuns and snares you land from behind your target last 30% longer.", false),
     };
 
     /// <summary>
     /// Boons only offered on a hard expedition (owner 2026-10-29): never in a normal run's offers, filtered as
     /// <see cref="CasterOnly"/> is.
     /// </summary>
-    public static readonly IReadOnlySet<string> HardOnly = new HashSet<string>(StringComparer.Ordinal) { Juggernaut, Ambush, SilentDeath, Poisoner, DirtyFighting };
+    public static readonly IReadOnlySet<string> HardOnly = new HashSet<string>(StringComparer.Ordinal) { Juggernaut };
 
     /// <summary>Boons never offered on a hard expedition (owner 2026-10-29): Phoenix Feather.</summary>
     public static readonly IReadOnlySet<string> NotInHard = new HashSet<string>(StringComparer.Ordinal) { PhoenixFeather };
@@ -132,10 +128,11 @@ public static class ExpeditionBoons
     /// <summary>
     /// Boons taken out of the catalog (owner 2026-10-25; Greed and Prospector 2026-10-27: the base drop rate is high
     /// enough that a drop chance bonus barely shows; Scavenger and Frostbite 2026-10-27; Warding 2026-10-28: next to nothing casts
-    /// on the player in an expedition).
+    /// on the player in an expedition; Ambush, Silent Death, Poisoner and Dirty Fighting 2026-10-31: "remove all except Juggernaut").
     /// A run that has one gets a new boon choice instead.
     /// </summary>
-    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector, Scavenger, Frostbite, Warding };
+    public static readonly IReadOnlySet<string> Retired = new HashSet<string>(StringComparer.Ordinal) { HuntersEye, ChainLightning, Rupture, Unshakable, SecondWind, WardedHide, Greed, Prospector, Scavenger, Frostbite, Warding,
+        Ambush, SilentDeath, Poisoner, DirtyFighting };
 
     /// <summary>
     /// At login: takes retired boons off the run. A retired boon the run had taken is replaced by a fresh offer for

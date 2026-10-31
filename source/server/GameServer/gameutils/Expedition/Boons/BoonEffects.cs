@@ -30,7 +30,7 @@ public static partial class BoonEffects
     private static readonly HashSet<string> HitBoons = new()
     {
         ExpeditionBoons.Thornmail, ExpeditionBoons.Vampiric, ExpeditionBoons.Executioner, ExpeditionBoons.Siphon,
-        ExpeditionBoons.HuntersInstinct, ExpeditionBoons.BeastBond, ExpeditionBoons.Ambush, ExpeditionBoons.SilentDeath, ExpeditionBoons.Poisoner
+        ExpeditionBoons.HuntersInstinct, ExpeditionBoons.BeastBond
     };
 
     /// <summary>Boons that watch the player's health on a timer.</summary>
@@ -98,10 +98,6 @@ public static partial class BoonEffects
         public ECSGameTimer PulseTimer;
         public int PhoenixUsedAct;
         public bool DesperationOn;
-
-        // Silent Death: the monster the player's last hit landed on, and whether it was unaware then (IsUnaware).
-        public GameNPC LastHitMonster;
-        public bool LastHitUnaware;
 
         // The buff bar icons (BoonIconEffect) by boon id, and the timer that puts back one that death or a cancel ended.
         public readonly Dictionary<string, BoonIconEffect> Icons = new();

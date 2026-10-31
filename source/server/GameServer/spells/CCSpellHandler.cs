@@ -321,9 +321,6 @@ namespace DOL.GS.Spells
             double duration = base.CalculateEffectDuration(target);
             duration *= target.GetModified(eProperty.StunDurationReduction) * 0.01;
 
-            // Expedition Dirty Fighting (a hard expedition boon): a stun landed from behind lasts longer.
-            duration = DOL.GS.Expedition.BoonEffects.DirtyFightingDuration(Caster, target, (int) duration);
-
             if (EffectListService.GetEffectOnTarget(target, eEffect.NPCStunImmunity) is NpcStunImmunityEffect immunityEffect)
                 duration = immunityEffect.CalculateNewEffectDuration((long) duration);
 
