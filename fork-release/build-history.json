@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v114",
+    "date": "2026-10-30",
+    "items": [
+      "Hard expeditions: an inherited unique's stats now fit your class. A stat your class doesn't use becomes one it does, at the same value; this also updates a unique you already inherited the next time you log in."
+    ]
+  },
+  {
     "tag": "fork-v113",
     "date": "2026-10-30",
     "items": [
