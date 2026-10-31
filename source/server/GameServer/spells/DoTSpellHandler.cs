@@ -70,14 +70,6 @@ namespace DOL.GS.Spells
             return ad;
         }
 
-        protected override int CalculateEffectDuration(GameLiving target)
-        {
-            int duration = base.CalculateEffectDuration(target);
-
-            // Expedition Poisoner (a hard expedition boon): the player's weapon poisons last longer.
-            return DOL.GS.Expedition.BoonEffects.PoisonDuration(this, duration);
-        }
-
         public override void SendDamageMessages(AttackData ad)
         {
             GamePlayer player = null;

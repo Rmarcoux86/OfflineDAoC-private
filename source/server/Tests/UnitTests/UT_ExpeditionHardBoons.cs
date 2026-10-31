@@ -50,7 +50,7 @@ public class UT_ExpeditionHardBoons
     [Test]
     public void HardOnlyBoons_AreInTheCatalog_WithIcons()
     {
-        Assert.That(ExpeditionBoons.HardOnly.Count, Is.EqualTo(5));
+        Assert.That(ExpeditionBoons.HardOnly, Is.EquivalentTo(new[] { ExpeditionBoons.Juggernaut }));
 
         foreach (string id in ExpeditionBoons.HardOnly)
         {
@@ -105,35 +105,19 @@ public class UT_ExpeditionHardBoons
     }
 
     [Test]
-    public void Unaware_MeansNotInCombatAndNotAttacking()
+    public void Juggernaut_HalvesCrowdControl()
     {
-        Assert.That(BoonEffects.IsUnaware(false, false), Is.True);
-        Assert.That(BoonEffects.IsUnaware(true, false), Is.False, "already fighting");
-        Assert.That(BoonEffects.IsUnaware(false, true), Is.False, "aggroed and running at someone");
-        Assert.That(BoonEffects.IsUnaware(true, true), Is.False);
-    }
-
-    [Test]
-    public void Behind_IsTheTargetsBackHalf()
-    {
-        Assert.That(BoonEffects.IsBehind(180), Is.True);
-        Assert.That(BoonEffects.IsBehind(120), Is.True);
-        Assert.That(BoonEffects.IsBehind(250), Is.True);
-        Assert.That(BoonEffects.IsBehind(0), Is.False, "straight ahead");
-        Assert.That(BoonEffects.IsBehind(45), Is.False);
-        Assert.That(BoonEffects.IsBehind(90), Is.False, "the flank is not behind");
-        Assert.That(BoonEffects.IsBehind(270), Is.False);
-        Assert.That(BoonEffects.IsBehind(359), Is.False);
-    }
-
-    [Test]
-    public void Durations_ScaleByThePercent()
-    {
-        Assert.That(BoonEffects.ScaleDuration(20000, BoonEffects.PoisonerDurationPercent), Is.EqualTo(30000), "Poisoner: 50% longer");
-        Assert.That(BoonEffects.ScaleDuration(9000, BoonEffects.DirtyFightingDurationPercent), Is.EqualTo(11700), "Dirty Fighting: 30% longer");
-        Assert.That(BoonEffects.ScaleDuration(0, 130), Is.EqualTo(1));
-        Assert.That(BoonEffects.PoisonerDamagePercent, Is.EqualTo(125));
         Assert.That(BoonEffects.JuggernautCrowdControlReduction, Is.EqualTo(50), "half as long, as a Stalwart elite");
+    }
+
+    [Test]
+    public void RetiredHardBoons_AreGone_AndNeverOffered()
+    {
+        foreach (string id in new[] { ExpeditionBoons.Ambush, ExpeditionBoons.SilentDeath, ExpeditionBoons.Poisoner, ExpeditionBoons.DirtyFighting })
+        {
+            Assert.That(ExpeditionBoons.Retired, Does.Contain(id));
+            Assert.That(ExpeditionBoons.Find(id), Is.Null);
+        }
     }
 
     [Test]

@@ -20,8 +20,7 @@ namespace DOL.GS.Spells
 
 		protected override int CalculateEffectDuration(GameLiving target)
 		{
-			// Expedition Dirty Fighting (a hard expedition boon): a style snare landed from behind lasts longer.
-			return DOL.GS.Expedition.BoonEffects.DirtyFightingDuration(Caster, target, Spell.Duration);
+			return Spell.Duration;
 		}
 
 		/// <summary>

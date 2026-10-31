@@ -34,14 +34,6 @@ public static partial class BoonEffects
     private const double BeastBondHealthFactor = 1.2;
     private const int BeastBondDamagePercent = 15;
 
-    // The hard expedition boons (owner 2026-10-29).
-    private const int AmbushDamagePercent = 50;
-    private const int SilentDeathHealthPercent = 20;
-    private const int SilentDeathEndurancePercent = 10;
-    public const int PoisonerDurationPercent = 150;
-    public const int PoisonerDamagePercent = 125;
-    public const int DirtyFightingDurationPercent = 130;
-
     /// <summary>
     /// The pure casters (owner 2026-10-27): the list casters, the pet casters and the healers, and their caster base
     /// classes. Vampiric rolls on their damage-over-time ticks; a hybrid's DoTs (Reaver, Heretic, ...) roll nothing.
@@ -90,36 +82,6 @@ public static partial class BoonEffects
 
         GameLiving target = ad.Target;
         int dealt = ad.Damage + ad.CriticalDamage;
-
-        // Ambush and Silent Death: is the monster still unaware of the fight? Asked before this hit puts it in combat
-        // (GameLiving.OnAttackedByEnemy notifies first and sets the combat ticks after).
-        if ((boons.Contains(ExpeditionBoons.Ambush) || boons.Contains(ExpeditionBoons.SilentDeath)) && target is GameNPC struck && IsMonster(struck))
-        {
-            bool unaware = IsUnaware(struck.InCombat, struck.attackComponent?.AttackState == true);
-
-            lock (state)
-            {
-                state.LastHitMonster = struck;
-                state.LastHitUnaware = unaware;
-            }
-
-            // Ambush: the opening hit on an unaware monster does more.
-            if (unaware && boons.Contains(ExpeditionBoons.Ambush) && dealt > 0)
-            {
-                ad.Damage = ad.Damage * (100 + AmbushDamagePercent) / 100;
-                ad.CriticalDamage = ad.CriticalDamage * (100 + AmbushDamagePercent) / 100;
-                dealt = ad.Damage + ad.CriticalDamage;
-                striker.Out?.SendMessage($"Ambush: you catch {struck.GetName(0, false)} unaware!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
-            }
-        }
-
-        // Poisoner: the ticks of the player's weapon poisons (the Mundane Poisons line) hit harder.
-        if (boons.Contains(ExpeditionBoons.Poisoner) && IsWeaponPoisonDot(ad.SpellHandler) && dealt > 0)
-        {
-            ad.Damage = ad.Damage * PoisonerDamagePercent / 100;
-            ad.CriticalDamage = ad.CriticalDamage * PoisonerDamagePercent / 100;
-            dealt = ad.Damage + ad.CriticalDamage;
-        }
 
         // Marked Prey: elites, act bosses and Gauntlet champions take more from every hit.
         if (boons.Contains(ExpeditionBoons.MarkedPrey) && target is GameNPC marked && (IsBossLike(marked) || ExpeditionElites.IsElite(marked)) && dealt > 0)
@@ -197,26 +159,6 @@ public static partial class BoonEffects
             {
                 player.ChangeHealth(player, eHealthChangeType.Spell, Math.Max(1, player.MaxHealth * SoulHarvestPercent / 100));
                 player.ChangeMana(player, eManaChangeType.Spell, Math.Max(1, player.MaxMana * SoulHarvestPercent / 100));
-            }
-
-            // Silent Death: the killing hit landed while the monster was still unaware (it never fought back).
-            AppliedBoons state = player.TempProperties.GetProperty<AppliedBoons>(StateKey, null);
-            bool silent = false;
-
-            if (state != null)
-            {
-                lock (state)
-                {
-                    silent = state.Ids.Contains(ExpeditionBoons.SilentDeath) && ReferenceEquals(state.LastHitMonster, killed) && state.LastHitUnaware;
-                    state.LastHitMonster = null;
-                }
-            }
-
-            if (silent && player.IsAlive)
-            {
-                player.ChangeHealth(player, eHealthChangeType.Spell, Math.Max(1, player.MaxHealth * SilentDeathHealthPercent / 100));
-                player.ChangeEndurance(player, eEnduranceChangeType.Spell, Math.Max(1, player.MaxEndurance * SilentDeathEndurancePercent / 100));
-                player.Out?.SendMessage($"Silent Death: {killed.GetName(0, true)} never saw you coming.", eChatType.CT_Spell, eChatLoc.CL_SystemWindow);
             }
 
             if (HasBoon(player, ExpeditionBoons.BountyHunter) && ExpeditionElites.IsElite(killed))
@@ -324,79 +266,6 @@ public static partial class BoonEffects
         player.AbilityBonus[eProperty.MeleeDamage] += sign * DesperationDamagePercent;
         player.AbilityBonus[eProperty.SpellDamage] += sign * DesperationDamagePercent;
         state.DesperationOn = on;
-    }
-
-    #endregion
-
-    #region Hard expedition boons: pure parts
-
-    /// <summary>
-    /// Ambush and Silent Death: a monster is unaware while it is not in combat (no attack given or taken lately, not
-    /// crowd controlled: GameLiving.InCombat) and is not attacking anyone (its attack component's AttackState, set as
-    /// soon as it aggroes, while it still runs at its target).
-    /// </summary>
-    public static bool IsUnaware(bool inCombat, bool attacking)
-    {
-        return !inCombat && !attacking;
-    }
-
-    /// <summary>
-    /// Dirty Fighting: the attacker is behind the target when the target's angle to it (GameObject.GetAngle: 0 straight
-    /// ahead, clockwise in degrees) is in its back half, from 90 to 270 degrees (a back style needs 150 to 210).
-    /// </summary>
-    public static bool IsBehind(float angleFromTarget)
-    {
-        return angleFromTarget > 90 && angleFromTarget < 270;
-    }
-
-    /// <summary>A duration (milliseconds) scaled by a percent, rounded down, at least 1.</summary>
-    public static int ScaleDuration(int duration, int percent)
-    {
-        return Math.Max(1, (int) ((long) duration * percent / 100));
-    }
-
-    #endregion
-
-    #region Hard expedition boons: spell handler hooks
-
-    /// <summary>A damage-over-time spell of the Mundane Poisons line: a weapon poison (applied by GameLiving.CheckWeaponMagicalEffect).</summary>
-    private static bool IsWeaponPoisonDot(ISpellHandler handler)
-    {
-        return handler?.Spell?.SpellType is eSpellType.DamageOverTime && handler.SpellLine?.KeyName == GlobalSpellsLines.Mundane_Poisons;
-    }
-
-    /// <summary>
-    /// Poisoner: the duration (milliseconds) of a weapon poison's damage over time the caster applies, 50% longer with
-    /// the boon. Called by DoTSpellHandler.CalculateEffectDuration.
-    /// </summary>
-    public static int PoisonDuration(ISpellHandler handler, int duration)
-    {
-        if (duration <= 0 || handler?.Caster is not GamePlayer player || !IsWeaponPoisonDot(handler) || !HasBoon(player, ExpeditionBoons.Poisoner))
-        {
-            return duration;
-        }
-
-        return ScaleDuration(duration, PoisonerDurationPercent);
-    }
-
-    /// <summary>
-    /// Dirty Fighting: the duration (milliseconds) of a stun or snare the caster lands, 30% longer when the caster has the
-    /// boon and stands behind the target (<see cref="IsBehind"/>). Called by StunSpellHandler and
-    /// SpeedDecreaseSpellHandler.CalculateEffectDuration.
-    /// </summary>
-    public static int DirtyFightingDuration(GameLiving caster, GameLiving target, int duration)
-    {
-        if (duration <= 0 || caster is not GamePlayer player || target == null || target == caster || !HasBoon(player, ExpeditionBoons.DirtyFighting))
-        {
-            return duration;
-        }
-
-        if (!IsBehind(target.GetAngle(caster)))
-        {
-            return duration;
-        }
-
-        return ScaleDuration(duration, DirtyFightingDurationPercent);
     }
 
     #endregion
