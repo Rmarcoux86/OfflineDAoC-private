@@ -869,7 +869,7 @@ public static class ExpeditionManager
 
         // The boon offer is drawn for the act just won (ExpeditionBoons.RollOffer) and waits for /run boon <n>.
         bool boonOffered = ExpeditionBoons.OfferAtActBreak(run, run.Act, out bool replacedUnclaimedBoon, ExpeditionBoons.UsesPower(player), ExpeditionBoons.HasPet(player),
-            ExpeditionBoons.FightsInMelee(player), ExpeditionBoons.IsRanged(player), ExpeditionHardMode.IsHard(run));
+            ExpeditionBoons.FightsInMelee(player), ExpeditionBoons.IsRanged(player), ExpeditionHardMode.IsHard(run), ExpeditionBoons.UsesPoisons(player));
 
         run.Act = nextAct;
         run.CurrentAct = next;

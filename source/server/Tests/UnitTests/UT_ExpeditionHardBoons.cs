@@ -36,7 +36,7 @@ public class UT_ExpeditionHardBoons
             for (int act = 1; act <= 4; act++)
             {
                 List<string> normal = ExpeditionBoons.RollOffer(seed, act, new List<string>(), hasPet: true, ranged: true);
-                List<string> hard = ExpeditionBoons.RollOffer(seed, act, new List<string>(), hasPet: true, ranged: true, hard: true);
+                List<string> hard = ExpeditionBoons.RollOffer(seed, act, new List<string>(), hasPet: true, ranged: true, hard: true, poisons: true);
 
                 Assert.That(normal.Intersect(ExpeditionBoons.HardOnly), Is.Empty, $"normal run, seed {seed}, act {act}");
                 Assert.That(hard, Does.Not.Contain(ExpeditionBoons.PhoenixFeather), $"hard run, seed {seed}, act {act}");
@@ -45,6 +45,18 @@ public class UT_ExpeditionHardBoons
         }
 
         Assert.That(seenHard, Is.SupersetOf(ExpeditionBoons.HardOnly), "every hard-only boon is offered on a hard expedition");
+    }
+
+    [Test]
+    public void Poisoner_IsOnlyOfferedToAClassWithWeaponPoisons()
+    {
+        for (int seed = 0; seed < 2000; seed++)
+        {
+            for (int act = 1; act <= 4; act++)
+            {
+                Assert.That(ExpeditionBoons.RollOffer(seed, act, new List<string>(), hasPet: true, hard: true), Does.Not.Contain(ExpeditionBoons.Poisoner), $"seed {seed}, act {act}");
+            }
+        }
     }
 
     [Test]
