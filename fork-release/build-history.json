@@ -1,5 +1,13 @@
 [
   {
+    "tag": "fork-v115",
+    "date": "2026-10-31",
+    "items": [
+      "Hall of Fame: hard expedition wins are marked Hard and listed above the others. Share a hard win from this version on to have it marked.",
+      "Hard expeditions: Ambush, Silent Death, Poisoner and Dirty Fighting are removed; Juggernaut is the one hard-only boon left. A run that had one of the four gets a new boon choice the next time you log in."
+    ]
+  },
+  {
     "tag": "fork-v114",
     "date": "2026-10-30",
     "items": [
