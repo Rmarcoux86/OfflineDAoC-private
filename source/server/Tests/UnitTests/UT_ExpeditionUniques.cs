@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DOL.GS.Expedition;
+using DOL.GS.PlayerClass;
 using NUnit.Framework;
 
 namespace DOL.GS.Tests;
@@ -322,5 +323,34 @@ public class UT_ExpeditionUniques
         Assert.That(new HashSet<DOL.GS.eProperty>(ExpeditionUniques.ThreePointOhRingResists).Count, Is.EqualTo(9));
         Assert.That(ExpeditionUniques.ThreePointOhRingResistBonus, Is.EqualTo(3));
         Assert.That(ExpeditionUniques.ThreePointOhRingDescription, Does.Contain("+3 to all resistances"));
+    }
+
+    [Test]
+    public void LinesFor_TurnsStatsTheClassDoesNotUseIntoOnesItDoes()
+    {
+        // Hearthstone Band: Strength 19, Constitution 17, hit points 41, crush 7.
+        UniqueDefinition band = ExpeditionUniques.FindByName("Hearthstone Band");
+        UniqueLine[] wizard = ExpeditionUniques.LinesFor(band, new ClassWizard());
+
+        Assert.That(wizard[0], Is.EqualTo(new UniqueLine(DOL.GS.eProperty.Intelligence, 19)));
+        Assert.That(wizard.Skip(1), Is.EqualTo(band.Lines.Skip(1)));
+
+        // An Armsman uses Strength: nothing changes.
+        Assert.That(ExpeditionUniques.LinesFor(band, new ClassArmsman()), Is.EqualTo(band.Lines));
+    }
+
+    [Test]
+    public void LinesFor_NeverRepeatsAStat_AndKeepsEveryValue()
+    {
+        foreach (UniqueDefinition definition in ExpeditionUniques.Catalog)
+        {
+            foreach (ICharacterClass characterClass in new ICharacterClass[] { new ClassWizard(), new ClassCleric(), new ClassArmsman() })
+            {
+                UniqueLine[] lines = ExpeditionUniques.LinesFor(definition, characterClass);
+
+                Assert.That(lines.Select(line => line.Value), Is.EqualTo(definition.Lines.Select(line => line.Value)), definition.Name);
+                Assert.That(lines.Select(line => line.Property).Distinct().Count(), Is.EqualTo(lines.Length), definition.Name);
+            }
+        }
     }
 }

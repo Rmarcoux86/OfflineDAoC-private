@@ -535,7 +535,8 @@ public static class ExpeditionExchanger
             return;
         }
 
-        GeneratedUniqueItem reforged = ExpeditionUniques.Build(player, unique, (choice.Type, choice.Hand), (byte) Math.Max(1, item.Level));
+        GeneratedUniqueItem reforged = ExpeditionUniques.Build(player, unique, (choice.Type, choice.Hand), (byte) Math.Max(1, item.Level),
+            unique.Name == ExpeditionHardMode.InheritedUniqueOf(player));
         DbInventoryItem replacement = GameInventoryItem.Create(reforged);
         replacement.IsROG = true;
         replacement.Creator = item.Creator;

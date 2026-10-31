@@ -238,7 +238,7 @@ public static class ExpeditionHardMode
             lines.Add($"{i + 1}. {uniques[i].Name} ({uniques[i].Tier}, carried by {uniques[i].Owner})");
         }
 
-        lines.Add("It starts at level 1 and grows with you up to its usual cap; the original stays with its owner.");
+        lines.Add("It is remade for your class (its armor or weapon and its stats), starts at level 1 and grows with you up to its usual cap; the original stays with its owner.");
 
         return lines;
     }
@@ -281,7 +281,7 @@ public static class ExpeditionHardMode
 
         try
         {
-            GeneratedUniqueItem item = ExpeditionUniques.Build(player, definition, itemLevel: (byte) ExpeditionUniques.TierMinLevel(eUniqueTier.Early));
+            GeneratedUniqueItem item = ExpeditionUniques.Build(player, definition, itemLevel: (byte) ExpeditionUniques.TierMinLevel(eUniqueTier.Early), inherited: true);
             DbInventoryItem invItem = GameInventoryItem.Create(item);
             invItem.IsROG = true;
             invItem.Creator = uniques[choice - 1].Owner;

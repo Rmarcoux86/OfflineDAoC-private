@@ -706,6 +706,10 @@ public static class ExpeditionUniques
             return;
         }
 
+        // A hard run's inherited unique keeps the stat lines of the inheritor's class (LinesFor), read once.
+        string inherited = null;
+        bool inheritedRead = false;
+
         foreach (DbInventoryItem item in player.Inventory.AllItems.ToList())
         {
             UniqueDefinition definition = item == null ? null : FindByName(item.Name);
@@ -715,6 +719,13 @@ public static class ExpeditionUniques
                 continue;
             }
 
+            if (!inheritedRead)
+            {
+                inherited = ExpeditionHardMode.InheritedUniqueOf(player);
+                inheritedRead = true;
+            }
+
+            UniqueLine[] lines = definition.Name == inherited ? LinesFor(definition, player.CharacterClass) : definition.Lines;
             int lookModel = LookModelFor(item.Template, definition, player.Realm);
             int glow = definition.Slot == eUniqueSlot.Weapon ? WeaponGlowFor(definition.Name) : item.Effect;
             int proc = item.Template.ProcSpellID != 0 && definition.Proc != eUniqueProc.None ? ProcSpellFor(definition.Proc, item.Level) : item.Template.ProcSpellID;
@@ -728,11 +739,11 @@ public static class ExpeditionUniques
             bool bonusChanged = ApplyToaLines(preview, definition, ToaPoolFor(player, item.Template));
 
             // The catalog's own lines too (owner 2026-10-25: mid-tier uniques halved).
-            for (int i = 0; i < definition.Lines.Length && i < 8; i++)
+            for (int i = 0; i < lines.Length && i < 8; i++)
             {
                 (int type, int amount) = BonusLine(item.Template, i + 1);
 
-                if (type != (int) definition.Lines[i].Property || amount != definition.Lines[i].Value)
+                if (type != (int) lines[i].Property || amount != lines[i].Value)
                 {
                     bonusChanged = true;
                 }
@@ -750,9 +761,9 @@ public static class ExpeditionUniques
 
             if (bonusChanged)
             {
-                for (int i = 0; i < definition.Lines.Length && i < 8; i++)
+                for (int i = 0; i < lines.Length && i < 8; i++)
                 {
-                    ExpeditionLoot.SetBonus(item.Template, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
+                    ExpeditionLoot.SetBonus(item.Template, i + 1, lines[i].Property, lines[i].Value);
                 }
 
                 ApplyToaLines(item.Template, definition, ToaPoolFor(player, item.Template));
@@ -1179,8 +1190,9 @@ public static class ExpeditionUniques
     /// </summary>
     /// <param name="weaponType">A weapon unique: this weapon type and hand instead of a random one the class uses (the exchanger).</param>
     /// <param name="itemLevel">The item level to build at instead of the finder's (the exchanger keeps the original's).</param>
+    /// <param name="inherited">A hard run's inherited unique: its stat lines fit the inheritor's class (<see cref="LinesFor"/>).</param>
     public static GeneratedUniqueItem Build(GamePlayer player, UniqueDefinition definition, (eObjectType Type, eInventorySlot Hand)? weaponType = null,
-        byte? itemLevel = null)
+        byte? itemLevel = null, bool inherited = false)
     {
         eRealm realm = player.Realm;
         eCharacterClass characterClass = (eCharacterClass) player.CharacterClass.ID;
@@ -1215,9 +1227,11 @@ public static class ExpeditionUniques
             item.DPS_AF = WeaponDpsAf(item.Level);
         }
 
-        for (int i = 0; i < definition.Lines.Length && i < 10; i++)
+        UniqueLine[] lines = inherited ? LinesFor(definition, player.CharacterClass) : definition.Lines;
+
+        for (int i = 0; i < lines.Length && i < 10; i++)
         {
-            ExpeditionLoot.SetBonus(item, i + 1, definition.Lines[i].Property, definition.Lines[i].Value);
+            ExpeditionLoot.SetBonus(item, i + 1, lines[i].Property, lines[i].Value);
         }
 
         ApplyToaLines(item, definition, ToaPoolFor(player, item));
@@ -1257,6 +1271,67 @@ public static class ExpeditionUniques
         item.LevelRequirement = Math.Max(1, Math.Min((int) item.Level, (int) player.Level));
 
         return item;
+    }
+
+    /// <summary>The eight attributes a unique's stat lines can carry.</summary>
+    private static readonly eProperty[] Attributes =
+    [
+        eProperty.Strength, eProperty.Dexterity, eProperty.Quickness, eProperty.Constitution,
+        eProperty.Intelligence, eProperty.Piety, eProperty.Empathy, eProperty.Charisma
+    ];
+
+    /// <summary>
+    /// A unique's stat lines for a class (owner 2026-10-30: an inherited unique "updates its stats according to the
+    /// character that inherited it"): an attribute the class does not use becomes one it does, at the same value, so the
+    /// utility stays. The class uses its mana stat, primary, secondary and tertiary stats (in that order of preference)
+    /// and Constitution; a replacement is never one the item already has, and a line with no replacement left stays.
+    /// Hit points, resists, skills and the rest stay as they are.
+    /// </summary>
+    public static UniqueLine[] LinesFor(UniqueDefinition definition, ICharacterClass characterClass)
+    {
+        UniqueLine[] lines = (UniqueLine[]) definition.Lines.Clone();
+
+        if (characterClass == null)
+        {
+            return lines;
+        }
+
+        List<eProperty> wanted = new();
+
+        foreach (eStat stat in new[] { characterClass.ManaStat, characterClass.PrimaryStat, characterClass.SecondaryStat, characterClass.TertiaryStat })
+        {
+            eProperty property = (eProperty) stat;
+
+            if (stat != eStat.UNDEFINED && property != eProperty.Constitution && !wanted.Contains(property))
+            {
+                wanted.Add(property);
+            }
+        }
+
+        HashSet<eProperty> onItem = new(lines.Select(line => line.Property));
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            eProperty property = lines[i].Property;
+
+            if (!Attributes.Contains(property) || property == eProperty.Constitution || wanted.Contains(property))
+            {
+                continue;
+            }
+
+            eProperty replacement = wanted.FirstOrDefault(candidate => !onItem.Contains(candidate));
+
+            if (replacement == default)
+            {
+                continue;
+            }
+
+            onItem.Remove(property);
+            onItem.Add(replacement);
+            lines[i] = new UniqueLine(replacement, lines[i].Value);
+        }
+
+        return lines;
     }
 
     /// <summary>The best armor the class wears at this level (the generator's per-realm tables).</summary>
