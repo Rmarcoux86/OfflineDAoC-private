@@ -1,5 +1,12 @@
 [
   {
+    "tag": "fork-v116",
+    "date": "2026-10-31",
+    "items": [
+      "Launcher: Enter Realm now turns on as soon as the server is up, and no longer says the server is stopped when it's running. This affected some PCs after the last update."
+    ]
+  },
+  {
     "tag": "fork-v115",
     "date": "2026-10-31",
     "items": [
