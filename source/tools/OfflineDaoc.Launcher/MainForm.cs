@@ -1445,6 +1445,7 @@ internal sealed partial class MainForm : Form
         catch (Exception exception)
         {
             _footer.Text = $"Dashboard refresh failed: {exception.Message}";
+            LauncherLog($"Dashboard refresh failed: {exception}");
         }
         finally
         {
@@ -3084,7 +3085,58 @@ internal sealed partial class MainForm : Form
 
     private bool IsServerRunning()
     {
-        return IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(endpoint => endpoint.Port == 10300);
+        try
+        {
+            if (IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners().Any(endpoint => endpoint.Port == 10300))
+            {
+                return true;
+            }
+        }
+        catch (NetworkInformationException exception)
+        {
+            LauncherLog($"Listing the TCP listeners failed: {exception.Message}");
+        }
+
+        // The listener list can miss the server's socket (owner 2026-10-31: Enter Realm stayed grey while the server
+        // was up and accepting connections): a quick connect on loopback decides.
+        return CanConnectToServer();
+    }
+
+    private static bool CanConnectToServer()
+    {
+        try
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            Task connect = client.ConnectAsync(System.Net.IPAddress.Loopback, 10300);
+
+            return connect.Wait(250) && client.Connected;
+        }
+        catch (Exception)
+        {
+            // Refused or unreachable: not running.
+            return false;
+        }
+    }
+
+    /// <summary>Appends a line to logs\launcher.log (dashboard and readiness problems the window no longer shows).</summary>
+    private void LauncherLog(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(_logsDirectory);
+            string path = Path.Combine(_logsDirectory, "launcher.log");
+
+            if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024)
+            {
+                File.Delete(path);
+            }
+
+            File.AppendAllText(path, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {message}{Environment.NewLine}");
+        }
+        catch (Exception)
+        {
+            // Logging must never break the launcher.
+        }
     }
 
     private void BeginServerReadinessPolling()
@@ -3102,12 +3154,28 @@ internal sealed partial class MainForm : Form
 
         // Do not stop the probe while another refresh owns the snapshot gate.
         // Its next lightweight tick will perform the one readiness refresh.
+        // A refresh that hangs must not keep Enter Realm grey with the server up.
         if (_refreshing)
+        {
+            if (serverReady && !processExited && !_stoppingServer && File.Exists(_clientConnector))
+            {
+                _playButton.Enabled = true;
+            }
+
             return;
+        }
 
         await RefreshDashboardAsync();
-        // A short SQLite startup lock may make the first snapshot fail. Keep
-        // probing until the successful refresh actually enables Enter Realm.
+
+        // The server accepts connections, so Enter Realm opens even when the dashboard read failed (owner 2026-10-31:
+        // it stayed grey with the server up); the reason is in logs\launcher.log.
+        if (serverReady && !processExited && !_stoppingServer && !_playButton.Enabled && File.Exists(_clientConnector))
+        {
+            LauncherLog("The server accepts connections but the dashboard did not enable Enter Realm; enabling it.");
+            _playButton.Enabled = true;
+            _stopButton.Enabled = true;
+        }
+
         if (processExited || _playButton.Enabled || !File.Exists(_clientConnector))
             _serverReadinessPoll.Stop();
     }
